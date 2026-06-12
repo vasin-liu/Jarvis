@@ -44,6 +44,7 @@ pub fn run() {
             chunker: ChunkerConfig::default(),
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![source_count, index_file])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

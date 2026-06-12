@@ -1,12 +1,46 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::document::Document;
 use crate::error::{IngestError, Result};
 use crate::hash::hash_text;
 
-pub fn load_path(path: impl AsRef<Path>) -> Result<Document> {
+/// Resolve a user-supplied path to an existing file.
+/// Relative paths are tried against cwd and parent dirs (Tauri dev cwd is often `src-tauri`).
+pub fn resolve_existing_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     let path = path.as_ref();
+
+    if path.is_file() {
+        return Ok(path
+            .canonicalize()
+            .unwrap_or_else(|_| path.to_path_buf()));
+    }
+
+    if path.is_absolute() {
+        return Err(IngestError::NotFound(path.display().to_string()));
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        let mut base = cwd.as_path();
+        for _ in 0..4 {
+            let candidate = base.join(path);
+            if candidate.is_file() {
+                return Ok(candidate
+                    .canonicalize()
+                    .unwrap_or(candidate));
+            }
+            base = match base.parent() {
+                Some(p) => p,
+                None => break,
+            };
+        }
+    }
+
+    Err(IngestError::NotFound(path.display().to_string()))
+}
+
+pub fn load_path(path: impl AsRef<Path>) -> Result<Document> {
+    let path = resolve_existing_path(path)?;
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -14,7 +48,7 @@ pub fn load_path(path: impl AsRef<Path>) -> Result<Document> {
         .unwrap_or_default();
 
     let text = match ext.as_str() {
-        "txt" | "md" | "markdown" => fs::read_to_string(path)?,
+        "txt" | "md" | "markdown" => fs::read_to_string(&path)?,
         other => return Err(IngestError::UnsupportedType(other.to_string())),
     };
 
@@ -22,7 +56,7 @@ pub fn load_path(path: impl AsRef<Path>) -> Result<Document> {
         return Err(IngestError::Empty(path.display().to_string()));
     }
 
-    let uri = canonical_uri(path);
+    let uri = canonical_uri(&path);
     let title = path
         .file_stem()
         .and_then(|s| s.to_str())
@@ -88,10 +122,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_empty_file() {
+    fn rejects_missing_file() {
+        assert!(matches!(
+            load_path("/nonexistent/jarvis-test-file.md"),
+            Err(IngestError::NotFound(_))
+        ));
+    }
+
+    #[test]
+    fn resolves_relative_path_in_cwd() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("empty.txt");
-        fs::write(&path, "   ").unwrap();
-        assert!(matches!(load_path(&path), Err(IngestError::Empty(_))));
+        let file = dir.path().join("note.txt");
+        fs::write(&file, "hello").unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+        let resolved = resolve_existing_path("note.txt").unwrap();
+        assert_eq!(resolved, file.canonicalize().unwrap());
     }
 }
