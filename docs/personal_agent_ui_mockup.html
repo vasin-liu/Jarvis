@@ -1,0 +1,232 @@
+
+<style>
+:root { --sidebar-w: 200px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.app { display: flex; height: 580px; background: var(--color-background-tertiary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); overflow: hidden; font-size: 13px; }
+.sidebar { width: var(--sidebar-w); background: var(--color-background-secondary); border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; }
+.logo { padding: 14px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 8px; }
+.logo-dot { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg,#7F77DD,#1D9E75); display: flex; align-items: center; justify-content: center; }
+.logo-text { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.nav-section { padding: 8px 8px 0; }
+.nav-label { font-size: 10px; font-weight: 500; color: var(--color-text-tertiary); padding: 6px 8px 4px; letter-spacing: .05em; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--color-text-secondary); cursor: pointer; transition: background .12s; }
+.nav-item:hover, .nav-item.active { background: var(--color-background-primary); color: var(--color-text-primary); }
+.nav-item.active { color: var(--color-text-primary); }
+.nav-item i { font-size: 15px; }
+.badge { margin-left: auto; font-size: 10px; background: var(--color-background-info); color: var(--color-text-info); border-radius: 10px; padding: 1px 6px; }
+.sidebar-bottom { margin-top: auto; border-top: 0.5px solid var(--color-border-tertiary); padding: 10px 8px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--color-background-info); color: var(--color-text-info); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; }
+
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { height: 48px; border-bottom: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); display: flex; align-items: center; padding: 0 16px; gap: 10px; }
+.topbar-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.topbar-actions { margin-left: auto; display: flex; gap: 6px; }
+.btn-sm { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0.5px solid var(--color-border-secondary); border-radius: 6px; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-size: 12px; }
+.btn-sm:hover { background: var(--color-background-secondary); }
+.btn-primary { background: var(--color-background-info); color: var(--color-text-info); border-color: transparent; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: #1D9E75; }
+
+.content-area { flex: 1; display: flex; overflow: hidden; }
+.doc-list { width: 220px; border-right: 0.5px solid var(--color-border-tertiary); overflow-y: auto; }
+.doc-search { padding: 10px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.doc-search input { width: 100%; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; padding: 5px 10px; font-size: 12px; color: var(--color-text-primary); }
+.doc-item { padding: 8px 12px; cursor: pointer; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.doc-item:hover { background: var(--color-background-secondary); }
+.doc-item.active { background: var(--color-background-info); }
+.doc-item.active .doc-name { color: var(--color-text-info); }
+.doc-name { font-size: 12px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-meta { font-size: 10px; color: var(--color-text-tertiary); display: flex; gap: 6px; }
+.doc-tag { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 4px; padding: 1px 5px; font-size: 10px; color: var(--color-text-secondary); }
+.active .doc-tag { background: rgba(255,255,255,.15); border-color: transparent; color: var(--color-text-info); }
+
+.editor-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.editor-toolbar { padding: 8px 16px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 4px; background: var(--color-background-primary); }
+.tb-btn { padding: 3px 7px; border-radius: 4px; border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-size: 12px; }
+.tb-btn:hover { background: var(--color-background-secondary); }
+.tb-sep { width: 0.5px; height: 16px; background: var(--color-border-tertiary); margin: 0 4px; }
+.editor-body { flex: 1; padding: 20px 24px; overflow-y: auto; background: var(--color-background-primary); }
+.editor-body h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 12px; }
+.editor-body p { font-size: 13px; line-height: 1.7; color: var(--color-text-secondary); margin-bottom: 10px; }
+.editor-body .tag-row { display: flex; gap: 6px; margin-bottom: 16px; }
+.tag-chip { padding: 2px 10px; border-radius: 12px; font-size: 11px; }
+.tag-chip.blue { background: #E6F1FB; color: #185FA5; }
+.tag-chip.green { background: #EAF3DE; color: #3B6D11; }
+.tag-chip.amber { background: #FAEEDA; color: #854F0B; }
+.insight-box { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-left: 2px solid #7F77DD; border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 12px 0; }
+.insight-box .label { font-size: 10px; font-weight: 500; color: #534AB7; letter-spacing: .04em; margin-bottom: 4px; }
+.insight-box p { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.6; }
+.related-docs { margin-top: 16px; }
+.related-title { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); margin-bottom: 8px; }
+.related-item { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 6px; margin-bottom: 4px; cursor: pointer; font-size: 11px; color: var(--color-text-secondary); }
+.related-item:hover { color: var(--color-text-primary); }
+
+.agent-panel { width: 260px; border-left: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; background: var(--color-background-primary); }
+.agent-header { padding: 10px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 8px; }
+.agent-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#7F77DD,#1D9E75); display: flex; align-items: center; justify-content: center; }
+.agent-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.agent-status { font-size: 10px; color: #1D9E75; }
+.messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 90%; }
+.msg.user { align-self: flex-end; }
+.msg-bubble { padding: 8px 11px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+.msg.agent .msg-bubble { background: var(--color-background-secondary); color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary); }
+.msg.user .msg-bubble { background: var(--color-background-info); color: var(--color-text-info); }
+.msg-time { font-size: 10px; color: var(--color-text-tertiary); margin-top: 2px; padding: 0 4px; }
+.typing { display: flex; gap: 3px; padding: 8px 11px; background: var(--color-background-secondary); border-radius: 10px; border: 0.5px solid var(--color-border-tertiary); width: fit-content; }
+.typing span { width: 5px; height: 5px; border-radius: 50%; background: var(--color-text-tertiary); animation: bounce .9s infinite; }
+.typing span:nth-child(2) { animation-delay: .15s; }
+.typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+.agent-input { padding: 10px; border-top: 0.5px solid var(--color-border-tertiary); display: flex; gap: 6px; }
+.agent-input input { flex: 1; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--color-text-primary); }
+.send-btn { width: 30px; height: 30px; border-radius: 8px; background: var(--color-background-info); color: var(--color-text-info); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+</style>
+
+<h2 class="sr-only">个人工作智能体主界面 UI 原型</h2>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      <span class="logo-text">MindForge</span>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工作空间</div>
+      <div class="nav-item active"><i class="ti ti-file-text" aria-hidden="true"></i>文档库</div>
+      <div class="nav-item"><i class="ti ti-graph" aria-hidden="true"></i>知识图谱 <span class="badge">247</span></div>
+      <div class="nav-item"><i class="ti ti-calendar" aria-hidden="true"></i>日程任务</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">集成</div>
+      <div class="nav-item"><i class="ti ti-brand-feedly" aria-hidden="true"></i>飞书同步 <span class="badge">3</span></div>
+      <div class="nav-item"><i class="ti ti-code" aria-hidden="true"></i>Cursor 上下文</div>
+      <div class="nav-item"><i class="ti ti-brain" aria-hidden="true"></i>学习记录</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">系统</div>
+      <div class="nav-item"><i class="ti ti-settings" aria-hidden="true"></i>设置</div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="avatar">张</div>
+      <div>
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-primary)">张三</div>
+        <div style="font-size:10px;color:var(--color-text-tertiary);display:flex;align-items:center;gap:3px"><span class="status-dot"></span>智能体运行中</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <i class="ti ti-file-text" style="font-size:16px;color:var(--color-text-tertiary)" aria-hidden="true"></i>
+      <span class="topbar-title">文档库</span>
+      <div style="font-size:11px;color:var(--color-text-tertiary)">/ 技术研究</div>
+      <div class="topbar-actions">
+        <button class="btn-sm"><i class="ti ti-git-branch" aria-hidden="true"></i>飞书同步</button>
+        <button class="btn-sm btn-primary"><i class="ti ti-plus" aria-hidden="true"></i>新建文档</button>
+      </div>
+    </div>
+    <div class="content-area">
+      <!-- Doc list -->
+      <div class="doc-list">
+        <div class="doc-search">
+          <input placeholder="🔍  搜索文档..." />
+        </div>
+        <div class="doc-item active">
+          <div class="doc-name">Rust 异步运行时深度解析</div>
+          <div class="doc-meta"><span>今天</span><span class="doc-tag">技术</span></div>
+        </div>
+        <div class="doc-item">
+          <div class="doc-name">飞书开放平台 API 调研</div>
+          <div class="doc-meta"><span>昨天</span><span class="doc-tag">集成</span></div>
+        </div>
+        <div class="doc-item">
+          <div class="doc-name">MCP 协议规范笔记</div>
+          <div class="doc-meta"><span>2天前</span><span class="doc-tag">AI</span></div>
+        </div>
+        <div class="doc-item">
+          <div class="doc-name">Tauri v2 迁移指南</div>
+          <div class="doc-meta"><span>3天前</span><span class="doc-tag">技术</span></div>
+        </div>
+        <div class="doc-item">
+          <div class="doc-name">向量数据库选型对比</div>
+          <div class="doc-meta"><span>上周</span><span class="doc-tag">AI</span></div>
+        </div>
+        <div class="doc-item">
+          <div class="doc-name">个人 OKR 2025 Q3</div>
+          <div class="doc-meta"><span>上周</span><span class="doc-tag">规划</span></div>
+        </div>
+      </div>
+
+      <!-- Editor -->
+      <div class="editor-panel">
+        <div class="editor-toolbar">
+          <button class="tb-btn">H1</button>
+          <button class="tb-btn">H2</button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn"><b>B</b></button>
+          <button class="tb-btn"><i>I</i></button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn"><i class="ti ti-list" aria-hidden="true"></i></button>
+          <button class="tb-btn"><i class="ti ti-code" aria-hidden="true"></i></button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" style="margin-left:auto;color:#7F77DD;font-size:11px"><i class="ti ti-sparkles" aria-hidden="true"></i> AI 补全</button>
+        </div>
+        <div class="editor-body">
+          <div class="tag-row">
+            <span class="tag-chip blue">技术</span>
+            <span class="tag-chip green">Rust</span>
+            <span class="tag-chip amber">异步</span>
+          </div>
+          <h2>Rust 异步运行时深度解析</h2>
+          <p>Tokio 运行时采用工作窃取调度器，每个工作线程维护自己的本地任务队列。当本地队列为空时，线程会尝试从其他线程的队列中窃取任务，从而实现负载均衡。</p>
+          <p>Future trait 是 Rust 异步编程的核心抽象。通过 poll 方法驱动异步操作前进，Waker 机制确保任务在就绪时被重新调度...</p>
+          <div class="insight-box">
+            <div class="label">⚡ 智能体洞察</div>
+            <p>结合你上周的 Tauri 笔记，异步事件系统可以直接复用 Tokio 的 mpsc channel 来桥接前后端通信，避免额外的线程开销。</p>
+          </div>
+          <p>async/await 语法糖会被编译器展开为状态机，每个 await 点对应一个状态转换...</p>
+          <div class="related-docs">
+            <div class="related-title">相关文档 · 由知识图谱推荐</div>
+            <div class="related-item"><i class="ti ti-file-text" aria-hidden="true"></i>Tauri v2 迁移指南</div>
+            <div class="related-item"><i class="ti ti-file-text" aria-hidden="true"></i>向量数据库选型对比</div>
+            <div class="related-item"><i class="ti ti-file-text" aria-hidden="true"></i>MCP 协议规范笔记</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Panel -->
+      <div class="agent-panel">
+        <div class="agent-header">
+          <div class="agent-avatar"><i class="ti ti-robot" style="font-size:14px;color:#fff" aria-hidden="true"></i></div>
+          <div>
+            <div class="agent-name">个人智能体</div>
+            <div class="agent-status">● 已读取 247 个知识节点</div>
+          </div>
+        </div>
+        <div class="messages">
+          <div class="msg agent">
+            <div class="msg-bubble">我注意到你在研究 Rust 异步运行时，结合你的飞书任务，下周有一个架构评审，需要我帮你整理要点吗？</div>
+            <div class="msg-time">10:32</div>
+          </div>
+          <div class="msg user">
+            <div class="msg-bubble">帮我关联一下 Cursor 里最近的代码上下文</div>
+            <div class="msg-time">10:34</div>
+          </div>
+          <div class="msg agent">
+            <div class="msg-bubble">检测到你在 Cursor 中打开了 <code style="background:var(--color-background-tertiary);padding:1px 4px;border-radius:3px">src/engine/sync.rs</code>，已关联3个相关知识点到本文档。</div>
+            <div class="msg-time">10:34</div>
+          </div>
+          <div class="msg agent">
+            <div class="typing"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+        <div class="agent-input">
+          <input placeholder="向智能体提问..." />
+          <button class="send-btn"><i class="ti ti-send" style="font-size:14px" aria-hidden="true"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
