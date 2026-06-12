@@ -38,6 +38,7 @@ pub async fn index_document(
         indexed_at: None,
         status: IndexStatus::Pending,
         error: None,
+        summary: None,
     };
     store.upsert_source(&pending)?;
 
@@ -80,6 +81,7 @@ pub async fn index_document(
                 indexed_at: Some(unix_now()),
                 status: IndexStatus::Indexed,
                 error: None,
+                summary: None,
             };
             store.upsert_source(&indexed)?;
             Ok(())
@@ -94,6 +96,7 @@ pub async fn index_document(
                 indexed_at: None,
                 status: IndexStatus::Failed,
                 error: Some(e.to_string()),
+                summary: None,
             };
             let _ = store.upsert_source(&failed);
             Err(e)

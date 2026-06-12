@@ -636,7 +636,7 @@ dependencies = [
 
 [[package]]
 name = "chunker"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "serde",
 ]
@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "embedder",
  "llm",
@@ -893,7 +893,7 @@ checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "cursor"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "ingest",
  "serde",
@@ -1243,7 +1243,7 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
 name = "embedder"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "fastembed",
@@ -2392,7 +2392,7 @@ checksum = "89194689a993ab15268672e99e7b0e19da2da3268ac682e8f02d29d4d1434cd7"
 
 [[package]]
 name = "indexer"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -2450,7 +2450,7 @@ dependencies = [
 
 [[package]]
 name = "ingest"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "hex",
  "serde",
@@ -2477,6 +2477,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e05c02b5e89bff3b946cedeca278abc628fe811e604f027c45a8aa3cf793d0eb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "insights"
+version = "1.2.0"
+dependencies = [
+ "llm",
+ "serde",
+ "serde_json",
+ "store",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -2682,7 +2694,7 @@ dependencies = [
 
 [[package]]
 name = "lark"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "ingest",
  "serde",
@@ -2801,7 +2813,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llm"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -3987,7 +3999,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rag"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4275,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "retriever"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4892,7 +4904,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -5134,7 +5146,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-app"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "chunker",
  "config",
@@ -5142,6 +5154,7 @@ dependencies = [
  "embedder",
  "indexer",
  "ingest",
+ "insights",
  "lark",
  "llm",
  "rag",
@@ -6264,7 +6277,7 @@ dependencies = [
 
 [[package]]
 name = "watcher"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "notify",
  "store",

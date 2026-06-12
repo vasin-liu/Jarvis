@@ -10,6 +10,12 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         return Err(LlmError::EmptyMessages);
     }
 
+    let system = messages
+        .iter()
+        .find(|m| m.role == Role::System)
+        .map(|m| m.content.as_str())
+        .unwrap_or("");
+
     let user = messages
         .iter()
         .rev()
@@ -21,11 +27,15 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         return Ok("知识库中未找到相关内容。".to_string());
     }
 
-    let cited = messages
-        .iter()
-        .find(|m| m.role == Role::System)
-        .map(|m| m.content.matches('[').count())
-        .unwrap_or(0);
+    if system.contains("任务提取") || system.contains("JSON 数组") {
+        return Ok(r#"[{"title":"整理要点","description":"根据来源整理可执行待办"}]"#.to_string());
+    }
+
+    if system.contains("摘要") {
+        return Ok("（Mock 摘要）该来源主要讨论相关主题与待办事项。".to_string());
+    }
+
+    let cited = system.matches('[').count();
 
     Ok(format!(
         "（Mock 回答）已基于 {cited} 条引用片段回答：{}",

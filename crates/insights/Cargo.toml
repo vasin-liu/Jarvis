@@ -1,0 +1,15 @@
+[package]
+name = "insights"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+llm = { path = "../llm" }
+store = { path = "../store" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

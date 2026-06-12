@@ -8,6 +8,7 @@ use crate::error::{Result, StoreError};
 use crate::schema::init_schema;
 use crate::types::{
     ChatMessage, ChatRole, ChatSession, ChunkHit, IndexStatus, NewChunk, Source, SourceKind,
+    Task, TaskStatus,
 };
 use crate::vecext::register_sqlite_vec;
 
@@ -77,7 +78,7 @@ impl Store {
     pub fn get_source(&self, id: &str) -> Result<Source> {
         let conn = self.conn.lock().unwrap();
         conn.query_row(
-            "SELECT id, kind, uri, title, content_hash, indexed_at, status, error
+            "SELECT id, kind, uri, title, content_hash, indexed_at, status, error, summary
              FROM sources WHERE id = ?1",
             [id],
             Self::row_to_source,
@@ -91,7 +92,7 @@ impl Store {
     pub fn list_sources(&self) -> Result<Vec<Source>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, kind, uri, title, content_hash, indexed_at, status, error
+            "SELECT id, kind, uri, title, content_hash, indexed_at, status, error, summary
              FROM sources ORDER BY id",
         )?;
         let rows = stmt.query_map([], Self::row_to_source)?;
@@ -162,6 +163,113 @@ impl Store {
     pub fn count_chunks(&self) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
         Ok(conn.query_row("SELECT COUNT(*) FROM chunks", [], |r| r.get(0))?)
+    }
+
+    pub fn source_chunk_text(&self, source_id: &str) -> Result<String> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT text FROM chunks WHERE source_id = ?1 ORDER BY ord ASC",
+        )?;
+        let rows = stmt.query_map([source_id], |r| r.get::<_, String>(0))?;
+        let mut parts = Vec::new();
+        for row in rows {
+            parts.push(row?);
+        }
+        Ok(parts.join("\n\n"))
+    }
+
+    pub fn set_source_summary(&self, source_id: &str, summary: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let n = conn.execute(
+            "UPDATE sources SET summary = ?1 WHERE id = ?2",
+            rusqlite::params![summary, source_id],
+        )?;
+        if n == 0 {
+            return Err(StoreError::NotFound(source_id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn delete_tasks_for_source(&self, source_id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM tasks WHERE source_id = ?1", [source_id])?;
+        Ok(())
+    }
+
+    pub fn insert_task(
+        &self,
+        source_id: Option<&str>,
+        title: &str,
+        description: Option<&str>,
+    ) -> Result<Task> {
+        let now = unix_now();
+        let id = format!("task-{now}-{}", title.len());
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO tasks(id, source_id, title, description, status, created_at, updated_at)
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            rusqlite::params![
+                id,
+                source_id,
+                title,
+                description,
+                TaskStatus::Pending.as_str(),
+                now,
+                now,
+            ],
+        )?;
+        self.get_task(&id)
+    }
+
+    pub fn get_task(&self, id: &str) -> Result<Task> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT t.id, t.source_id, s.title, t.title, t.description, t.status, t.created_at, t.updated_at
+             FROM tasks t
+             LEFT JOIN sources s ON s.id = t.source_id
+             WHERE t.id = ?1",
+            [id],
+            Self::row_to_task,
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => StoreError::NotFound(id.to_string()),
+            other => StoreError::Sqlite(other),
+        })
+    }
+
+    pub fn list_tasks(&self) -> Result<Vec<Task>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT t.id, t.source_id, s.title, t.title, t.description, t.status, t.created_at, t.updated_at
+             FROM tasks t
+             LEFT JOIN sources s ON s.id = t.source_id
+             ORDER BY t.updated_at DESC",
+        )?;
+        let rows = stmt.query_map([], Self::row_to_task)?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    pub fn update_task_status(&self, id: &str, status: TaskStatus) -> Result<()> {
+        let now = unix_now();
+        let conn = self.conn.lock().unwrap();
+        let n = conn.execute(
+            "UPDATE tasks SET status = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![status.as_str(), now, id],
+        )?;
+        if n == 0 {
+            return Err(StoreError::NotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn delete_task(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM tasks WHERE id = ?1", [id])?;
+        Ok(())
     }
 
     /// KNN vector search (lower score = closer).
@@ -460,6 +568,21 @@ impl Store {
             indexed_at: row.get(5)?,
             status: IndexStatus::parse(&status_s).unwrap_or(IndexStatus::Pending),
             error: row.get(7)?,
+            summary: row.get(8)?,
+        })
+    }
+
+    fn row_to_task(row: &rusqlite::Row<'_>) -> rusqlite::Result<Task> {
+        let status_s: String = row.get(5)?;
+        Ok(Task {
+            id: row.get(0)?,
+            source_id: row.get(1)?,
+            source_title: row.get(2)?,
+            title: row.get(3)?,
+            description: row.get(4)?,
+            status: TaskStatus::parse(&status_s).unwrap_or(TaskStatus::Pending),
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
         })
     }
 }
@@ -486,6 +609,7 @@ mod tests {
             indexed_at: None,
             status: IndexStatus::Pending,
             error: None,
+            summary: None,
         }
     }
 
@@ -666,6 +790,40 @@ mod tests {
             store.get_meta("embedder_id").unwrap(),
             Some("ollama:nomic".to_string())
         );
+    }
+
+    #[test]
+    fn summary_and_tasks_crud() {
+        let store = Store::open_in_memory(4).unwrap();
+        store.upsert_source(&sample_source("a")).unwrap();
+        store
+            .insert_chunks(
+                "a",
+                &[chunk(0, "task alpha and beta work", [0.1; 4])],
+            )
+            .unwrap();
+
+        store.set_source_summary("a", "short summary").unwrap();
+        assert_eq!(
+            store.get_source("a").unwrap().summary.as_deref(),
+            Some("short summary")
+        );
+
+        let task = store
+            .insert_task(Some("a"), "Follow up", Some("details"))
+            .unwrap();
+        assert_eq!(store.list_tasks().unwrap().len(), 1);
+
+        store
+            .update_task_status(&task.id, TaskStatus::Done)
+            .unwrap();
+        assert_eq!(
+            store.get_task(&task.id).unwrap().status,
+            TaskStatus::Done
+        );
+
+        store.delete_tasks_for_source("a").unwrap();
+        assert!(store.list_tasks().unwrap().is_empty());
     }
 
     #[test]

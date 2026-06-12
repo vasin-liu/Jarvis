@@ -4,6 +4,7 @@ use chunker::ChunkerConfig;
 use config::AppConfig;
 use cursor::{discover_transcripts, load_transcript, resolve_transcript_path};
 use embedder::Embedder;
+use llm::ChatModel;
 use indexer::{index_document, index_path};
 use lark::{fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, CommandRunner};
 use store::{IndexStatus, Source, SourceKind, Store};
@@ -161,6 +162,7 @@ pub async fn index_local_paths<F>(
     chunker: &ChunkerConfig,
     phase: &str,
     paths: Vec<std::path::PathBuf>,
+    insights: Option<(&dyn ChatModel, &AppConfig)>,
     mut on_progress: F,
 ) -> Result<RebuildReport, String>
 where
@@ -188,7 +190,13 @@ where
         });
 
         match index_path(store, embedder, chunker, &path).await {
-            Ok(_) => {
+            Ok(source_id) => {
+                if let Some((chat, cfg)) = insights {
+                    crate::insights_ops::maybe_run_insights_for_source(
+                        store, chat, cfg, &source_id,
+                    )
+                    .await;
+                }
                 indexed += 1;
                 on_progress(IndexProgressEvent {
                     phase: phase.to_string(),
@@ -231,6 +239,7 @@ pub async fn sync_cursor_transcripts<F>(
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     cursor_projects_root: &str,
+    insights: Option<(&dyn ChatModel, &AppConfig)>,
     mut on_progress: F,
 ) -> Result<RebuildReport, String>
 where
@@ -265,6 +274,7 @@ where
 
         match load_transcript(&path).map_err(|e| e.to_string()) {
             Ok(doc) => {
+                let source_id = doc.uri.clone();
                 match index_document(
                     store,
                     embedder,
@@ -275,6 +285,15 @@ where
                 .await
                 {
                     Ok(()) => {
+                        if let Some((chat, cfg)) = insights {
+                            crate::insights_ops::maybe_run_insights_for_source(
+                                store,
+                                chat,
+                                cfg,
+                                &source_id,
+                            )
+                            .await;
+                        }
                         indexed += 1;
                         on_progress(IndexProgressEvent {
                             phase: "cursor".into(),
@@ -496,6 +515,7 @@ fn mark_failed(store: &Store, source: &Source, error: &str) -> Result<(), String
         indexed_at: None,
         status: IndexStatus::Failed,
         error: Some(error.to_string()),
+        summary: source.summary.clone(),
     };
     store.upsert_source(&failed).map_err(|e| e.to_string())
 }
@@ -525,6 +545,7 @@ mod tests {
             &chunker,
             "scan",
             vec![file],
+            None,
             |event| events.push(event),
         )
         .await
@@ -598,6 +619,7 @@ mod tests {
             &embedder,
             &chunker,
             cursor_root.to_str().unwrap(),
+            None,
             |event| events.push(event),
         )
         .await

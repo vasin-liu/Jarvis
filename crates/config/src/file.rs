@@ -45,6 +45,8 @@ mod tests {
         assert_eq!(cfg.cloud_embed_dim, 1536);
         assert!(cfg.cloud_api_key.is_empty());
         assert!(cfg.cursor_projects_root.is_empty());
+        assert!(!cfg.auto_summarize_on_index);
+        assert!(!cfg.auto_extract_tasks_on_index);
     }
 
     #[test]

@@ -45,6 +45,12 @@ pub struct AppConfig {
     /// Root of Cursor projects (e.g. `%USERPROFILE%\.cursor\projects`).
     #[serde(default)]
     pub cursor_projects_root: String,
+    /// After indexing, auto-generate source summaries via LLM.
+    #[serde(default)]
+    pub auto_summarize_on_index: bool,
+    /// After indexing, auto-extract tasks from sources via LLM.
+    #[serde(default)]
+    pub auto_extract_tasks_on_index: bool,
 }
 
 fn default_fastembed_model() -> String {
@@ -91,6 +97,8 @@ impl Default for AppConfig {
             cloud_chat_model: default_cloud_chat_model(),
             cloud_embed_dim: default_cloud_embed_dim(),
             cursor_projects_root: String::new(),
+            auto_summarize_on_index: false,
+            auto_extract_tasks_on_index: false,
         }
     }
 }

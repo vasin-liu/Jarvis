@@ -10,6 +10,7 @@ fn src(id: &str) -> Source {
         indexed_at: Some(123),
         status: IndexStatus::Indexed,
         error: None,
+        summary: None,
     }
 }
 

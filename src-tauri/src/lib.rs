@@ -1,5 +1,6 @@
 mod e2e;
 mod index_ops;
+mod insights_ops;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -19,7 +20,9 @@ use llm::ChatModel;
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
 use serde::Serialize;
-use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store};
+use insights::{extract_tasks_from_source, summarize_source};
+use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, InsightsReport};
+use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store, Task, TaskStatus};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager};
 use watcher::{scan_folder, spawn_watcher, unindex_path, WatchEvent, WatchHandle};
@@ -125,12 +128,15 @@ impl AppState {
         }
 
         let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+        let cfg = self.config();
+        let chat = self.chat();
         let report = rt.block_on(index_local_paths(
             self.store.as_ref(),
             self.embedder().as_ref(),
             &self.chunker,
             "scan",
             all_paths,
+            Some((chat.as_ref(), &cfg)),
             |event| emit_index_progress(app, event),
         ))?;
         emit_index_complete(app, &report);
@@ -278,11 +284,13 @@ async fn sync_cursor_transcripts_cmd(
     state: tauri::State<'_, AppState>,
 ) -> Result<RebuildReport, String> {
     let cfg = state.config();
+    let chat = state.chat();
     let report = sync_cursor_transcripts(
         state.store.as_ref(),
         state.embedder().as_ref(),
         &state.chunker,
         &cfg.cursor_projects_root,
+        Some((chat.as_ref(), &cfg)),
         |event| emit_index_progress(&app, event),
     )
     .await?;
@@ -309,12 +317,15 @@ async fn add_watch_folder(
 
     let paths = scan_folder(&folder).map_err(|e| e.to_string())?;
     if !paths.is_empty() {
+        let cfg = state.config();
+        let chat = state.chat();
         let report = index_local_paths(
             state.store.as_ref(),
             state.embedder().as_ref(),
             &state.chunker,
             "scan",
             paths,
+            Some((chat.as_ref(), &cfg)),
             |event| emit_index_progress(&app, event),
         )
         .await?;
@@ -471,7 +482,76 @@ async fn index_lark(
         .store
         .set_meta("embedder_id", state.embedder().id())
         .map_err(|e| e.to_string())?;
+    let cfg = state.config();
+    maybe_run_insights_for_source(state.store.as_ref(), state.chat().as_ref(), &cfg, &id).await;
     Ok(id)
+}
+
+#[tauri::command]
+async fn summarize_source_cmd(
+    source_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    summarize_source(
+        state.store.as_ref(),
+        state.chat().as_ref(),
+        &source_id,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn extract_tasks_cmd(
+    source_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<Task>, String> {
+    extract_tasks_from_source(
+        state.store.as_ref(),
+        state.chat().as_ref(),
+        &source_id,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn run_insights_all_cmd(
+    summarize: bool,
+    extract_tasks: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<InsightsReport, String> {
+    run_insights_for_all_indexed(
+        state.store.as_ref(),
+        state.chat().as_ref(),
+        summarize,
+        extract_tasks,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_tasks(state: tauri::State<'_, AppState>) -> Result<Vec<Task>, String> {
+    state.store.list_tasks().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_task_status(
+    id: String,
+    status: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let parsed = TaskStatus::parse(&status).ok_or_else(|| format!("invalid status: {status}"))?;
+    state
+        .store
+        .update_task_status(&id, parsed)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_task(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    state.store.delete_task(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -640,7 +720,13 @@ pub fn run() {
             sync_lark_mail,
             sync_lark_im,
             index_file,
-            ask_question
+            ask_question,
+            summarize_source_cmd,
+            extract_tasks_cmd,
+            run_insights_all_cmd,
+            list_tasks,
+            update_task_status,
+            delete_task
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

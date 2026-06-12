@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use crate::error::Result;
 
-pub const SCHEMA_VERSION: i64 = 2;
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Create all tables (idempotent). `dim` is the embedding dimension for vec0.
 pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
@@ -16,7 +16,8 @@ pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
             content_hash TEXT NOT NULL,
             indexed_at   INTEGER,
             status       TEXT NOT NULL,
-            error        TEXT
+            error        TEXT,
+            summary      TEXT
         );
 
         CREATE TABLE IF NOT EXISTS chunks (
@@ -57,6 +58,18 @@ pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
             created_at     INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+
+        CREATE TABLE IF NOT EXISTS tasks (
+            id          TEXT PRIMARY KEY,
+            source_id   TEXT REFERENCES sources(id) ON DELETE SET NULL,
+            title       TEXT NOT NULL,
+            description TEXT,
+            status      TEXT NOT NULL,
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_tasks_source ON tasks(source_id);
+        CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         ",
     )?;
 
@@ -115,6 +128,29 @@ fn migrate(conn: &Connection) -> Result<()> {
         )?;
     }
 
+    if version < 3 {
+        conn.execute_batch(
+            "
+            ALTER TABLE sources ADD COLUMN summary TEXT;
+            CREATE TABLE IF NOT EXISTS tasks (
+                id          TEXT PRIMARY KEY,
+                source_id   TEXT REFERENCES sources(id) ON DELETE SET NULL,
+                title       TEXT NOT NULL,
+                description TEXT,
+                status      TEXT NOT NULL,
+                created_at  INTEGER NOT NULL,
+                updated_at  INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_tasks_source ON tasks(source_id);
+            CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+            ",
+        )?;
+        conn.execute(
+            "UPDATE meta SET value = '3' WHERE key = 'schema_version'",
+            [],
+        )?;
+    }
+
     Ok(())
 }
 
@@ -147,6 +183,7 @@ mod tests {
             "vec_chunks",
             "chat_sessions",
             "chat_messages",
+            "tasks",
         ] {
             assert!(table_exists(&conn, t), "missing table: {t}");
         }
@@ -163,7 +200,7 @@ mod tests {
                 r.get(0)
             })
             .unwrap();
-        assert_eq!(version, "2");
+        assert_eq!(version, "3");
     }
 
     #[test]
@@ -186,5 +223,31 @@ mod tests {
             })
             .unwrap();
         assert_eq!(version, "2");
+    }
+
+    #[test]
+    fn migrate_v2_to_v3_adds_summary_and_tasks() {
+        register_sqlite_vec();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO meta VALUES ('schema_version', '2');
+            CREATE TABLE sources (
+                id TEXT PRIMARY KEY, kind TEXT NOT NULL, uri TEXT NOT NULL,
+                title TEXT NOT NULL, content_hash TEXT NOT NULL,
+                indexed_at INTEGER, status TEXT NOT NULL, error TEXT
+            );
+            ",
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        assert!(table_exists(&conn, "tasks"));
+        let version: String = conn
+            .query_row("SELECT value FROM meta WHERE key = 'schema_version'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, "3");
     }
 }

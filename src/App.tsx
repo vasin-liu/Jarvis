@@ -12,6 +12,7 @@ import {
   IconFileText,
   IconMail,
   IconMessageChatbot,
+  IconListCheck,
   IconMessages,
   IconRobot,
   IconSettings,
@@ -26,7 +27,7 @@ import {
   statusTone,
 } from "./lib/sourceDisplay";
 
-type View = "chat" | "library" | "settings";
+type View = "chat" | "library" | "tasks" | "settings";
 
 interface ChatSession {
   id: string;
@@ -52,6 +53,24 @@ interface Source {
   status: string;
   indexed_at?: number | null;
   error?: string | null;
+  summary?: string | null;
+}
+
+interface TaskItem {
+  id: string;
+  source_id?: string | null;
+  source_title?: string | null;
+  title: string;
+  description?: string | null;
+  status: "pending" | "done";
+  created_at: number;
+  updated_at: number;
+}
+
+interface InsightsReport {
+  summarized: number;
+  tasksExtracted: number;
+  failed: number;
 }
 
 interface IndexProgressView {
@@ -81,6 +100,8 @@ interface AppConfig {
   cloud_chat_model: string;
   cloud_embed_dim: number;
   cursor_projects_root: string;
+  auto_summarize_on_index: boolean;
+  auto_extract_tasks_on_index: boolean;
 }
 
 interface CursorTranscriptSummary {
@@ -210,6 +231,7 @@ function App() {
     CursorTranscriptSummary[]
   >([]);
   const [newWatchFolder, setNewWatchFolder] = useState("");
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -224,6 +246,11 @@ function App() {
     setMessages(list);
   }, []);
 
+  const refreshTasks = useCallback(async () => {
+    const list = await invoke<TaskItem[]>("list_tasks");
+    setTasks(list);
+  }, []);
+
   const refreshLibrary = useCallback(async () => {
     const list = await invoke<Source[]>("list_sources");
     setSources(list);
@@ -231,7 +258,8 @@ function App() {
       "list_cursor_transcripts",
     );
     setCursorCandidates(transcripts);
-  }, []);
+    await refreshTasks();
+  }, [refreshTasks]);
 
   const refreshConfig = useCallback(async () => {
     const cfg = await invoke<AppConfig>("get_config");
@@ -484,6 +512,78 @@ function App() {
     setConfig({ ...config, cursor_projects_root: selected });
   }
 
+  async function handleSummarizeSource(sourceId: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke<string>("summarize_source_cmd", { sourceId });
+      await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleExtractTasks(sourceId: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke<TaskItem[]>("extract_tasks_cmd", { sourceId });
+      await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRunInsightsAll() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const report = await invoke<InsightsReport>("run_insights_all_cmd", {
+        summarize: true,
+        extractTasks: true,
+      });
+      await refreshLibrary();
+      setLarkStatus(
+        `洞察完成：摘要 ${report.summarized}，任务 ${report.tasksExtracted}，失败 ${report.failed}`,
+      );
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggleTask(task: TaskItem) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const next = task.status === "done" ? "pending" : "done";
+      await invoke("update_task_status", { id: task.id, status: next });
+      await refreshTasks();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteTask(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("delete_task", { id });
+      await refreshTasks();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleSyncCursorTranscripts() {
     setErr(null);
     setBusy(true);
@@ -568,6 +668,7 @@ function App() {
           [
             ["chat", "对话", IconMessageChatbot],
             ["library", "资料库", IconBooks],
+            ["tasks", "任务", IconListCheck],
             ["settings", "设置", IconSettings],
           ] as const
         ).map(([id, label, Icon]) => (
@@ -583,7 +684,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v2
+          来源 {sources.length} · 任务 {tasks.filter((t) => t.status === "pending").length} · v3
         </div>
       </aside>
 
@@ -765,14 +866,28 @@ function App() {
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-medium">资料库</h2>
-              <button
-                type="button"
-                className="btn-ghost"
-                disabled={busy}
-                onClick={handlePickAndIndex}
-              >
-                选择文件索引
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  data-testid="run-insights-all"
+                  disabled={
+                    busy ||
+                    sources.filter((s) => s.status === "indexed").length === 0
+                  }
+                  onClick={() => void handleRunInsightsAll()}
+                >
+                  一键洞察
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={busy}
+                  onClick={handlePickAndIndex}
+                >
+                  选择文件索引
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -904,6 +1019,11 @@ function App() {
                           {sourceKindLabel(s.kind)} · 更新{" "}
                           {formatIndexedAt(s.indexed_at)} · {s.uri}
                         </div>
+                        {s.summary && (
+                          <div className="mt-1 line-clamp-2 text-xs text-zinc-400">
+                            {s.summary}
+                          </div>
+                        )}
                         {s.error && (
                           <div className="mt-1 text-xs text-red-300">
                             {s.error}
@@ -912,6 +1032,28 @@ function App() {
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2">
+                      {s.status === "indexed" && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs"
+                            disabled={busy}
+                            data-testid={`summarize-${s.id}`}
+                            onClick={() => void handleSummarizeSource(s.id)}
+                          >
+                            生成摘要
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs"
+                            disabled={busy}
+                            data-testid={`extract-tasks-${s.id}`}
+                            onClick={() => void handleExtractTasks(s.id)}
+                          >
+                            提取任务
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         className="btn-ghost text-xs"
@@ -934,6 +1076,79 @@ function App() {
                 ))}
               </ul>
             )}
+            </motion.section>
+          )}
+
+          {view === "tasks" && (
+            <motion.section
+              key="tasks"
+              className="glass-panel flex flex-1 flex-col gap-4 p-5"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-medium">任务</h2>
+                <div className="text-sm text-zinc-400">
+                  待办 {tasks.filter((t) => t.status === "pending").length} · 已完成{" "}
+                  {tasks.filter((t) => t.status === "done").length}
+                </div>
+              </div>
+              {tasks.length === 0 ? (
+                <p className="text-sm text-zinc-500">
+                  暂无任务。在资料库中对已索引来源点击「提取任务」，或开启索引后自动提取。
+                </p>
+              ) : (
+                <ul
+                  className="divide-y divide-white/10 overflow-auto rounded-xl border border-white/10"
+                  data-testid="task-list"
+                >
+                  {tasks.map((task) => (
+                    <li
+                      key={task.id}
+                      className="flex items-start justify-between gap-4 px-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div
+                          className={`font-medium ${task.status === "done" ? "text-zinc-500 line-through" : "text-zinc-100"}`}
+                        >
+                          {task.title}
+                        </div>
+                        {task.description && (
+                          <div className="mt-1 text-xs text-zinc-400">
+                            {task.description}
+                          </div>
+                        )}
+                        {task.source_title && (
+                          <div className="mt-1 truncate text-xs text-zinc-500">
+                            来源：{task.source_title}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col gap-2">
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs"
+                          disabled={busy}
+                          data-testid={`toggle-task-${task.id}`}
+                          onClick={() => void handleToggleTask(task)}
+                        >
+                          {task.status === "done" ? "标为待办" : "完成"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs"
+                          disabled={busy}
+                          onClick={() => void handleDeleteTask(task.id)}
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </motion.section>
           )}
 
@@ -1242,6 +1457,40 @@ function App() {
             >
               保存配置
             </button>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                自动洞察
+              </h3>
+              <div className="mb-6 flex flex-col gap-3 text-sm">
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.auto_summarize_on_index}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        auto_summarize_on_index: e.target.checked,
+                      })
+                    }
+                  />
+                  索引完成后自动生成摘要
+                </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.auto_extract_tasks_on_index}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        auto_extract_tasks_on_index: e.target.checked,
+                      })
+                    }
+                  />
+                  索引完成后自动提取任务
+                </label>
+              </div>
+            </div>
 
             <div className="border-t border-white/10 pt-4">
               <h3 className="mb-3 text-sm font-medium text-zinc-200">

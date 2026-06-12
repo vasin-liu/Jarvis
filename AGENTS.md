@@ -197,7 +197,13 @@ npm test
 |-----------|-------------|
 | v2 | **1.1.0** — `crates/cursor`: discover + parse `agent-transcripts` JSONL; `SourceKind::CursorTranscript`; `cursor_projects_root` config; Library sync + Settings path UI |
 
-Refer to design spec for non-goals (no auto-summary, no task extraction in v2, etc.).
+## Milestones (v3)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v3 | **1.2.0** — `crates/insights`: LLM source summaries + task extraction; `tasks` table + `sources.summary`; Tasks UI; optional auto-insights on index; Library per-source + bulk actions |
+
+Refer to design spec for non-goals (no task execution, no scheduled sync in v3, etc.).
 
 ---
 
