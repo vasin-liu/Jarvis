@@ -1,0 +1,42 @@
+---
+description: Test-driven, goal-oriented development — unit, integration, and E2E required
+alwaysApply: true
+---
+
+# TDD & Goal-Driven Development
+
+Every feature starts with **verifiable success criteria**, then tests, then implementation.
+
+## Workflow (Red → Green → Refactor)
+
+1. State the goal in one sentence + acceptance checks.
+2. Write the **failing test** first (unit, integration, or E2E as appropriate).
+3. Implement minimum code to pass.
+4. Refactor only with tests green.
+5. Run the relevant suite before claiming done.
+
+## Test Pyramid
+
+| Layer | Scope | Tools |
+|-------|-------|-------|
+| **Unit** | Pure logic: chunker, RRF, parsers, types | `#[cfg(test)]`, `cargo test -p <crate>` |
+| **Integration** | Store, ingest pipeline, IPC with mocks | `tempfile` DB, `MockEmbedder` / `MockChatModel` |
+| **E2E** | Full user journeys in packaged app | `tauri-driver` + WebDriver (WebdriverIO) |
+
+## Rules
+
+- No feature without tests at the appropriate layer.
+- Inject traits (`CommandRunner`, `Embedder`, `ChatModel`) for test doubles.
+- E2E uses deterministic mocks — no live LLM or Feishu in CI.
+- Bug fix = regression test first.
+
+## Done Checklist
+
+```
+Goal: [what user can do]
+Verify:
+  - [ ] unit tests pass
+  - [ ] integration tests pass (if applicable)
+  - [ ] E2E covers journey (if user-facing)
+  - [ ] manual smoke (only if automation insufficient)
+```

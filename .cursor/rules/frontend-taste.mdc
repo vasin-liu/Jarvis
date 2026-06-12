@@ -1,0 +1,37 @@
+---
+description: Frontend UI — design-taste-frontend skill, tech aesthetic + Apple liquid glass approximation
+globs: src/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Frontend UI: Tech + Liquid Glass
+
+**Skill:** Read and follow `design-taste-frontend` before any UI work.
+
+## Design Read (Jarvis)
+
+*"Reading this as: desktop knowledge-hub product UI for power users, with dark-tech + Apple liquid-glass language, leaning toward Tailwind v4 + Motion + frosted-glass panels."*
+
+## Dials (override baseline)
+
+- `DESIGN_VARIANCE: 7`
+- `MOTION_INTENSITY: 6`
+- `VISUAL_DENSITY: 5` (data-dense app, not landing page)
+
+## Visual Language
+
+- **Dark tech base:** zinc/slate neutrals, single cool accent (electric blue or cyan).
+- **Liquid glass panels:** `backdrop-filter` + inner border (`border-white/10`) + inset highlight. Label as web approximation, not official Apple API.
+- **Fallbacks:** solid fill under `prefers-reduced-transparency`; honor `prefers-reduced-motion`.
+- **No AI-slop:** no purple mesh gradients, no three equal feature cards, no Inter-by-default.
+
+## Product UI (not marketing)
+
+This is a Tauri desktop app (Chat, Library, Settings). Apply taste-skill density/motion rules to components, sidebars, cards, and modals — not landing-page hero patterns.
+
+## Pre-flight (UI PRs)
+
+- Dark + light modes tested
+- Glass panels have contrast fallback
+- Interactive states: loading, empty, error
+- WCAG AA contrast on CTAs and forms

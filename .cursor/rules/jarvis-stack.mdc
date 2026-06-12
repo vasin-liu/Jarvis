@@ -1,0 +1,38 @@
+---
+description: Jarvis tech stack — use latest stable Rust/Tauri and pinned dependency policy
+alwaysApply: true
+---
+
+# Jarvis Stack (Latest Stable)
+
+Pin **latest stable** versions at implementation time. Re-check crates.io / npm before adding deps.
+
+## Rust / Tauri
+
+| Component | Target |
+|-----------|--------|
+| Rust toolchain | `stable` (via `rustup`) |
+| Edition | `2021` (workspace default) |
+| Tauri | `2.x` latest stable (e.g. `tauri = "2.11"`, `tauri-build`, `tauri-cli` aligned) |
+| SQLite | `rusqlite` with `bundled` + FTS5 |
+| Vectors | `sqlite-vec` |
+| Errors | `thiserror` |
+| Async | `tokio` when needed |
+
+## Frontend (Tauri webview)
+
+| Component | Target |
+|-----------|--------|
+| React | latest stable |
+| TypeScript | latest stable |
+| Vite | latest stable |
+| Tailwind | v4 (`@tailwindcss/vite` or `@tailwindcss/postcss`) |
+| Animation | `motion` (`motion/react`) |
+| Icons | `@phosphor-icons/react` or `@tabler/icons-react` |
+
+## Policy
+
+- Workspace layout: `src-tauri/` + `crates/*` + `src/` (React).
+- Core logic in library crates; Tauri commands stay thin.
+- No pinned pre-release unless required; document why if used.
+- Upgrade deps deliberately; run full test suite after bumps.
