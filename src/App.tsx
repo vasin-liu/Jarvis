@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
@@ -33,7 +33,7 @@ interface Source {
 
 interface AppConfig {
   watch_folders: string[];
-  embedder: "mock" | "ollama";
+  embedder: "mock" | "ollama" | "fast_embed";
   chat: "mock" | "ollama";
   mock_embed_dim: number;
   ollama_base_url: string;
@@ -41,6 +41,8 @@ interface AppConfig {
   ollama_chat_model: string;
   ollama_embed_dim: number;
   lark_cli_bin: string;
+  fastembed_model: string;
+  fastembed_dim: number;
 }
 
 interface IndexStatusView {
@@ -83,6 +85,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [streamingDraft, setStreamingDraft] = useState("");
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [sources, setSources] = useState<Source[]>([]);
   const [indexStatus, setIndexStatus] = useState<IndexStatusView | null>(null);
@@ -151,6 +154,13 @@ function App() {
       refreshMessages(activeSessionId).catch((e) => setErr(String(e)));
     }
   }, [activeSessionId, refreshMessages]);
+
+  useLayoutEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages, streamingDraft]);
 
   async function handleNewSession() {
     setErr(null);
@@ -402,7 +412,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M6
+          来源 {sources.length} · M7
         </div>
       </aside>
 
@@ -447,7 +457,10 @@ function App() {
             </div>
 
             <div className="flex flex-1 flex-col gap-4 p-5">
-              <div className="flex-1 space-y-4 overflow-auto">
+              <div
+                ref={chatScrollRef}
+                className="flex-1 space-y-4 overflow-auto"
+              >
                 {messages.length === 0 && (
                   <p className="text-sm text-zinc-500">
                     开始提问，答案会保存在当前会话中。
@@ -493,7 +506,7 @@ function App() {
                       )}
                   </div>
                 ))}
-                {busy && streamingDraft && (
+                {busy && (
                   <div
                     data-testid="streaming-answer"
                     className="mr-8 rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm"
@@ -501,9 +514,17 @@ function App() {
                     <div className="mb-1 text-xs uppercase text-zinc-500">
                       助理 · 生成中
                     </div>
-                    <p className="whitespace-pre-wrap text-zinc-100">
-                      {streamingDraft}
-                    </p>
+                    {streamingDraft ? (
+                      <p className="whitespace-pre-wrap text-zinc-100">
+                        {streamingDraft}
+                        <span className="stream-cursor" aria-hidden="true" />
+                      </p>
+                    ) : (
+                      <p className="text-zinc-400">
+                        思考中…
+                        <span className="stream-cursor" aria-hidden="true" />
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -751,6 +772,7 @@ function App() {
                 >
                   <option value="mock">Mock</option>
                   <option value="ollama">Ollama</option>
+                  <option value="fast_embed">FastEmbed（本地 ONNX）</option>
                 </select>
               </label>
               <label className="space-y-1 text-sm">
@@ -769,6 +791,39 @@ function App() {
                   <option value="ollama">Ollama</option>
                 </select>
               </label>
+              {config.embedder === "fast_embed" && (
+                <>
+                  <label className="space-y-1 text-sm md:col-span-2">
+                    <span className="text-zinc-400">FastEmbed 模型</span>
+                    <select
+                      className="field"
+                      value={config.fastembed_model}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          fastembed_model: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="bge-small-zh-v1.5">
+                        bge-small-zh-v1.5（512 维，中文）
+                      </option>
+                      <option value="bge-small-en-v1.5">
+                        bge-small-en-v1.5（384 维）
+                      </option>
+                      <option value="bge-base-en-v1.5">
+                        bge-base-en-v1.5（768 维）
+                      </option>
+                      <option value="multilingual-e5-small">
+                        multilingual-e5-small（384 维）
+                      </option>
+                    </select>
+                  </label>
+                  <p className="text-xs text-zinc-500 md:col-span-2">
+                    首次使用会从网络下载 ONNX 模型；切换模型后请在上方「重置向量表并重建」。
+                  </p>
+                </>
+              )}
               <label className="space-y-1 text-sm md:col-span-2">
                 <span className="text-zinc-400">Ollama Base URL</span>
                 <input

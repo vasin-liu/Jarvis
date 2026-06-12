@@ -8,6 +8,8 @@ pub enum EmbedError {
     Http(String),
     #[error("invalid ollama response: {0}")]
     BadResponse(String),
+    #[error("fastembed error: {0}")]
+    FastEmbed(String),
 }
 
 pub type Result<T> = std::result::Result<T, EmbedError>;

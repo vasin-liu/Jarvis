@@ -1,8 +1,10 @@
 mod error;
+mod fastembed;
 mod mock;
 mod ollama;
 
 pub use error::{EmbedError, Result};
+pub use fastembed::{fastembed_model_dim, FastEmbedder};
 pub use mock::MockEmbedder;
 pub use ollama::OllamaEmbedder;
 

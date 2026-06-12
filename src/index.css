@@ -50,4 +50,19 @@
   .btn-ghost {
     @apply rounded-xl border border-white/10 px-3 py-2 text-sm text-zinc-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50;
   }
+
+  .stream-cursor {
+    @apply ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 bg-cyan-400;
+    animation: stream-blink 1s step-end infinite;
+  }
+
+  @keyframes stream-blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
 }

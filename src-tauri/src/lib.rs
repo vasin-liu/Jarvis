@@ -49,16 +49,16 @@ impl AppState {
         self.chat.lock().unwrap().clone()
     }
 
-    fn reload_providers(&self, cfg: &AppConfig) {
-        *self.embedder.lock().unwrap() = build_embedder(cfg);
+    fn reload_providers(&self, cfg: &AppConfig) -> Result<(), String> {
+        *self.embedder.lock().unwrap() = build_embedder(cfg).map_err(|e| e.to_string())?;
         *self.chat.lock().unwrap() = build_chat_model(cfg);
+        Ok(())
     }
 
     fn save_config(&self, cfg: &AppConfig) -> Result<(), String> {
         save_config(&self.config_path, cfg).map_err(|e| e.to_string())?;
         *self.config.lock().unwrap() = cfg.clone();
-        self.reload_providers(cfg);
-        Ok(())
+        self.reload_providers(cfg)
     }
 
     fn restart_watcher(&self) -> Result<(), String> {
@@ -188,11 +188,11 @@ async fn reinit_and_rebuild_index(
 ) -> Result<RebuildReport, String> {
     let cfg = state.config();
     let new_dim = cfg.embedding_dim();
+    state.reload_providers(&cfg)?;
     state
         .store
         .reinit_vectors(new_dim)
         .map_err(|e| e.to_string())?;
-    state.reload_providers(&cfg);
     rebuild_all_sources(
         state.store.as_ref(),
         state.embedder().as_ref(),
@@ -464,7 +464,7 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
     let config_dim = config.embedding_dim();
 
     let store = Arc::new(Store::open(&db_path, config_dim).map_err(|e| e.to_string())?);
-    let embedder = build_embedder(&config);
+    let embedder = build_embedder(&config).map_err(|e| e.to_string())?;
     let chat = build_chat_model(&config);
 
     if store.get_meta("embedder_id").ok().flatten().is_none() {
