@@ -11,5 +11,6 @@ describe("Jarvis smoke", () => {
   it("can open settings view", async () => {
     await $('[data-testid="nav-settings"]').click();
     await expect($('[data-testid="settings-panel"]')).toBeDisplayed();
+    await expect($('[data-testid="index-status"]')).toBeDisplayed();
   });
 });

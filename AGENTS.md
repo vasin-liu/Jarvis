@@ -189,6 +189,7 @@ npm test
 | M7 | FastEmbed local embedder, streaming UI polish, GitHub Actions CI (E2E on `workflow_dispatch`) |
 | M8 | OpenAI-compatible cloud providers, embed cache, library index stats |
 | M9 | Index progress events, source retry/resync, FastEmbed default, motion + Tabler icons |
+| M10 | v1.0.0 — E2E test mode, expanded WebDriver journeys, folder scan progress, CI E2E on Windows |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

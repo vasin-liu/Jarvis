@@ -141,6 +141,77 @@ where
     })
 }
 
+pub async fn index_local_paths<F>(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
+    phase: &str,
+    paths: Vec<std::path::PathBuf>,
+    mut on_progress: F,
+) -> Result<RebuildReport, String>
+where
+    F: FnMut(IndexProgressEvent),
+{
+    let total = paths.len();
+    let mut indexed = 0;
+    let mut failed = 0;
+
+    for (i, path) in paths.into_iter().enumerate() {
+        let current = i + 1;
+        let title = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
+
+        on_progress(IndexProgressEvent {
+            phase: phase.to_string(),
+            current,
+            total,
+            source_title: title.clone(),
+            outcome: None,
+            message: None,
+        });
+
+        match index_path(store, embedder, chunker, &path).await {
+            Ok(_) => {
+                indexed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: phase.to_string(),
+                    current,
+                    total,
+                    source_title: title,
+                    outcome: Some("indexed".into()),
+                    message: None,
+                });
+            }
+            Err(e) => {
+                failed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: phase.to_string(),
+                    current,
+                    total,
+                    source_title: title,
+                    outcome: Some("failed".into()),
+                    message: Some(e.to_string()),
+                });
+            }
+        }
+    }
+
+    if indexed > 0 {
+        store
+            .set_meta("embedder_id", embedder.id())
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(RebuildReport {
+        indexed,
+        failed,
+        skipped: 0,
+    })
+}
+
 pub async fn retry_source_by_id<F>(
     store: &Store,
     embedder: &dyn Embedder,
@@ -306,6 +377,33 @@ mod tests {
     use embedder::MockEmbedder;
     use lark::FakeRunner;
     use std::fs;
+
+    #[tokio::test]
+    async fn index_local_paths_reports_progress() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let file = dir.path().join("scan-me.md");
+        fs::write(&file, "folder scan progress").unwrap();
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+        let mut events = Vec::new();
+
+        let report = index_local_paths(
+            &store,
+            &embedder,
+            &chunker,
+            "scan",
+            vec![file],
+            |event| events.push(event),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(report.indexed, 1);
+        assert!(events.iter().any(|e| e.outcome.as_deref() == Some("indexed")));
+    }
 
     #[tokio::test]
     async fn rebuild_local_file_source() {

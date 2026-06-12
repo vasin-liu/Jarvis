@@ -1,3 +1,4 @@
+mod e2e;
 mod index_ops;
 
 use std::path::PathBuf;
@@ -6,9 +7,10 @@ use std::sync::{Arc, Mutex};
 use chunker::ChunkerConfig;
 use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
 use embedder::Embedder;
+use e2e::{apply_e2e_config, e2e_data_dir, is_e2e_mode, seed_e2e_fixture};
 use index_ops::{
-    index_status_view, rebuild_all_sources, retry_source_by_id, IndexProgressEvent,
-    IndexStatusView, RebuildReport,
+    index_local_paths, index_status_view, rebuild_all_sources, retry_source_by_id,
+    IndexProgressEvent, IndexStatusView, RebuildReport,
 };
 use indexer::{index_document, index_path};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
@@ -110,20 +112,27 @@ impl AppState {
         Ok(())
     }
 
-    fn initial_scan(&self) -> Result<(), String> {
+    fn initial_scan_with_progress(&self, app: &AppHandle) -> Result<(), String> {
         let cfg = self.config();
+        let mut all_paths = Vec::new();
         for folder in &cfg.watch_folders {
             let paths = scan_folder(folder).map_err(|e| e.to_string())?;
-            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            for path in paths {
-                let _ = rt.block_on(index_path(
-                    self.store.as_ref(),
-                    self.embedder().as_ref(),
-                    &self.chunker,
-                    &path,
-                ));
-            }
+            all_paths.extend(paths);
         }
+        if all_paths.is_empty() {
+            return Ok(());
+        }
+
+        let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+        let report = rt.block_on(index_local_paths(
+            self.store.as_ref(),
+            self.embedder().as_ref(),
+            &self.chunker,
+            "scan",
+            all_paths,
+            |event| emit_index_progress(app, event),
+        ))?;
+        emit_index_complete(app, &report);
         Ok(())
     }
 }
@@ -248,7 +257,11 @@ async fn retry_source(
 }
 
 #[tauri::command]
-fn add_watch_folder(path: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+async fn add_watch_folder(
+    path: String,
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
     let folder = PathBuf::from(&path);
     if !folder.is_dir() {
         return Err(format!("not a directory: {path}"));
@@ -261,14 +274,17 @@ fn add_watch_folder(path: String, state: tauri::State<'_, AppState>) -> Result<(
     state.save_config(&cfg)?;
 
     let paths = scan_folder(&folder).map_err(|e| e.to_string())?;
-    for file in paths {
-        tauri::async_runtime::block_on(index_path(
+    if !paths.is_empty() {
+        let report = index_local_paths(
             state.store.as_ref(),
             state.embedder().as_ref(),
             &state.chunker,
-            &file,
-        ))
-        .map_err(|e| e.to_string())?;
+            "scan",
+            paths,
+            |event| emit_index_progress(&app, event),
+        )
+        .await?;
+        emit_index_complete(&app, &report);
     }
 
     state.restart_watcher()
@@ -499,12 +515,30 @@ async fn ask_question(
 }
 
 fn init_state(app: &tauri::App) -> Result<AppState, String> {
-    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&app_data).map_err(|e| e.to_string())?;
+    let app_data = if is_e2e_mode() {
+        let dir = e2e_data_dir(&app.path().app_cache_dir().map_err(|e| e.to_string())?);
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+        }
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        dir
+    } else {
+        let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        dir
+    };
 
     let config_path = app_data.join("config.json");
     let db_path = app_data.join("kb.sqlite");
-    let config = load_config(&config_path).map_err(|e| e.to_string())?;
+    let mut config = if is_e2e_mode() {
+        AppConfig::default()
+    } else {
+        load_config(&config_path).map_err(|e| e.to_string())?
+    };
+    if is_e2e_mode() {
+        apply_e2e_config(&mut config);
+        save_config(&config_path, &config).map_err(|e| e.to_string())?;
+    }
     let config_dim = config.embedding_dim();
 
     let store = Arc::new(Store::open(&db_path, config_dim).map_err(|e| e.to_string())?);
@@ -534,7 +568,12 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let state = init_state(app)?;
-            state.initial_scan()?;
+            let handle = app.handle().clone();
+            if is_e2e_mode() {
+                seed_e2e_fixture(&state)?;
+            } else {
+                state.initial_scan_with_progress(&handle)?;
+            }
             state.restart_watcher()?;
             app.manage(state);
             Ok(())

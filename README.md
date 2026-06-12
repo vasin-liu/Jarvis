@@ -2,6 +2,8 @@
 
 Personal AI knowledge hub — Tauri 2 + Rust + React. Local-first RAG over documents and Feishu content.
 
+**Version:** 1.0.0 (v1 MVP complete — milestones M1–M10)
+
 **Docs:** `docs/superpowers/specs/2026-06-12-personal-ai-knowledge-hub-design.md`  
 **Agent guide:** `AGENTS.md`
 
@@ -23,6 +25,14 @@ This project uses Tauri, React and TypeScript with Vite.
 - **Channel:** latest stable (see `rust-toolchain.toml`)
 - **Setup:** [rustup](https://rustup.rs/) → `rustup update stable`
 - **Verify:** `rustc --version` (should report stable)
+
+## Tests
+
+```bash
+cargo test --workspace   # Rust unit + integration
+npm test                 # Vitest (frontend helpers)
+npm run test:e2e:local   # WebDriver (Windows + Edge WebDriver)
+```
 
 ## Recommended IDE Setup
 

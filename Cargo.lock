@@ -636,7 +636,7 @@ dependencies = [
 
 [[package]]
 name = "chunker"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
 ]
@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "embedder",
  "llm",
@@ -1232,7 +1232,7 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
 name = "embedder"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "fastembed",
@@ -2381,7 +2381,7 @@ checksum = "89194689a993ab15268672e99e7b0e19da2da3268ac682e8f02d29d4d1434cd7"
 
 [[package]]
 name = "indexer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "ingest"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hex",
  "serde",
@@ -2671,7 +2671,7 @@ dependencies = [
 
 [[package]]
 name = "lark"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ingest",
  "serde",
@@ -2790,7 +2790,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llm"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -3976,7 +3976,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rag"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4264,7 +4264,7 @@ dependencies = [
 
 [[package]]
 name = "retriever"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4881,7 +4881,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -5123,7 +5123,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-app"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chunker",
  "config",
@@ -6252,7 +6252,7 @@ dependencies = [
 
 [[package]]
 name = "watcher"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "notify",
  "store",

@@ -542,7 +542,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M9
+          来源 {sources.length} · v1
         </div>
       </aside>
 
@@ -609,6 +609,13 @@ function App() {
                 {messages.map((m) => (
                   <div
                     key={m.id}
+                    data-testid={
+                      m.role === "assistant"
+                        ? "chat-message-assistant"
+                        : m.role === "user"
+                          ? "chat-message-user"
+                          : undefined
+                    }
                     className={`rounded-xl border px-4 py-3 text-sm ${
                       m.role === "user"
                         ? "ml-8 border-cyan-400/20 bg-cyan-950/30"
