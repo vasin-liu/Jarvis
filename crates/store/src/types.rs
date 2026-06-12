@@ -70,6 +70,50 @@ pub struct Source {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChatSession {
+    pub id: String,
+    pub title: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ChatRole {
+    User,
+    Assistant,
+    System,
+}
+
+impl ChatRole {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ChatRole::User => "user",
+            ChatRole::Assistant => "assistant",
+            ChatRole::System => "system",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Some(match s {
+            "user" => ChatRole::User,
+            "assistant" => ChatRole::Assistant,
+            "system" => ChatRole::System,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub id: i64,
+    pub session_id: String,
+    pub role: ChatRole,
+    pub content: String,
+    pub citations_json: Option<String>,
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct NewChunk {
     pub ord: i64,

@@ -5,7 +5,9 @@ use rusqlite::Connection;
 
 use crate::error::{Result, StoreError};
 use crate::schema::init_schema;
-use crate::types::{ChunkHit, IndexStatus, NewChunk, Source, SourceKind};
+use crate::types::{
+    ChatMessage, ChatRole, ChatSession, ChunkHit, IndexStatus, NewChunk, Source, SourceKind,
+};
 use crate::vecext::register_sqlite_vec;
 
 pub struct Store {
@@ -234,6 +236,137 @@ impl Store {
         }
     }
 
+    pub fn create_chat_session(&self, title: &str) -> Result<ChatSession> {
+        let now = unix_now();
+        let id = format!("sess-{now}");
+        let session = ChatSession {
+            id: id.clone(),
+            title: title.to_string(),
+            created_at: now,
+            updated_at: now,
+        };
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO chat_sessions(id, title, created_at, updated_at) VALUES(?1, ?2, ?3, ?4)",
+            rusqlite::params![session.id, session.title, session.created_at, session.updated_at],
+        )?;
+        Ok(session)
+    }
+
+    pub fn list_chat_sessions(&self) -> Result<Vec<ChatSession>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, title, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(ChatSession {
+                id: r.get(0)?,
+                title: r.get(1)?,
+                created_at: r.get(2)?,
+                updated_at: r.get(3)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(StoreError::from)
+    }
+
+    pub fn get_chat_session(&self, id: &str) -> Result<ChatSession> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT id, title, created_at, updated_at FROM chat_sessions WHERE id = ?1",
+            [id],
+            |r| {
+                Ok(ChatSession {
+                    id: r.get(0)?,
+                    title: r.get(1)?,
+                    created_at: r.get(2)?,
+                    updated_at: r.get(3)?,
+                })
+            },
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => StoreError::NotFound(id.to_string()),
+            other => StoreError::Sqlite(other),
+        })
+    }
+
+    pub fn delete_chat_session(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM chat_sessions WHERE id = ?1", [id])?;
+        Ok(())
+    }
+
+    pub fn touch_chat_session(&self, id: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE chat_sessions SET updated_at = ?1 WHERE id = ?2",
+            rusqlite::params![unix_now(), id],
+        )?;
+        Ok(())
+    }
+
+    pub fn rename_chat_session(&self, id: &str, title: &str) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let updated = conn.execute(
+            "UPDATE chat_sessions SET title = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![title, unix_now(), id],
+        )?;
+        if updated == 0 {
+            return Err(StoreError::NotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn append_chat_message(
+        &self,
+        session_id: &str,
+        role: ChatRole,
+        content: &str,
+        citations_json: Option<&str>,
+    ) -> Result<ChatMessage> {
+        let now = unix_now();
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO chat_messages(session_id, role, content, citations_json, created_at)
+             VALUES(?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![session_id, role.as_str(), content, citations_json, now],
+        )?;
+        let id = conn.last_insert_rowid();
+        conn.execute(
+            "UPDATE chat_sessions SET updated_at = ?1 WHERE id = ?2",
+            rusqlite::params![now, session_id],
+        )?;
+        Ok(ChatMessage {
+            id,
+            session_id: session_id.to_string(),
+            role,
+            content: content.to_string(),
+            citations_json: citations_json.map(str::to_string),
+            created_at: now,
+        })
+    }
+
+    pub fn list_chat_messages(&self, session_id: &str) -> Result<Vec<ChatMessage>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, role, content, citations_json, created_at
+             FROM chat_messages WHERE session_id = ?1 ORDER BY id",
+        )?;
+        let rows = stmt.query_map([session_id], |r| {
+            let role_s: String = r.get(2)?;
+            Ok(ChatMessage {
+                id: r.get(0)?,
+                session_id: r.get(1)?,
+                role: ChatRole::parse(&role_s).unwrap_or(ChatRole::User),
+                content: r.get(3)?,
+                citations_json: r.get(4)?,
+                created_at: r.get(5)?,
+            })
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(StoreError::from)
+    }
+
     fn row_to_source(row: &rusqlite::Row<'_>) -> rusqlite::Result<Source> {
         let kind_s: String = row.get(1)?;
         let status_s: String = row.get(6)?;
@@ -248,6 +381,13 @@ impl Store {
             error: row.get(7)?,
         })
     }
+}
+
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -435,5 +575,25 @@ mod tests {
             store.get_meta("embedder_id").unwrap(),
             Some("ollama:nomic".to_string())
         );
+    }
+
+    #[test]
+    fn chat_session_crud() {
+        let store = Store::open_in_memory(4).unwrap();
+        let s = store.create_chat_session("测试对话").unwrap();
+        assert_eq!(store.list_chat_sessions().unwrap().len(), 1);
+
+        store
+            .append_chat_message(&s.id, ChatRole::User, "hello", None)
+            .unwrap();
+        let msgs = store.list_chat_messages(&s.id).unwrap();
+        assert_eq!(msgs.len(), 1);
+        assert_eq!(msgs[0].content, "hello");
+
+        store.rename_chat_session(&s.id, "重命名").unwrap();
+        assert_eq!(store.get_chat_session(&s.id).unwrap().title, "重命名");
+
+        store.delete_chat_session(&s.id).unwrap();
+        assert!(store.list_chat_sessions().unwrap().is_empty());
     }
 }

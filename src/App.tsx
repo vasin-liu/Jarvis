@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
 
 type View = "chat" | "library" | "settings";
 
@@ -13,9 +14,20 @@ interface Citation {
   excerpt: string;
 }
 
-interface AskResponse {
-  answer: string;
-  citations: Citation[];
+interface ChatSession {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+}
+
+interface ChatMessage {
+  id: number;
+  session_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  citations_json?: string | null;
+  created_at: number;
 }
 
 interface Source {
@@ -39,18 +51,59 @@ interface AppConfig {
   lark_cli_bin: string;
 }
 
+async function openCitation(uri: string) {
+  if (uri.startsWith("http://") || uri.startsWith("https://")) {
+    await openUrl(uri);
+    return;
+  }
+  if (uri.startsWith("lark://")) {
+    await navigator.clipboard.writeText(uri);
+    return;
+  }
+  await openPath(uri);
+}
+
+function parseCitations(raw?: string | null): Citation[] {
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as Citation[];
+  } catch {
+    return [];
+  }
+}
+
 function App() {
   const [view, setView] = useState<View>("chat");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErrState] = useState<string | null>(null);
+  const setErr = setErrState;
 
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<AskResponse | null>(null);
 
   const [sources, setSources] = useState<Source[]>([]);
   const [config, setConfig] = useState<AppConfig | null>(null);
-  const [larkToken, setLarkToken] = useState("");
+  const [larkDocToken, setLarkDocToken] = useState("");
+  const [larkSheetToken, setLarkSheetToken] = useState("");
+  const [larkMailId, setLarkMailId] = useState("");
+  const [larkChatId, setLarkChatId] = useState("");
+  const [larkStatus, setLarkStatus] = useState<string | null>(null);
   const [newWatchFolder, setNewWatchFolder] = useState("");
+
+  const refreshSessions = useCallback(async () => {
+    const list = await invoke<ChatSession[]>("list_chat_sessions");
+    setSessions(list);
+    return list;
+  }, []);
+
+  const refreshMessages = useCallback(async (sessionId: string) => {
+    const list = await invoke<ChatMessage[]>("list_chat_messages", {
+      sessionId,
+    });
+    setMessages(list);
+  }, []);
 
   const refreshLibrary = useCallback(async () => {
     const list = await invoke<Source[]>("list_sources");
@@ -62,20 +115,89 @@ function App() {
     setConfig(cfg);
   }, []);
 
-  useEffect(() => {
-    Promise.all([refreshLibrary(), refreshConfig()]).catch((e) =>
-      setErr(String(e)),
-    );
-  }, [refreshLibrary, refreshConfig]);
+  const ensureSession = useCallback(async () => {
+    let list = await refreshSessions();
+    if (list.length === 0) {
+      const created = await invoke<ChatSession>("create_chat_session", {
+        title: null,
+      });
+      list = [created];
+      setSessions(list);
+    }
+    const id = list[0].id;
+    setActiveSessionId(id);
+    await refreshMessages(id);
+    return id;
+  }, [refreshMessages, refreshSessions]);
 
-  async function handleAsk() {
-    const q = question.trim();
-    if (!q) return;
+  useEffect(() => {
+    Promise.all([refreshLibrary(), refreshConfig(), ensureSession()]).catch(
+      (e) => setErr(String(e)),
+    );
+  }, [ensureSession, refreshConfig, refreshLibrary]);
+
+  useEffect(() => {
+    if (activeSessionId) {
+      refreshMessages(activeSessionId).catch((e) => setErr(String(e)));
+    }
+  }, [activeSessionId, refreshMessages]);
+
+  async function handleNewSession() {
     setErr(null);
     setBusy(true);
     try {
-      const resp = await invoke<AskResponse>("ask_question", { question: q });
-      setAnswer(resp);
+      const s = await invoke<ChatSession>("create_chat_session", {
+        title: null,
+      });
+      await refreshSessions();
+      setActiveSessionId(s.id);
+      setMessages([]);
+      setQuestion("");
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDeleteSession(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("delete_chat_session", { id });
+      const list = await refreshSessions();
+      if (activeSessionId === id) {
+        if (list.length > 0) {
+          setActiveSessionId(list[0].id);
+        } else {
+          const s = await invoke<ChatSession>("create_chat_session", {
+            title: null,
+          });
+          setSessions([s]);
+          setActiveSessionId(s.id);
+          setMessages([]);
+        }
+      }
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAsk() {
+    const q = question.trim();
+    if (!q || !activeSessionId) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("ask_in_session", {
+        sessionId: activeSessionId,
+        question: q,
+      });
+      setQuestion("");
+      await refreshMessages(activeSessionId);
+      await refreshSessions();
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -127,6 +249,36 @@ function App() {
     }
   }
 
+  async function handleCheckLark() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const who = await invoke<string>("check_lark_connection");
+      setLarkStatus(who);
+    } catch (e) {
+      setLarkStatus(null);
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function syncLark(
+    command: string,
+    payload: Record<string, string>,
+  ) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke<string>(command, payload);
+      await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleAddWatchFolder() {
     const path = newWatchFolder.trim();
     if (!path) return;
@@ -163,22 +315,6 @@ function App() {
     }
   }
 
-  async function handleSyncLark() {
-    const token = larkToken.trim();
-    if (!token) return;
-    setErr(null);
-    setBusy(true);
-    try {
-      await invoke<string>("sync_lark_doc", { token });
-      setLarkToken("");
-      await refreshLibrary();
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="flex min-h-screen">
       <aside className="glass-panel m-4 flex w-56 shrink-0 flex-col gap-2 p-4">
@@ -205,7 +341,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M4
+          来源 {sources.length} · M5
         </div>
       </aside>
 
@@ -217,55 +353,109 @@ function App() {
         )}
 
         {view === "chat" && (
-          <section className="glass-panel flex flex-1 flex-col gap-4 p-5">
-            <h2 className="text-base font-medium text-zinc-100">问答</h2>
-            <textarea
-              className="field min-h-28 resize-y"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="输入问题，基于已索引资料检索并回答…"
-            />
-            <div className="flex gap-2">
+          <section className="glass-panel flex min-h-[70vh] flex-1 overflow-hidden">
+            <div className="flex w-52 shrink-0 flex-col border-r border-white/10 p-3">
               <button
                 type="button"
-                className="btn-primary"
-                disabled={busy || !question.trim()}
-                onClick={handleAsk}
+                className="btn-primary mb-3 text-xs"
+                disabled={busy}
+                onClick={handleNewSession}
               >
-                {busy ? "处理中…" : "提问"}
+                新对话
               </button>
+              <ul className="flex-1 space-y-1 overflow-auto">
+                {sessions.map((s) => (
+                  <li key={s.id} className="group flex items-center gap-1">
+                    <button
+                      type="button"
+                      className={`nav-btn flex-1 truncate ${activeSessionId === s.id ? "nav-btn-active" : "nav-btn-idle"}`}
+                      onClick={() => setActiveSessionId(s.id)}
+                    >
+                      {s.title}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost hidden px-2 py-1 text-xs group-hover:inline"
+                      onClick={() => handleDeleteSession(s.id)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
-            {answer && (
-              <div className="space-y-4 border-t border-white/10 pt-4">
-                <div>
-                  <h3 className="mb-2 text-sm text-cyan-300/90">回答</h3>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-200">
-                    {answer.answer}
+
+            <div className="flex flex-1 flex-col gap-4 p-5">
+              <div className="flex-1 space-y-4 overflow-auto">
+                {messages.length === 0 && (
+                  <p className="text-sm text-zinc-500">
+                    开始提问，答案会保存在当前会话中。
                   </p>
-                </div>
-                {answer.citations.length > 0 && (
-                  <div>
-                    <h3 className="mb-2 text-sm text-cyan-300/90">引用</h3>
-                    <ul className="space-y-3">
-                      {answer.citations.map((c) => (
-                        <li
-                          key={c.chunk_id}
-                          className="rounded-xl border border-white/10 bg-zinc-950/40 p-3 text-sm"
-                        >
-                          <div className="font-medium text-zinc-100">
-                            {c.source_title} · {c.loc}
-                          </div>
-                          <div className="mt-1 text-xs text-zinc-500">
-                            {c.source_uri}
-                          </div>
-                          <div className="mt-2 text-zinc-300">{c.excerpt}</div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 )}
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`rounded-xl border px-4 py-3 text-sm ${
+                      m.role === "user"
+                        ? "ml-8 border-cyan-400/20 bg-cyan-950/30"
+                        : "mr-8 border-white/10 bg-zinc-950/40"
+                    }`}
+                  >
+                    <div className="mb-1 text-xs uppercase text-zinc-500">
+                      {m.role === "user" ? "你" : "助理"}
+                    </div>
+                    <p className="whitespace-pre-wrap text-zinc-100">
+                      {m.content}
+                    </p>
+                    {m.role === "assistant" &&
+                      parseCitations(m.citations_json).length > 0 && (
+                        <ul className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                          {parseCitations(m.citations_json).map((c) => (
+                            <li key={c.chunk_id}>
+                              <button
+                                type="button"
+                                className="text-left text-xs text-cyan-300 hover:underline"
+                                onClick={() =>
+                                  openCitation(c.source_uri).catch((e) =>
+                                    setErr(String(e)),
+                                  )
+                                }
+                              >
+                                {c.source_title} · {c.loc}
+                              </button>
+                              <div className="mt-1 text-zinc-400">
+                                {c.excerpt}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </div>
+                ))}
               </div>
-            )}
+
+              <div className="border-t border-white/10 pt-4">
+                <textarea
+                  className="field min-h-24 resize-y"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="输入问题…"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                      void handleAsk();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-primary mt-2"
+                  disabled={busy || !question.trim() || !activeSessionId}
+                  onClick={handleAsk}
+                >
+                  {busy ? "处理中…" : "发送 (Ctrl+Enter)"}
+                </button>
+              </div>
+            </div>
           </section>
         )}
 
@@ -273,39 +463,97 @@ function App() {
           <section className="glass-panel flex flex-1 flex-col gap-4 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-medium">资料库</h2>
-              <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={busy}
+                onClick={handlePickAndIndex}
+              >
+                选择文件索引
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex gap-2">
+                <input
+                  className="field flex-1"
+                  value={larkDocToken}
+                  onChange={(e) => setLarkDocToken(e.target.value)}
+                  placeholder="飞书文档 token"
+                />
                 <button
                   type="button"
-                  className="btn-ghost"
-                  disabled={busy}
-                  onClick={handlePickAndIndex}
+                  className="btn-primary shrink-0"
+                  disabled={busy || !larkDocToken.trim()}
+                  onClick={() =>
+                    syncLark("sync_lark_doc", { token: larkDocToken.trim() })
+                  }
                 >
-                  选择文件索引
+                  同步文档
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className="field flex-1"
+                  value={larkSheetToken}
+                  onChange={(e) => setLarkSheetToken(e.target.value)}
+                  placeholder="电子表格 token"
+                />
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  disabled={busy || !larkSheetToken.trim()}
+                  onClick={() =>
+                    syncLark("sync_lark_sheet", {
+                      token: larkSheetToken.trim(),
+                    })
+                  }
+                >
+                  同步表格
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className="field flex-1"
+                  value={larkMailId}
+                  onChange={(e) => setLarkMailId(e.target.value)}
+                  placeholder="邮件 message id"
+                />
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  disabled={busy || !larkMailId.trim()}
+                  onClick={() =>
+                    syncLark("sync_lark_mail", {
+                      messageId: larkMailId.trim(),
+                    })
+                  }
+                >
+                  同步邮件
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className="field flex-1"
+                  value={larkChatId}
+                  onChange={(e) => setLarkChatId(e.target.value)}
+                  placeholder="IM chat id"
+                />
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  disabled={busy || !larkChatId.trim()}
+                  onClick={() =>
+                    syncLark("sync_lark_im", { chatId: larkChatId.trim() })
+                  }
+                >
+                  同步会话
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <input
-                className="field max-w-md flex-1"
-                value={larkToken}
-                onChange={(e) => setLarkToken(e.target.value)}
-                placeholder="飞书文档 token"
-              />
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={busy || !larkToken.trim()}
-                onClick={handleSyncLark}
-              >
-                同步飞书文档
-              </button>
-            </div>
-
             {sources.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                暂无来源。添加监听文件夹、索引本地文件，或同步飞书文档。
-              </p>
+              <p className="text-sm text-zinc-500">暂无来源。</p>
             ) : (
               <ul className="divide-y divide-white/10 overflow-auto rounded-xl border border-white/10">
                 {sources.map((s) => (
@@ -342,6 +590,23 @@ function App() {
         {view === "settings" && config && (
           <section className="glass-panel flex flex-col gap-5 p-5">
             <h2 className="text-base font-medium">设置</h2>
+
+            <div className="rounded-xl border border-white/10 p-4">
+              <div className="mb-2 text-sm text-zinc-300">飞书连接</div>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={busy}
+                  onClick={handleCheckLark}
+                >
+                  检测 lark-cli
+                </button>
+                {larkStatus && (
+                  <span className="text-sm text-emerald-300">已登录：{larkStatus}</span>
+                )}
+              </div>
+            </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1 text-sm">

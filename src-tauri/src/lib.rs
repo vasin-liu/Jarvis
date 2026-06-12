@@ -5,11 +5,11 @@ use chunker::ChunkerConfig;
 use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
 use embedder::Embedder;
 use indexer::{index_document, index_path};
-use lark::{fetch_doc, ProcessRunner};
+use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
 use rag::{ask, AskResponse};
 use retriever::RetrieverConfig;
-use store::{Source, SourceKind, Store};
+use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store};
 use tauri::Manager;
 use watcher::{scan_folder, spawn_watcher, unindex_path, WatchEvent, WatchHandle};
 
@@ -176,21 +176,144 @@ fn remove_watch_folder(path: String, state: tauri::State<'_, AppState>) -> Resul
 }
 
 #[tauri::command]
-async fn sync_lark_doc(token: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+fn list_chat_sessions(state: tauri::State<'_, AppState>) -> Result<Vec<ChatSession>, String> {
+    state.store.list_chat_sessions().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_chat_session(
+    title: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<ChatSession, String> {
+    let title = title.unwrap_or_else(|| "新对话".to_string());
+    state
+        .store
+        .create_chat_session(&title)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_chat_session(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    state.store.delete_chat_session(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_chat_messages(
+    session_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<ChatMessage>, String> {
+    state
+        .store
+        .list_chat_messages(&session_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn ask_in_session(
+    session_id: String,
+    question: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<AskResponse, String> {
+    state
+        .store
+        .append_chat_message(&session_id, ChatRole::User, &question, None)
+        .map_err(|e| e.to_string())?;
+
+    let resp = ask(
+        state.store.as_ref(),
+        state.embedder.as_ref(),
+        state.chat.as_ref(),
+        &state.retriever,
+        &question,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let citations_json = serde_json::to_string(&resp.citations).map_err(|e| e.to_string())?;
+    state
+        .store
+        .append_chat_message(
+            &session_id,
+            ChatRole::Assistant,
+            &resp.answer,
+            Some(&citations_json),
+        )
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(session) = state.store.get_chat_session(&session_id) {
+        if session.title == "新对话" {
+            let title: String = question.chars().take(32).collect();
+            let _ = state.store.rename_chat_session(&session_id, title.trim());
+        }
+    }
+
+    Ok(resp)
+}
+
+#[tauri::command]
+fn check_lark_connection(state: tauri::State<'_, AppState>) -> Result<String, String> {
     let cfg = state.config();
     let runner = ProcessRunner;
-    let doc = fetch_doc(&runner, &cfg.lark_cli_bin, &token).map_err(|e| e.to_string())?;
+    check_auth(&runner, &cfg.lark_cli_bin).map_err(|e| e.to_string())
+}
+
+async fn index_lark(
+    state: &AppState,
+    doc: ingest::Document,
+    kind: SourceKind,
+) -> Result<String, String> {
     let id = doc.uri.clone();
     index_document(
         state.store.as_ref(),
         state.embedder.as_ref(),
         &state.chunker,
         doc,
-        SourceKind::LarkDoc,
+        kind,
     )
     .await
     .map_err(|e| e.to_string())?;
     Ok(id)
+}
+
+#[tauri::command]
+async fn sync_lark_doc(token: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let cfg = state.config();
+    let runner = ProcessRunner;
+    let doc = fetch_doc(&runner, &cfg.lark_cli_bin, &token).map_err(|e| e.to_string())?;
+    index_lark(&state, doc, SourceKind::LarkDoc).await
+}
+
+#[tauri::command]
+async fn sync_lark_sheet(
+    token: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let cfg = state.config();
+    let runner = ProcessRunner;
+    let doc = fetch_sheet(&runner, &cfg.lark_cli_bin, &token).map_err(|e| e.to_string())?;
+    index_lark(&state, doc, SourceKind::LarkSheet).await
+}
+
+#[tauri::command]
+async fn sync_lark_mail(
+    message_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let cfg = state.config();
+    let runner = ProcessRunner;
+    let doc = fetch_mail(&runner, &cfg.lark_cli_bin, &message_id).map_err(|e| e.to_string())?;
+    index_lark(&state, doc, SourceKind::LarkMail).await
+}
+
+#[tauri::command]
+async fn sync_lark_im(
+    chat_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let cfg = state.config();
+    let runner = ProcessRunner;
+    let doc = fetch_im_chat(&runner, &cfg.lark_cli_bin, &chat_id).map_err(|e| e.to_string())?;
+    index_lark(&state, doc, SourceKind::LarkMsg).await
 }
 
 #[tauri::command]
@@ -279,7 +402,16 @@ pub fn run() {
             set_config,
             add_watch_folder,
             remove_watch_folder,
+            list_chat_sessions,
+            create_chat_session,
+            delete_chat_session,
+            list_chat_messages,
+            ask_in_session,
+            check_lark_connection,
             sync_lark_doc,
+            sync_lark_sheet,
+            sync_lark_mail,
+            sync_lark_im,
             index_file,
             ask_question
         ])

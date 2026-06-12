@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use crate::error::Result;
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Create all tables (idempotent). `dim` is the embedding dimension for vec0.
 pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
@@ -40,6 +40,23 @@ pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
         );
 
         CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(text);
+
+        CREATE TABLE IF NOT EXISTS chat_sessions (
+            id         TEXT PRIMARY KEY,
+            title      TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id     TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+            role           TEXT NOT NULL,
+            content        TEXT NOT NULL,
+            citations_json TEXT,
+            created_at     INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
         ",
     )?;
 
@@ -54,6 +71,49 @@ pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
         "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?1)",
         [SCHEMA_VERSION.to_string()],
     )?;
+
+    migrate(conn)?;
+
+    Ok(())
+}
+
+fn migrate(conn: &Connection) -> Result<()> {
+    let version: i64 = conn
+        .query_row(
+            "SELECT value FROM meta WHERE key='schema_version'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+
+    if version < 2 {
+        conn.execute_batch(
+            "
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id         TEXT PRIMARY KEY,
+                title      TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id     TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+                role           TEXT NOT NULL,
+                content        TEXT NOT NULL,
+                citations_json TEXT,
+                created_at     INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+            ",
+        )?;
+        conn.execute(
+            "UPDATE meta SET value = '2' WHERE key = 'schema_version'",
+            [],
+        )?;
+    }
 
     Ok(())
 }
@@ -85,6 +145,8 @@ mod tests {
             "meta",
             "chunks_fts",
             "vec_chunks",
+            "chat_sessions",
+            "chat_messages",
         ] {
             assert!(table_exists(&conn, t), "missing table: {t}");
         }
@@ -101,6 +163,28 @@ mod tests {
                 r.get(0)
             })
             .unwrap();
-        assert_eq!(version, "1");
+        assert_eq!(version, "2");
+    }
+
+    #[test]
+    fn migrate_v1_to_v2_adds_chat_tables() {
+        register_sqlite_vec();
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            INSERT INTO meta VALUES ('schema_version', '1');
+            ",
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        assert!(table_exists(&conn, "chat_sessions"));
+        assert!(table_exists(&conn, "chat_messages"));
+        let version: String = conn
+            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, "2");
     }
 }

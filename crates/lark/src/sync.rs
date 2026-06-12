@@ -37,20 +37,65 @@ pub fn fetch_doc(
         "json",
     ];
     let raw = runner.run(cli_bin, &args)?;
-    parse_fetch_json(&raw, token)
+    parse_fetch_json(&raw, &format!("lark://doc/{token}"), token)
 }
 
-fn parse_fetch_json(raw: &str, token: &str) -> Result<Document> {
+pub fn fetch_sheet(
+    runner: &dyn CommandRunner,
+    cli_bin: &str,
+    spreadsheet_token: &str,
+) -> Result<Document> {
+    let args = [
+        "sheets",
+        "+read",
+        "--spreadsheet-token",
+        spreadsheet_token,
+        "--format",
+        "json",
+    ];
+    let raw = runner.run(cli_bin, &args)?;
+    parse_fetch_json(
+        &raw,
+        &format!("lark://sheet/{spreadsheet_token}"),
+        spreadsheet_token,
+    )
+}
+
+pub fn fetch_mail(
+    runner: &dyn CommandRunner,
+    cli_bin: &str,
+    message_id: &str,
+) -> Result<Document> {
+    let args = ["mail", "+get", "--message-id", message_id, "--format", "json"];
+    let raw = runner.run(cli_bin, &args)?;
+    parse_fetch_json(&raw, &format!("lark://mail/{message_id}"), message_id)
+}
+
+pub fn fetch_im_chat(
+    runner: &dyn CommandRunner,
+    cli_bin: &str,
+    chat_id: &str,
+) -> Result<Document> {
+    let args = ["im", "+history", "--chat-id", chat_id, "--format", "json"];
+    let raw = runner.run(cli_bin, &args)?;
+    parse_fetch_json(&raw, &format!("lark://im/{chat_id}"), chat_id)
+}
+
+fn parse_fetch_json(raw: &str, uri: &str, fallback_id: &str) -> Result<Document> {
     let payload: FetchPayload = serde_json::from_str(raw)?;
-    let (title, text) = extract_fields(&payload)?;
+    let (title, text) = extract_fields(&payload).unwrap_or_else(|_| {
+        (
+            format!("lark-{fallback_id}"),
+            raw.to_string(),
+        )
+    });
 
     if text.trim().is_empty() {
-        return Err(LarkError::Empty(token.to_string()));
+        return Err(LarkError::Empty(fallback_id.to_string()));
     }
 
-    let uri = format!("lark://doc/{token}");
     Ok(Document {
-        uri: uri.clone(),
+        uri: uri.to_string(),
         title,
         text: text.clone(),
         content_hash: hash_text(&text),
@@ -103,6 +148,29 @@ mod tests {
         assert_eq!(doc.title, "Spec");
         assert_eq!(doc.uri, "lark://doc/tok123");
         assert!(doc.text.contains("Hello Lark"));
+    }
+
+    #[test]
+    fn parses_sheet_json_response() {
+        let runner = FakeRunner::new();
+        runner.insert(
+            "lark-cli sheets +read --spreadsheet-token sh1 --format json",
+            r#"{"title":"Budget","text":"row1,row2"}"#,
+        );
+        let doc = fetch_sheet(&runner, "lark-cli", "sh1").unwrap();
+        assert_eq!(doc.uri, "lark://sheet/sh1");
+        assert!(doc.text.contains("row1"));
+    }
+
+    #[test]
+    fn parses_mail_json_response() {
+        let runner = FakeRunner::new();
+        runner.insert(
+            "lark-cli mail +get --message-id m1 --format json",
+            r#"{"title":"Weekly","text":"mail body"}"#,
+        );
+        let doc = fetch_mail(&runner, "lark-cli", "m1").unwrap();
+        assert_eq!(doc.uri, "lark://mail/m1");
     }
 
     #[test]

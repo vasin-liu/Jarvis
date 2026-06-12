@@ -184,7 +184,8 @@ npm test
 | M2 | `chunker`, `ingest`, `embedder` (Mock), `indexer` — local file index pipeline |
 | M3 | `retriever` (RRF), `llm` (Mock), `rag` — hybrid search + Q&A with citations |
 | M4 | `config`, `watcher`, `lark`, Ollama providers — folder watch, Feishu sync, persistent store, Chat/Library/Settings UI |
-| M5+ | Agent sessions, full lark coverage, in-app agent runtime |
+| M5 | Chat sessions (persisted), full lark sync (doc/sheet/mail/im), lark-cli health check |
+| M6+ | Streaming answers, rebuild index UX, E2E tests |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 
