@@ -6,6 +6,9 @@ members = [
     "crates/ingest",
     "crates/embedder",
     "crates/indexer",
+    "crates/retriever",
+    "crates/llm",
+    "crates/rag",
 ]
 resolver = "2"
 

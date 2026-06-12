@@ -182,7 +182,8 @@ npm test
 |-----------|-------------|
 | M1 | Workspace + Tauri shell + `store` crate |
 | M2 | `chunker`, `ingest`, `embedder` (Mock), `indexer` — local file index pipeline |
-| M3+ | Retriever (RRF), RAG, watcher, lark, real embedder, UI views |
+| M3 | `retriever` (RRF), `llm` (Mock), `rag` — hybrid search + Q&A with citations |
+| M4+ | Watcher, lark, real embedder/LLM, Chat/Library/Settings UI |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

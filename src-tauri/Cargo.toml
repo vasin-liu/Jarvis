@@ -29,5 +29,8 @@ chunker = { path = "../crates/chunker" }
 ingest = { path = "../crates/ingest" }
 embedder = { path = "../crates/embedder" }
 indexer = { path = "../crates/indexer" }
+retriever = { path = "../crates/retriever" }
+llm = { path = "../crates/llm" }
+rag = { path = "../crates/rag" }
 tokio = { workspace = true }
 

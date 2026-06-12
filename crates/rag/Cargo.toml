@@ -1,0 +1,20 @@
+[package]
+name = "rag"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+embedder = { path = "../embedder" }
+llm = { path = "../llm" }
+retriever = { path = "../retriever" }
+store = { path = "../store" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+chunker = { path = "../chunker" }
+embedder = { path = "../embedder" }
+indexer = { path = "../indexer" }
+tempfile = "3"
+tokio = { workspace = true }

@@ -2033,6 +2033,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92daf443525c4cce67b150400bc2316076100ce0b3686209eb8cf3c31612e6f0"
 
 [[package]]
+name = "llm"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2737,6 +2747,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
+name = "rag"
+version = "0.1.0"
+dependencies = [
+ "chunker",
+ "embedder",
+ "indexer",
+ "llm",
+ "retriever",
+ "serde",
+ "store",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2843,6 +2869,19 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
+]
+
+[[package]]
+name = "retriever"
+version = "0.1.0"
+dependencies = [
+ "chunker",
+ "embedder",
+ "indexer",
+ "store",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -3517,6 +3556,9 @@ dependencies = [
  "embedder",
  "indexer",
  "ingest",
+ "llm",
+ "rag",
+ "retriever",
  "serde",
  "serde_json",
  "store",

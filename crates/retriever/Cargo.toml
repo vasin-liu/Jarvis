@@ -1,0 +1,17 @@
+[package]
+name = "retriever"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+embedder = { path = "../embedder" }
+store = { path = "../store" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+chunker = { path = "../chunker" }
+indexer = { path = "../indexer" }
+embedder = { path = "../embedder" }
+tempfile = "3"
+tokio = { workspace = true }
