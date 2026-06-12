@@ -42,6 +42,9 @@ pub struct AppConfig {
     pub cloud_chat_model: String,
     #[serde(default = "default_cloud_embed_dim")]
     pub cloud_embed_dim: usize,
+    /// Root of Cursor projects (e.g. `%USERPROFILE%\.cursor\projects`).
+    #[serde(default)]
+    pub cursor_projects_root: String,
 }
 
 fn default_fastembed_model() -> String {
@@ -87,6 +90,7 @@ impl Default for AppConfig {
             cloud_embed_model: default_cloud_embed_model(),
             cloud_chat_model: default_cloud_chat_model(),
             cloud_embed_dim: default_cloud_embed_dim(),
+            cursor_projects_root: String::new(),
         }
     }
 }

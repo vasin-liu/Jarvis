@@ -1,5 +1,8 @@
+use std::path::Path;
+
 use chunker::ChunkerConfig;
 use config::AppConfig;
+use cursor::{discover_transcripts, load_transcript, resolve_transcript_path};
 use embedder::Embedder;
 use indexer::{index_document, index_path};
 use lark::{fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, CommandRunner};
@@ -70,6 +73,7 @@ pub async fn rebuild_all_sources<F>(
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
     lark_cli_bin: &str,
+    cursor_projects_root: &str,
     phase: &str,
     mut on_progress: F,
 ) -> Result<RebuildReport, String>
@@ -93,7 +97,17 @@ where
             message: None,
         });
 
-        match reindex_source(store, embedder, chunker, runner, lark_cli_bin, &source).await {
+        match reindex_source(
+            store,
+            embedder,
+            chunker,
+            runner,
+            lark_cli_bin,
+            cursor_projects_root,
+            &source,
+        )
+        .await
+        {
             Ok(true) => {
                 indexed += 1;
                 on_progress(IndexProgressEvent {
@@ -212,12 +226,112 @@ where
     })
 }
 
+pub async fn sync_cursor_transcripts<F>(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
+    cursor_projects_root: &str,
+    mut on_progress: F,
+) -> Result<RebuildReport, String>
+where
+    F: FnMut(IndexProgressEvent),
+{
+    if cursor_projects_root.is_empty() {
+        return Err("cursor projects root is not configured".into());
+    }
+
+    let paths = discover_transcripts(Path::new(cursor_projects_root)).map_err(|e| e.to_string())?;
+    let total = paths.len();
+    let mut indexed = 0;
+    let mut failed = 0;
+
+    for (i, path) in paths.into_iter().enumerate() {
+        let current = i + 1;
+        let title = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("cursor-session")
+            .to_string();
+
+        on_progress(IndexProgressEvent {
+            phase: "cursor".into(),
+            current,
+            total,
+            source_title: title.clone(),
+            outcome: None,
+            message: None,
+        });
+
+        match load_transcript(&path).map_err(|e| e.to_string()) {
+            Ok(doc) => {
+                match index_document(
+                    store,
+                    embedder,
+                    chunker,
+                    doc,
+                    SourceKind::CursorTranscript,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        indexed += 1;
+                        on_progress(IndexProgressEvent {
+                            phase: "cursor".into(),
+                            current,
+                            total,
+                            source_title: title,
+                            outcome: Some("indexed".into()),
+                            message: None,
+                        });
+                    }
+                    Err(e) => {
+                        failed += 1;
+                        on_progress(IndexProgressEvent {
+                            phase: "cursor".into(),
+                            current,
+                            total,
+                            source_title: title,
+                            outcome: Some("failed".into()),
+                            message: Some(e.to_string()),
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                failed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: "cursor".into(),
+                    current,
+                    total,
+                    source_title: title,
+                    outcome: Some("failed".into()),
+                    message: Some(e),
+                });
+            }
+        }
+    }
+
+    if indexed > 0 {
+        store
+            .set_meta("embedder_id", embedder.id())
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(RebuildReport {
+        indexed,
+        failed,
+        skipped: 0,
+    })
+}
+
 pub async fn retry_source_by_id<F>(
     store: &Store,
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
     lark_cli_bin: &str,
+    cursor_projects_root: &str,
     source_id: &str,
     mut on_progress: F,
 ) -> Result<RebuildReport, String>
@@ -243,6 +357,7 @@ where
         chunker,
         runner,
         lark_cli_bin,
+        cursor_projects_root,
         &source,
     )
     .await
@@ -299,6 +414,7 @@ async fn reindex_source(
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
     lark_cli_bin: &str,
+    cursor_projects_root: &str,
     source: &Source,
 ) -> Result<bool, String> {
     store
@@ -344,6 +460,19 @@ async fn reindex_source(
             let id = lark_suffix(&source.uri, "lark://im/")?;
             let doc = fetch_im_chat(runner, lark_cli_bin, &id).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::LarkMsg)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        SourceKind::CursorTranscript => {
+            if cursor_projects_root.is_empty() {
+                mark_failed(store, source, "cursor projects root not configured")?;
+                return Ok(false);
+            }
+            let path = resolve_transcript_path(Path::new(cursor_projects_root), &source.uri)
+                .ok_or_else(|| format!("transcript not found for {}", source.uri))?;
+            let doc = load_transcript(&path).map_err(|e| e.to_string())?;
+            index_document(store, embedder, chunker, doc, SourceKind::CursorTranscript)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(true)
@@ -428,6 +557,7 @@ mod tests {
             &chunker,
             &runner,
             "lark-cli",
+            "",
             "rebuild",
             |_| {},
         )
@@ -435,5 +565,47 @@ mod tests {
         .unwrap();
         assert_eq!(report.indexed, 1);
         assert!(store.count_chunks().unwrap() > 0);
+    }
+
+    fn write_cursor_transcript(root: &Path, project: &str, session_id: &str) {
+        let dir = root
+            .join(project)
+            .join("agent-transcripts")
+            .join(session_id);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join(format!("{session_id}.jsonl")),
+            r#"{"role":"user","message":{"content":"cursor sync test"}}"#,
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn sync_cursor_transcripts_indexes_discovered_sessions() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let cursor_root = dir.path().join("cursor-projects");
+        write_cursor_transcript(&cursor_root, "jarvis", "sess-1");
+        write_cursor_transcript(&cursor_root, "other", "sess-2");
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+        let mut events = Vec::new();
+
+        let report = sync_cursor_transcripts(
+            &store,
+            &embedder,
+            &chunker,
+            cursor_root.to_str().unwrap(),
+            |event| events.push(event),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(report.indexed, 2);
+        assert_eq!(report.failed, 0);
+        assert!(events.iter().any(|e| e.phase == "cursor"));
+        assert_eq!(store.list_sources().unwrap().len(), 2);
     }
 }

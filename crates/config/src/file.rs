@@ -44,6 +44,7 @@ mod tests {
         assert_eq!(cfg.cloud_embed_model, "text-embedding-3-small");
         assert_eq!(cfg.cloud_embed_dim, 1536);
         assert!(cfg.cloud_api_key.is_empty());
+        assert!(cfg.cursor_projects_root.is_empty());
     }
 
     #[test]

@@ -8,9 +8,10 @@ use chunker::ChunkerConfig;
 use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
 use embedder::Embedder;
 use e2e::{apply_e2e_config, e2e_data_dir, is_e2e_mode, seed_e2e_fixture};
+use cursor::list_transcript_summaries;
 use index_ops::{
     index_local_paths, index_status_view, rebuild_all_sources, retry_source_by_id,
-    IndexProgressEvent, IndexStatusView, RebuildReport,
+    sync_cursor_transcripts, IndexProgressEvent, IndexStatusView, RebuildReport,
 };
 use indexer::{index_document, index_path};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
@@ -201,6 +202,7 @@ async fn rebuild_index(
         &state.chunker,
         &ProcessRunner,
         &cfg.lark_cli_bin,
+        &cfg.cursor_projects_root,
         "rebuild",
         |event| emit_index_progress(&app, event),
     )
@@ -227,6 +229,7 @@ async fn reinit_and_rebuild_index(
         &state.chunker,
         &ProcessRunner,
         &cfg.lark_cli_bin,
+        &cfg.cursor_projects_root,
         "reinit",
         |event| emit_index_progress(&app, event),
     )
@@ -248,7 +251,38 @@ async fn retry_source(
         &state.chunker,
         &ProcessRunner,
         &cfg.lark_cli_bin,
+        &cfg.cursor_projects_root,
         &id,
+        |event| emit_index_progress(&app, event),
+    )
+    .await?;
+    emit_index_complete(&app, &report);
+    Ok(report)
+}
+
+#[tauri::command]
+fn list_cursor_transcripts(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<cursor::TranscriptSummary>, String> {
+    let cfg = state.config();
+    if cfg.cursor_projects_root.is_empty() {
+        return Ok(Vec::new());
+    }
+    list_transcript_summaries(std::path::Path::new(&cfg.cursor_projects_root))
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn sync_cursor_transcripts_cmd(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<RebuildReport, String> {
+    let cfg = state.config();
+    let report = sync_cursor_transcripts(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &cfg.cursor_projects_root,
         |event| emit_index_progress(&app, event),
     )
     .await?;
@@ -590,6 +624,8 @@ pub fn run() {
             rebuild_index,
             reinit_and_rebuild_index,
             retry_source,
+            list_cursor_transcripts,
+            sync_cursor_transcripts_cmd,
             add_watch_folder,
             remove_watch_folder,
             list_chat_sessions,

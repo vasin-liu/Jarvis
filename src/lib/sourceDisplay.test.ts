@@ -10,6 +10,7 @@ describe("sourceDisplay", () => {
   it("maps source kinds to labels", () => {
     expect(sourceKindLabel("local_file")).toBe("本地文件");
     expect(sourceKindLabel("lark_doc")).toBe("飞书文档");
+    expect(sourceKindLabel("cursor_transcript")).toBe("Cursor 会话");
   });
 
   it("maps status to tone", () => {

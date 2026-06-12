@@ -191,7 +191,13 @@ npm test
 | M9 | Index progress events, source retry/resync, FastEmbed default, motion + Tabler icons |
 | M10 | v1.0.0 — E2E test mode, expanded WebDriver journeys, folder scan progress, CI E2E on Windows |
 
-Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
+## Milestones (v2)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v2 | **1.1.0** — `crates/cursor`: discover + parse `agent-transcripts` JSONL; `SourceKind::CursorTranscript`; `cursor_projects_root` config; Library sync + Settings path UI |
+
+Refer to design spec for non-goals (no auto-summary, no task extraction in v2, etc.).
 
 ---
 

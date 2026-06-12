@@ -13,6 +13,7 @@ import {
   IconMail,
   IconMessageChatbot,
   IconMessages,
+  IconRobot,
   IconSettings,
   IconTable,
 } from "@tabler/icons-react";
@@ -79,6 +80,14 @@ interface AppConfig {
   cloud_embed_model: string;
   cloud_chat_model: string;
   cloud_embed_dim: number;
+  cursor_projects_root: string;
+}
+
+interface CursorTranscriptSummary {
+  session_id: string;
+  project: string;
+  path: string;
+  uri: string;
 }
 
 interface IndexStatusView {
@@ -111,6 +120,8 @@ function SourceKindIcon({ kind }: { kind: string }) {
       return <IconMail className={cls} aria-hidden />;
     case "lark_msg":
       return <IconMessages className={cls} aria-hidden />;
+    case "cursor_transcript":
+      return <IconRobot className={cls} aria-hidden />;
     default:
       return <IconFile className={cls} aria-hidden />;
   }
@@ -163,7 +174,7 @@ async function openCitation(uri: string) {
     await openUrl(uri);
     return;
   }
-  if (uri.startsWith("lark://")) {
+  if (uri.startsWith("lark://") || uri.startsWith("cursor://")) {
     await navigator.clipboard.writeText(uri);
     return;
   }
@@ -195,6 +206,9 @@ function App() {
   const [larkMailId, setLarkMailId] = useState("");
   const [larkChatId, setLarkChatId] = useState("");
   const [larkStatus, setLarkStatus] = useState<string | null>(null);
+  const [cursorCandidates, setCursorCandidates] = useState<
+    CursorTranscriptSummary[]
+  >([]);
   const [newWatchFolder, setNewWatchFolder] = useState("");
 
   const refreshSessions = useCallback(async () => {
@@ -213,6 +227,10 @@ function App() {
   const refreshLibrary = useCallback(async () => {
     const list = await invoke<Source[]>("list_sources");
     setSources(list);
+    const transcripts = await invoke<CursorTranscriptSummary[]>(
+      "list_cursor_transcripts",
+    );
+    setCursorCandidates(transcripts);
   }, []);
 
   const refreshConfig = useCallback(async () => {
@@ -460,6 +478,29 @@ function App() {
     setNewWatchFolder(selected);
   }
 
+  async function handlePickCursorProjectsRoot() {
+    const selected = await open({ directory: true, multiple: false });
+    if (selected === null || typeof selected !== "string" || !config) return;
+    setConfig({ ...config, cursor_projects_root: selected });
+  }
+
+  async function handleSyncCursorTranscripts() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const report = await invoke<RebuildReport>("sync_cursor_transcripts_cmd");
+      await refreshLibrary();
+      await refreshIndexStatus();
+      setLarkStatus(
+        `Cursor 会话同步完成：成功 ${report.indexed}，失败 ${report.failed}`,
+      );
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleRemoveWatchFolder(path: string) {
     setErr(null);
     setBusy(true);
@@ -542,7 +583,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v1
+          来源 {sources.length} · v2
         </div>
       </aside>
 
@@ -809,6 +850,34 @@ function App() {
                   }
                 >
                   同步会话
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-zinc-950/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-200">
+                    Cursor 会话
+                  </h3>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {config?.cursor_projects_root
+                      ? `发现 ${cursorCandidates.length} 个本地会话（${config.cursor_projects_root}）`
+                      : "请先在设置中配置 Cursor projects 根目录"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  data-testid="sync-cursor-transcripts"
+                  disabled={
+                    busy ||
+                    !config?.cursor_projects_root?.trim() ||
+                    cursorCandidates.length === 0
+                  }
+                  onClick={() => void handleSyncCursorTranscripts()}
+                >
+                  同步 Cursor 会话
                 </button>
               </div>
             </div>
@@ -1136,6 +1205,30 @@ function App() {
                     setConfig({ ...config, lark_cli_bin: e.target.value })
                   }
                 />
+              </label>
+              <label className="space-y-1 text-sm md:col-span-2">
+                <span className="text-zinc-400">Cursor projects 根目录</span>
+                <div className="flex gap-2">
+                  <input
+                    className="field flex-1"
+                    data-testid="cursor-projects-root"
+                    value={config.cursor_projects_root}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        cursor_projects_root: e.target.value,
+                      })
+                    }
+                    placeholder="%USERPROFILE%\\.cursor\\projects"
+                  />
+                  <button
+                    type="button"
+                    className="btn-ghost shrink-0"
+                    onClick={() => void handlePickCursorProjectsRoot()}
+                  >
+                    浏览
+                  </button>
+                </div>
               </label>
             </div>
 

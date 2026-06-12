@@ -35,6 +35,7 @@ rag = { path = "../crates/rag" }
 config = { path = "../crates/config" }
 watcher = { path = "../crates/watcher" }
 lark = { path = "../crates/lark" }
+cursor = { path = "../crates/cursor" }
 tokio = { workspace = true }
 
 [dev-dependencies]

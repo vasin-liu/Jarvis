@@ -10,6 +10,8 @@ export function sourceKindLabel(kind: string): string {
       return "邮件";
     case "lark_msg":
       return "会话";
+    case "cursor_transcript":
+      return "Cursor 会话";
     default:
       return kind;
   }
