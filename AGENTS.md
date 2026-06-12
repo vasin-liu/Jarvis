@@ -187,6 +187,7 @@ npm test
 | M5 | Chat sessions (persisted), full lark sync (doc/sheet/mail/im), lark-cli health check |
 | M6 | Streaming Q&A (Channel), rebuild index UX, Vitest + E2E harness |
 | M7 | FastEmbed local embedder, streaming UI polish, GitHub Actions CI (E2E on `workflow_dispatch`) |
+| M8 | OpenAI-compatible cloud providers, embed cache, library index stats |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

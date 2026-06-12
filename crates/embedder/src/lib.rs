@@ -2,11 +2,13 @@ mod error;
 mod fastembed;
 mod mock;
 mod ollama;
+mod openai;
 
 pub use error::{EmbedError, Result};
 pub use fastembed::{fastembed_model_dim, FastEmbedder};
 pub use mock::MockEmbedder;
 pub use ollama::OllamaEmbedder;
+pub use openai::OpenAiEmbedder;
 
 use async_trait::async_trait;
 

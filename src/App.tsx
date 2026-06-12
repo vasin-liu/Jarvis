@@ -33,8 +33,8 @@ interface Source {
 
 interface AppConfig {
   watch_folders: string[];
-  embedder: "mock" | "ollama" | "fast_embed";
-  chat: "mock" | "ollama";
+  embedder: "mock" | "ollama" | "fast_embed" | "cloud";
+  chat: "mock" | "ollama" | "cloud";
   mock_embed_dim: number;
   ollama_base_url: string;
   ollama_embed_model: string;
@@ -43,6 +43,11 @@ interface AppConfig {
   lark_cli_bin: string;
   fastembed_model: string;
   fastembed_dim: number;
+  cloud_base_url: string;
+  cloud_api_key: string;
+  cloud_embed_model: string;
+  cloud_chat_model: string;
+  cloud_embed_dim: number;
 }
 
 interface IndexStatusView {
@@ -412,7 +417,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M7
+          来源 {sources.length} · M8
         </div>
       </aside>
 
@@ -557,6 +562,17 @@ function App() {
 
         {view === "library" && (
           <section className="glass-panel flex flex-1 flex-col gap-4 p-5">
+            <div
+              data-testid="library-stats"
+              className="rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-300"
+            >
+              <span className="text-zinc-400">索引概览：</span>
+              已索引{" "}
+              {sources.filter((s) => s.status === "indexed").length} · 失败{" "}
+              {sources.filter((s) => s.status === "failed").length} · 待处理{" "}
+              {sources.filter((s) => s.status === "pending").length} · 共{" "}
+              {sources.length} 个来源
+            </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-medium">资料库</h2>
               <button
@@ -773,6 +789,7 @@ function App() {
                   <option value="mock">Mock</option>
                   <option value="ollama">Ollama</option>
                   <option value="fast_embed">FastEmbed（本地 ONNX）</option>
+                  <option value="cloud">Cloud（OpenAI 兼容）</option>
                 </select>
               </label>
               <label className="space-y-1 text-sm">
@@ -789,8 +806,90 @@ function App() {
                 >
                   <option value="mock">Mock</option>
                   <option value="ollama">Ollama</option>
+                  <option value="cloud">Cloud（OpenAI 兼容）</option>
                 </select>
               </label>
+              {(config.embedder === "cloud" || config.chat === "cloud") && (
+                <>
+                  <label className="space-y-1 text-sm md:col-span-2">
+                    <span className="text-zinc-400">Cloud Base URL</span>
+                    <input
+                      className="field"
+                      value={config.cloud_base_url}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloud_base_url: e.target.value,
+                        })
+                      }
+                      placeholder="https://api.openai.com/v1"
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm md:col-span-2">
+                    <span className="text-zinc-400">Cloud API Key</span>
+                    <input
+                      className="field"
+                      type="password"
+                      autoComplete="off"
+                      value={config.cloud_api_key}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloud_api_key: e.target.value,
+                        })
+                      }
+                      placeholder="sk-…"
+                    />
+                  </label>
+                </>
+              )}
+              {config.embedder === "cloud" && (
+                <>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-zinc-400">Embed Model</span>
+                    <input
+                      className="field"
+                      value={config.cloud_embed_model}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloud_embed_model: e.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm">
+                    <span className="text-zinc-400">Embed Dim</span>
+                    <input
+                      className="field"
+                      type="number"
+                      min={1}
+                      value={config.cloud_embed_dim}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          cloud_embed_dim: Number(e.target.value) || 1536,
+                        })
+                      }
+                    />
+                  </label>
+                </>
+              )}
+              {config.chat === "cloud" && (
+                <label className="space-y-1 text-sm md:col-span-2">
+                  <span className="text-zinc-400">Chat Model</span>
+                  <input
+                    className="field"
+                    value={config.cloud_chat_model}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        cloud_chat_model: e.target.value,
+                      })
+                    }
+                  />
+                </label>
+              )}
               {config.embedder === "fast_embed" && (
                 <>
                   <label className="space-y-1 text-sm md:col-span-2">

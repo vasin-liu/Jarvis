@@ -391,6 +391,7 @@ impl Store {
             conn.execute("DELETE FROM chunks_fts WHERE rowid = ?1", [id])?;
         }
         conn.execute("DELETE FROM chunks", [])?;
+        conn.execute("DELETE FROM embed_cache", [])?;
         conn.execute(
             "UPDATE sources SET status = 'pending', indexed_at = NULL, error = NULL",
             [],
@@ -403,6 +404,38 @@ impl Store {
         drop(conn);
         *self.dim.lock().unwrap() = new_dim;
         self.set_meta("vector_dim", &new_dim.to_string())?;
+        Ok(())
+    }
+
+    pub fn get_embed_cache(&self, text_hash: &str) -> Result<Option<Vec<f32>>> {
+        let conn = self.conn.lock().unwrap();
+        let result = conn.query_row(
+            "SELECT vector FROM embed_cache WHERE text_hash = ?1",
+            [text_hash],
+            |row| {
+                let raw: String = row.get(0)?;
+                Ok(raw)
+            },
+        );
+
+        match result {
+            Ok(raw) => {
+                let vec: Vec<f32> = serde_json::from_str(&raw)?;
+                Ok(Some(vec))
+            }
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(StoreError::Sqlite(e)),
+        }
+    }
+
+    pub fn put_embed_cache(&self, text_hash: &str, vector: &[f32]) -> Result<()> {
+        let raw = serde_json::to_string(vector)?;
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO embed_cache(text_hash, vector) VALUES(?1, ?2)
+             ON CONFLICT(text_hash) DO UPDATE SET vector = excluded.vector",
+            rusqlite::params![text_hash, raw],
+        )?;
         Ok(())
     }
 
@@ -607,6 +640,16 @@ mod tests {
             .unwrap();
         let hits = store.search_fts("nonexistentterm", 10).unwrap();
         assert!(hits.is_empty());
+    }
+
+    #[test]
+    fn embed_cache_roundtrips_vector() {
+        let store = Store::open_in_memory(4).unwrap();
+        let vec = vec![0.1, 0.2, 0.3, 0.4];
+        store.put_embed_cache("abc123", &vec).unwrap();
+        let loaded = store.get_embed_cache("abc123").unwrap().unwrap();
+        assert_eq!(loaded, vec);
+        assert!(store.get_embed_cache("missing").unwrap().is_none());
     }
 
     #[test]

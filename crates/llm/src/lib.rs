@@ -1,11 +1,13 @@
 mod error;
 mod mock;
 mod ollama;
+mod openai;
 mod types;
 
 pub use error::{LlmError, Result};
 pub use mock::MockChatModel;
 pub use ollama::OllamaChat;
+pub use openai::OpenAiChat;
 pub use types::{Message, Role};
 
 use async_trait::async_trait;

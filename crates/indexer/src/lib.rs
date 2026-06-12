@@ -50,10 +50,7 @@ pub async fn index_document(
         }
 
         let texts: Vec<String> = drafts.iter().map(|d| d.text.clone()).collect();
-        let embeddings = embedder
-            .embed(&texts)
-            .await
-            .map_err(IndexError::Embed)?;
+        let embeddings = embed_with_cache(store, embedder, &texts).await?;
 
         let chunks: Vec<NewChunk> = drafts
             .into_iter()
@@ -116,6 +113,41 @@ pub async fn index_path(
     Ok(source_id)
 }
 
+async fn embed_with_cache(
+    store: &Store,
+    embedder: &dyn Embedder,
+    texts: &[String],
+) -> Result<Vec<Vec<f32>>> {
+    use ingest::hash_text;
+
+    let mut results: Vec<Option<Vec<f32>>> = vec![None; texts.len()];
+    let mut to_embed: Vec<String> = Vec::new();
+    let mut to_embed_idx: Vec<usize> = Vec::new();
+
+    for (i, text) in texts.iter().enumerate() {
+        let hash = hash_text(text);
+        if let Some(vec) = store.get_embed_cache(&hash)? {
+            if vec.len() == embedder.dim() {
+                results[i] = Some(vec);
+                continue;
+            }
+        }
+        to_embed.push(text.clone());
+        to_embed_idx.push(i);
+    }
+
+    if !to_embed.is_empty() {
+        let fresh = embedder.embed(&to_embed).await.map_err(IndexError::Embed)?;
+        for (idx, vec) in to_embed_idx.into_iter().zip(fresh) {
+            let hash = hash_text(&texts[idx]);
+            store.put_embed_cache(&hash, &vec)?;
+            results[idx] = Some(vec);
+        }
+    }
+
+    Ok(results.into_iter().map(|v| v.unwrap()).collect())
+}
+
 fn unix_now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -168,6 +200,22 @@ mod tests {
 
         index_path(&store, &embedder, &cfg, &file).await.unwrap();
         assert_eq!(store.count_chunks().unwrap(), count_after_first);
+    }
+
+    #[tokio::test]
+    async fn populates_embed_cache_while_indexing() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let file = dir.path().join("cached.txt");
+        fs::write(&file, "cache me once").unwrap();
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let cfg = ChunkerConfig::default();
+
+        index_path(&store, &embedder, &cfg, &file).await.unwrap();
+        let hash = ingest::hash_text("cache me once");
+        assert!(store.get_embed_cache(&hash).unwrap().is_some());
     }
 
     #[tokio::test]

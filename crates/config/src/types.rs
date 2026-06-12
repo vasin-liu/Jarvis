@@ -6,6 +6,7 @@ pub enum EmbedderProvider {
     Mock,
     Ollama,
     FastEmbed,
+    Cloud,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,6 +14,7 @@ pub enum EmbedderProvider {
 pub enum ChatProvider {
     Mock,
     Ollama,
+    Cloud,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -30,6 +32,16 @@ pub struct AppConfig {
     pub fastembed_model: String,
     #[serde(default = "default_fastembed_dim")]
     pub fastembed_dim: usize,
+    #[serde(default = "default_cloud_base_url")]
+    pub cloud_base_url: String,
+    #[serde(default)]
+    pub cloud_api_key: String,
+    #[serde(default = "default_cloud_embed_model")]
+    pub cloud_embed_model: String,
+    #[serde(default = "default_cloud_chat_model")]
+    pub cloud_chat_model: String,
+    #[serde(default = "default_cloud_embed_dim")]
+    pub cloud_embed_dim: usize,
 }
 
 fn default_fastembed_model() -> String {
@@ -38,6 +50,22 @@ fn default_fastembed_model() -> String {
 
 fn default_fastembed_dim() -> usize {
     512
+}
+
+fn default_cloud_base_url() -> String {
+    "https://api.openai.com/v1".to_string()
+}
+
+fn default_cloud_embed_model() -> String {
+    "text-embedding-3-small".to_string()
+}
+
+fn default_cloud_chat_model() -> String {
+    "gpt-4o-mini".to_string()
+}
+
+fn default_cloud_embed_dim() -> usize {
+    1536
 }
 
 impl Default for AppConfig {
@@ -54,6 +82,11 @@ impl Default for AppConfig {
             lark_cli_bin: "lark-cli".to_string(),
             fastembed_model: "bge-small-zh-v1.5".to_string(),
             fastembed_dim: 512,
+            cloud_base_url: default_cloud_base_url(),
+            cloud_api_key: String::new(),
+            cloud_embed_model: default_cloud_embed_model(),
+            cloud_chat_model: default_cloud_chat_model(),
+            cloud_embed_dim: default_cloud_embed_dim(),
         }
     }
 }
@@ -65,6 +98,7 @@ impl AppConfig {
             EmbedderProvider::Ollama => self.ollama_embed_dim,
             EmbedderProvider::FastEmbed => embedder::fastembed_model_dim(&self.fastembed_model)
                 .unwrap_or(self.fastembed_dim),
+            EmbedderProvider::Cloud => self.cloud_embed_dim,
         }
     }
 }
