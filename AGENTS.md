@@ -185,7 +185,8 @@ npm test
 | M3 | `retriever` (RRF), `llm` (Mock), `rag` — hybrid search + Q&A with citations |
 | M4 | `config`, `watcher`, `lark`, Ollama providers — folder watch, Feishu sync, persistent store, Chat/Library/Settings UI |
 | M5 | Chat sessions (persisted), full lark sync (doc/sheet/mail/im), lark-cli health check |
-| M6+ | Streaming answers, rebuild index UX, E2E tests |
+| M6 | Streaming Q&A (Channel), rebuild index UX, Vitest + E2E harness |
+| M7+ | Full E2E CI, fastembed local, streaming polish |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

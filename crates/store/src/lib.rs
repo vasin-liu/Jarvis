@@ -6,4 +6,5 @@ mod vecext;
 
 pub use error::{Result, StoreError};
 pub use store::Store;
+pub use store::IndexHealth;
 pub use types::*;

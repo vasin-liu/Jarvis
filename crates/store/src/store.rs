@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use rusqlite::Connection;
+use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, StoreError};
 use crate::schema::init_schema;
@@ -12,7 +13,15 @@ use crate::vecext::register_sqlite_vec;
 
 pub struct Store {
     conn: Mutex<Connection>,
-    dim: usize,
+    dim: Mutex<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct IndexHealth {
+    pub store_dim: usize,
+    pub stored_embedder_id: Option<String>,
+    pub source_count: usize,
+    pub chunk_count: usize,
 }
 
 impl Store {
@@ -23,7 +32,7 @@ impl Store {
         init_schema(&conn, dim)?;
         Ok(Self {
             conn: Mutex::new(conn),
-            dim,
+            dim: Mutex::new(dim),
         })
     }
 
@@ -34,12 +43,12 @@ impl Store {
         init_schema(&conn, dim)?;
         Ok(Self {
             conn: Mutex::new(conn),
-            dim,
+            dim: Mutex::new(dim),
         })
     }
 
     pub fn dim(&self) -> usize {
-        self.dim
+        *self.dim.lock().unwrap()
     }
 
     pub fn upsert_source(&self, s: &Source) -> Result<()> {
@@ -102,11 +111,12 @@ impl Store {
     /// Write chunks into chunks, vec_chunks, and chunks_fts tables.
     pub fn insert_chunks(&self, source_id: &str, chunks: &[NewChunk]) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+        let dim = *self.dim.lock().unwrap();
         let tx = conn.unchecked_transaction()?;
         for c in chunks {
-            if c.embedding.len() != self.dim {
+            if c.embedding.len() != dim {
                 return Err(StoreError::DimMismatch {
-                    expected: self.dim,
+                    expected: dim,
                     got: c.embedding.len(),
                 });
             }
@@ -156,9 +166,10 @@ impl Store {
 
     /// KNN vector search (lower score = closer).
     pub fn search_vector(&self, query: &[f32], k: usize) -> Result<Vec<ChunkHit>> {
-        if query.len() != self.dim {
+        let dim = *self.dim.lock().unwrap();
+        if query.len() != dim {
             return Err(StoreError::DimMismatch {
-                expected: self.dim,
+                expected: dim,
                 got: query.len(),
             });
         }
@@ -365,6 +376,43 @@ impl Store {
         })?;
         rows.collect::<rusqlite::Result<Vec<_>>>()
             .map_err(StoreError::from)
+    }
+
+    /// Drop and recreate the vector table, clear all chunks/FTS, mark sources pending.
+    pub fn reinit_vectors(&self, new_dim: usize) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let ids: Vec<i64> = {
+            let mut stmt = conn.prepare("SELECT id FROM chunks")?;
+            let rows = stmt.query_map([], |r| r.get::<_, i64>(0))?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()?
+        };
+        for id in &ids {
+            conn.execute("DELETE FROM vec_chunks WHERE rowid = ?1", [id])?;
+            conn.execute("DELETE FROM chunks_fts WHERE rowid = ?1", [id])?;
+        }
+        conn.execute("DELETE FROM chunks", [])?;
+        conn.execute(
+            "UPDATE sources SET status = 'pending', indexed_at = NULL, error = NULL",
+            [],
+        )?;
+        conn.execute("DROP TABLE IF EXISTS vec_chunks", [])?;
+        conn.execute(
+            &format!("CREATE VIRTUAL TABLE vec_chunks USING vec0(embedding float[{new_dim}])"),
+            [],
+        )?;
+        drop(conn);
+        *self.dim.lock().unwrap() = new_dim;
+        self.set_meta("vector_dim", &new_dim.to_string())?;
+        Ok(())
+    }
+
+    pub fn index_health(&self) -> Result<IndexHealth> {
+        Ok(IndexHealth {
+            store_dim: self.dim(),
+            stored_embedder_id: self.get_meta("embedder_id")?,
+            source_count: self.list_sources()?.len(),
+            chunk_count: self.count_chunks()? as usize,
+        })
     }
 
     fn row_to_source(row: &rusqlite::Row<'_>) -> rusqlite::Result<Source> {
@@ -595,5 +643,23 @@ mod tests {
 
         store.delete_chat_session(&s.id).unwrap();
         assert!(store.list_chat_sessions().unwrap().is_empty());
+    }
+
+    #[test]
+    fn reinit_vectors_clears_chunks_and_updates_dim() {
+        let store = Store::open_in_memory(4).unwrap();
+        store.upsert_source(&sample_source("a")).unwrap();
+        store
+            .insert_chunks("a", &[chunk(0, "hello world", [1.0, 0.0, 0.0, 0.0])])
+            .unwrap();
+        assert_eq!(store.count_chunks().unwrap(), 1);
+
+        store.reinit_vectors(8).unwrap();
+        assert_eq!(store.dim(), 8);
+        assert_eq!(store.count_chunks().unwrap(), 0);
+        assert_eq!(
+            store.get_source("a").unwrap().status,
+            IndexStatus::Pending
+        );
     }
 }

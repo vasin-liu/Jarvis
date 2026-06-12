@@ -31,6 +31,31 @@ pub async fn ask(
     Ok(AskResponse { answer, citations })
 }
 
+pub async fn ask_stream(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chat: &dyn ChatModel,
+    retriever: &RetrieverConfig,
+    question: &str,
+    on_token: &mut (dyn FnMut(String) + Send),
+) -> Result<AskResponse> {
+    let hits = retrieve(store, embedder, question, retriever).await?;
+
+    if hits.is_empty() {
+        let answer = NO_CONTEXT.to_string();
+        on_token(answer.clone());
+        return Ok(AskResponse {
+            answer,
+            citations: vec![],
+        });
+    }
+
+    let citations = hits_to_citations(store, &hits)?;
+    let messages = build_messages(question, &hits, &citations);
+    let answer = chat.complete_stream(&messages, on_token).await?;
+    Ok(AskResponse { answer, citations })
+}
+
 fn hits_to_citations(store: &Store, hits: &[ChunkHit]) -> Result<Vec<Citation>> {
     let mut out = Vec::with_capacity(hits.len());
     for hit in hits {
@@ -84,6 +109,7 @@ fn build_messages(question: &str, hits: &[ChunkHit], citations: &[Citation]) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::ask_stream;
     use chunker::ChunkerConfig;
     use embedder::MockEmbedder;
     use indexer::index_path;
@@ -115,6 +141,35 @@ mod tests {
 
         assert!(!resp.citations.is_empty());
         assert!(!resp.answer.is_empty());
+    }
+
+    #[tokio::test]
+    async fn ask_stream_emits_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let file = dir.path().join("kb.md");
+        fs::write(&file, "Jarvis streams answers token by token.").unwrap();
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        index_path(&store, &embedder, &ChunkerConfig::default(), &file)
+            .await
+            .unwrap();
+
+        let mut streamed = String::new();
+        let resp = ask_stream(
+            &store,
+            &embedder,
+            &MockChatModel,
+            &RetrieverConfig::default(),
+            "streams answers",
+            &mut |t| streamed.push_str(&t),
+        )
+        .await
+        .unwrap();
+
+        assert!(!streamed.is_empty());
+        assert_eq!(streamed, resp.answer);
     }
 
     #[tokio::test]

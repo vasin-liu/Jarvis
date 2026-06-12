@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { parseCitations } from "./lib/citations";
 
 type View = "chat" | "library" | "settings";
-
-interface Citation {
-  chunk_id: number;
-  source_id: string;
-  source_title: string;
-  source_uri: string;
-  loc: string;
-  excerpt: string;
-}
 
 interface ChatSession {
   id: string;
@@ -51,6 +43,23 @@ interface AppConfig {
   lark_cli_bin: string;
 }
 
+interface IndexStatusView {
+  store_dim: number;
+  config_embed_dim: number;
+  stored_embedder_id: string | null;
+  config_embedder_id: string;
+  needs_rebuild: boolean;
+  dim_mismatch: boolean;
+  source_count: number;
+  chunk_count: number;
+}
+
+interface RebuildReport {
+  indexed: number;
+  failed: number;
+  skipped: number;
+}
+
 async function openCitation(uri: string) {
   if (uri.startsWith("http://") || uri.startsWith("https://")) {
     await openUrl(uri);
@@ -63,15 +72,6 @@ async function openCitation(uri: string) {
   await openPath(uri);
 }
 
-function parseCitations(raw?: string | null): Citation[] {
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw) as Citation[];
-  } catch {
-    return [];
-  }
-}
-
 function App() {
   const [view, setView] = useState<View>("chat");
   const [busy, setBusy] = useState(false);
@@ -82,8 +82,10 @@ function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
+  const [streamingDraft, setStreamingDraft] = useState("");
 
   const [sources, setSources] = useState<Source[]>([]);
+  const [indexStatus, setIndexStatus] = useState<IndexStatusView | null>(null);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [larkDocToken, setLarkDocToken] = useState("");
   const [larkSheetToken, setLarkSheetToken] = useState("");
@@ -115,6 +117,11 @@ function App() {
     setConfig(cfg);
   }, []);
 
+  const refreshIndexStatus = useCallback(async () => {
+    const status = await invoke<IndexStatusView>("get_index_status");
+    setIndexStatus(status);
+  }, []);
+
   const ensureSession = useCallback(async () => {
     let list = await refreshSessions();
     if (list.length === 0) {
@@ -131,10 +138,13 @@ function App() {
   }, [refreshMessages, refreshSessions]);
 
   useEffect(() => {
-    Promise.all([refreshLibrary(), refreshConfig(), ensureSession()]).catch(
-      (e) => setErr(String(e)),
-    );
-  }, [ensureSession, refreshConfig, refreshLibrary]);
+    Promise.all([
+      refreshLibrary(),
+      refreshConfig(),
+      refreshIndexStatus(),
+      ensureSession(),
+    ]).catch((e) => setErr(String(e)));
+  }, [ensureSession, refreshConfig, refreshIndexStatus, refreshLibrary]);
 
   useEffect(() => {
     if (activeSessionId) {
@@ -190,18 +200,27 @@ function App() {
     if (!q || !activeSessionId) return;
     setErr(null);
     setBusy(true);
+    setStreamingDraft("");
     try {
-      await invoke("ask_in_session", {
+      const channel = new Channel<{ token: string }>();
+      channel.onmessage = (msg) => {
+        setStreamingDraft((prev) => prev + msg.token);
+      };
+      await invoke("ask_in_session_stream", {
         sessionId: activeSessionId,
         question: q,
+        onToken: channel,
       });
       setQuestion("");
+      setStreamingDraft("");
       await refreshMessages(activeSessionId);
       await refreshSessions();
+      await refreshIndexStatus();
     } catch (e) {
       setErr(String(e));
     } finally {
       setBusy(false);
+      setStreamingDraft("");
     }
   }
 
@@ -315,6 +334,47 @@ function App() {
     }
   }
 
+  async function handleRebuildIndex() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const report = await invoke<RebuildReport>("rebuild_index");
+      await refreshLibrary();
+      await refreshIndexStatus();
+      setLarkStatus(
+        `重建完成：成功 ${report.indexed}，失败 ${report.failed}，跳过 ${report.skipped}`,
+      );
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReinitAndRebuild() {
+    if (
+      !window.confirm(
+        "将清除所有向量索引并按当前 Embedder 配置重新嵌入，是否继续？",
+      )
+    ) {
+      return;
+    }
+    setErr(null);
+    setBusy(true);
+    try {
+      const report = await invoke<RebuildReport>("reinit_and_rebuild_index");
+      await refreshLibrary();
+      await refreshIndexStatus();
+      setLarkStatus(
+        `重置并重建完成：成功 ${report.indexed}，失败 ${report.failed}`,
+      );
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen">
       <aside className="glass-panel m-4 flex w-56 shrink-0 flex-col gap-2 p-4">
@@ -334,6 +394,7 @@ function App() {
           <button
             key={id}
             type="button"
+            data-testid={`nav-${id}`}
             className={`nav-btn ${view === id ? "nav-btn-active" : "nav-btn-idle"}`}
             onClick={() => setView(id)}
           >
@@ -341,7 +402,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M5
+          来源 {sources.length} · M6
         </div>
       </aside>
 
@@ -432,6 +493,19 @@ function App() {
                       )}
                   </div>
                 ))}
+                {busy && streamingDraft && (
+                  <div
+                    data-testid="streaming-answer"
+                    className="mr-8 rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm"
+                  >
+                    <div className="mb-1 text-xs uppercase text-zinc-500">
+                      助理 · 生成中
+                    </div>
+                    <p className="whitespace-pre-wrap text-zinc-100">
+                      {streamingDraft}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-white/10 pt-4">
@@ -448,6 +522,7 @@ function App() {
                 />
                 <button
                   type="button"
+                  data-testid="ask-submit"
                   className="btn-primary mt-2"
                   disabled={busy || !question.trim() || !activeSessionId}
                   onClick={handleAsk}
@@ -588,8 +663,61 @@ function App() {
         )}
 
         {view === "settings" && config && (
-          <section className="glass-panel flex flex-col gap-5 p-5">
+          <section
+            data-testid="settings-panel"
+            className="glass-panel flex flex-col gap-5 p-5"
+          >
             <h2 className="text-base font-medium">设置</h2>
+
+            {indexStatus && (
+              <div
+                data-testid="index-status"
+                className={`rounded-xl border p-4 text-sm ${
+                  indexStatus.needs_rebuild
+                    ? "border-amber-400/30 bg-amber-950/30 text-amber-100"
+                    : "border-white/10 bg-zinc-950/40 text-zinc-300"
+                }`}
+              >
+                <div className="mb-2 font-medium">索引状态</div>
+                <div className="space-y-1 text-xs text-zinc-400">
+                  <div>
+                    向量维度：库 {indexStatus.store_dim} / 配置{" "}
+                    {indexStatus.config_embed_dim}
+                    {indexStatus.dim_mismatch && " · 维度不一致"}
+                  </div>
+                  <div>
+                    Embedder：{indexStatus.stored_embedder_id ?? "未记录"} →{" "}
+                    {indexStatus.config_embedder_id}
+                  </div>
+                  <div>
+                    来源 {indexStatus.source_count} · 分块{" "}
+                    {indexStatus.chunk_count}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="rebuild-index"
+                    className="btn-ghost text-xs"
+                    disabled={busy || indexStatus.source_count === 0}
+                    onClick={handleRebuildIndex}
+                  >
+                    重建索引
+                  </button>
+                  {indexStatus.dim_mismatch && (
+                    <button
+                      type="button"
+                      data-testid="reinit-rebuild-index"
+                      className="btn-primary text-xs"
+                      disabled={busy}
+                      onClick={handleReinitAndRebuild}
+                    >
+                      重置向量表并重建
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-xl border border-white/10 p-4">
               <div className="mb-2 text-sm text-zinc-300">飞书连接</div>
@@ -687,7 +815,9 @@ function App() {
               type="button"
               className="btn-primary w-fit"
               disabled={busy}
-              onClick={() => handleSaveConfig(config)}
+              onClick={() => {
+                void handleSaveConfig(config).then(() => refreshIndexStatus());
+              }}
             >
               保存配置
             </button>

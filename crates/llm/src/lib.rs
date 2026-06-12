@@ -14,4 +14,9 @@ use async_trait::async_trait;
 pub trait ChatModel: Send + Sync {
     fn id(&self) -> &str;
     async fn complete(&self, messages: &[Message]) -> Result<String>;
+    async fn complete_stream(
+        &self,
+        messages: &[Message],
+        on_token: &mut (dyn FnMut(String) + Send),
+    ) -> Result<String>;
 }

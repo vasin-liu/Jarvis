@@ -1,25 +1,37 @@
+mod index_ops;
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use chunker::ChunkerConfig;
 use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
 use embedder::Embedder;
+use index_ops::{index_status_view, rebuild_all_sources, IndexStatusView, RebuildReport};
 use indexer::{index_document, index_path};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
-use rag::{ask, AskResponse};
+use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
+use serde::Serialize;
 use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store};
+use tauri::ipc::Channel;
 use tauri::Manager;
 use watcher::{scan_folder, spawn_watcher, unindex_path, WatchEvent, WatchHandle};
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TokenEvent {
+    token: String,
+}
+
 struct AppState {
     store: Arc<Store>,
-    embedder: Arc<dyn Embedder>,
-    chat: Arc<dyn ChatModel>,
+    embedder: Mutex<Arc<dyn Embedder>>,
+    chat: Mutex<Arc<dyn ChatModel>>,
     chunker: ChunkerConfig,
     retriever: RetrieverConfig,
     config_path: PathBuf,
+    db_path: PathBuf,
     config: Mutex<AppConfig>,
     watch: Mutex<Option<WatchHandle>>,
 }
@@ -29,9 +41,23 @@ impl AppState {
         self.config.lock().unwrap().clone()
     }
 
+    fn embedder(&self) -> Arc<dyn Embedder> {
+        self.embedder.lock().unwrap().clone()
+    }
+
+    fn chat(&self) -> Arc<dyn ChatModel> {
+        self.chat.lock().unwrap().clone()
+    }
+
+    fn reload_providers(&self, cfg: &AppConfig) {
+        *self.embedder.lock().unwrap() = build_embedder(cfg);
+        *self.chat.lock().unwrap() = build_chat_model(cfg);
+    }
+
     fn save_config(&self, cfg: &AppConfig) -> Result<(), String> {
         save_config(&self.config_path, cfg).map_err(|e| e.to_string())?;
         *self.config.lock().unwrap() = cfg.clone();
+        self.reload_providers(cfg);
         Ok(())
     }
 
@@ -56,7 +82,7 @@ impl AppState {
         *self.watch.lock().unwrap() = Some(handle);
 
         let store = self.store.clone();
-        let embedder = self.embedder.clone();
+        let embedder = self.embedder();
         let chunker = self.chunker.clone();
 
         std::thread::spawn(move || {
@@ -89,7 +115,7 @@ impl AppState {
             for path in paths {
                 let _ = rt.block_on(index_path(
                     self.store.as_ref(),
-                    self.embedder.as_ref(),
+                    self.embedder().as_ref(),
                     &self.chunker,
                     &path,
                 ));
@@ -128,16 +154,53 @@ fn get_config(state: tauri::State<'_, AppState>) -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
+fn get_index_status(state: tauri::State<'_, AppState>) -> Result<IndexStatusView, String> {
+    let cfg = state.config();
+    Ok(index_status_view(
+        state.store.as_ref(),
+        &cfg,
+        state.embedder().as_ref(),
+    ))
+}
+
+#[tauri::command]
 fn set_config(config: AppConfig, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    if config.embedding_dim() != state.store.dim() {
-        return Err(format!(
-            "embedding dim mismatch: store={} config={}. restart app after changing embedder dim.",
-            state.store.dim(),
-            config.embedding_dim()
-        ));
-    }
     state.save_config(&config)?;
     state.restart_watcher()
+}
+
+#[tauri::command]
+async fn rebuild_index(state: tauri::State<'_, AppState>) -> Result<RebuildReport, String> {
+    let cfg = state.config();
+    rebuild_all_sources(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &ProcessRunner,
+        &cfg.lark_cli_bin,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn reinit_and_rebuild_index(
+    state: tauri::State<'_, AppState>,
+) -> Result<RebuildReport, String> {
+    let cfg = state.config();
+    let new_dim = cfg.embedding_dim();
+    state
+        .store
+        .reinit_vectors(new_dim)
+        .map_err(|e| e.to_string())?;
+    state.reload_providers(&cfg);
+    rebuild_all_sources(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &ProcessRunner,
+        &cfg.lark_cli_bin,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -157,7 +220,7 @@ fn add_watch_folder(path: String, state: tauri::State<'_, AppState>) -> Result<(
     for file in paths {
         tauri::async_runtime::block_on(index_path(
             state.store.as_ref(),
-            state.embedder.as_ref(),
+            state.embedder().as_ref(),
             &state.chunker,
             &file,
         ))
@@ -221,33 +284,71 @@ async fn ask_in_session(
 
     let resp = ask(
         state.store.as_ref(),
-        state.embedder.as_ref(),
-        state.chat.as_ref(),
+        state.embedder().as_ref(),
+        state.chat().as_ref(),
         &state.retriever,
         &question,
     )
     .await
     .map_err(|e| e.to_string())?;
 
+    persist_assistant(&state, &session_id, &question, &resp)?;
+    Ok(resp)
+}
+
+#[tauri::command]
+async fn ask_in_session_stream(
+    session_id: String,
+    question: String,
+    on_token: Channel<TokenEvent>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AskResponse, String> {
+    state
+        .store
+        .append_chat_message(&session_id, ChatRole::User, &question, None)
+        .map_err(|e| e.to_string())?;
+
+    let resp = ask_stream(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        state.chat().as_ref(),
+        &state.retriever,
+        &question,
+        &mut |token| {
+            let _ = on_token.send(TokenEvent { token });
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    persist_assistant(&state, &session_id, &question, &resp)?;
+    Ok(resp)
+}
+
+fn persist_assistant(
+    state: &AppState,
+    session_id: &str,
+    question: &str,
+    resp: &AskResponse,
+) -> Result<(), String> {
     let citations_json = serde_json::to_string(&resp.citations).map_err(|e| e.to_string())?;
     state
         .store
         .append_chat_message(
-            &session_id,
+            session_id,
             ChatRole::Assistant,
             &resp.answer,
             Some(&citations_json),
         )
         .map_err(|e| e.to_string())?;
 
-    if let Ok(session) = state.store.get_chat_session(&session_id) {
+    if let Ok(session) = state.store.get_chat_session(session_id) {
         if session.title == "新对话" {
             let title: String = question.chars().take(32).collect();
-            let _ = state.store.rename_chat_session(&session_id, title.trim());
+            let _ = state.store.rename_chat_session(session_id, title.trim());
         }
     }
-
-    Ok(resp)
+    Ok(())
 }
 
 #[tauri::command]
@@ -265,13 +366,17 @@ async fn index_lark(
     let id = doc.uri.clone();
     index_document(
         state.store.as_ref(),
-        state.embedder.as_ref(),
+        state.embedder().as_ref(),
         &state.chunker,
         doc,
         kind,
     )
     .await
     .map_err(|e| e.to_string())?;
+    state
+        .store
+        .set_meta("embedder_id", state.embedder().id())
+        .map_err(|e| e.to_string())?;
     Ok(id)
 }
 
@@ -318,14 +423,19 @@ async fn sync_lark_im(
 
 #[tauri::command]
 async fn index_file(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
-    index_path(
+    let id = index_path(
         state.store.as_ref(),
-        state.embedder.as_ref(),
+        state.embedder().as_ref(),
         &state.chunker,
         &path,
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    state
+        .store
+        .set_meta("embedder_id", state.embedder().id())
+        .map_err(|e| e.to_string())?;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -335,8 +445,8 @@ async fn ask_question(
 ) -> Result<AskResponse, String> {
     ask(
         state.store.as_ref(),
-        state.embedder.as_ref(),
-        state.chat.as_ref(),
+        state.embedder().as_ref(),
+        state.chat().as_ref(),
         &state.retriever,
         &question,
     )
@@ -345,38 +455,31 @@ async fn ask_question(
 }
 
 fn init_state(app: &tauri::App) -> Result<AppState, String> {
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&app_data).map_err(|e| e.to_string())?;
 
     let config_path = app_data.join("config.json");
     let db_path = app_data.join("kb.sqlite");
     let config = load_config(&config_path).map_err(|e| e.to_string())?;
-    let dim = config.embedding_dim();
+    let config_dim = config.embedding_dim();
 
-    let store = Arc::new(
-        Store::open(&db_path, dim).map_err(|e| e.to_string())?,
-    );
+    let store = Arc::new(Store::open(&db_path, config_dim).map_err(|e| e.to_string())?);
     let embedder = build_embedder(&config);
     let chat = build_chat_model(&config);
 
-    if embedder.dim() != store.dim() {
-        return Err(format!(
-            "store dim {} != embedder dim {}",
-            store.dim(),
-            embedder.dim()
-        ));
+    if store.get_meta("embedder_id").ok().flatten().is_none() {
+        let _ = store.set_meta("embedder_id", embedder.id());
+        let _ = store.set_meta("vector_dim", &config_dim.to_string());
     }
 
     Ok(AppState {
         store,
-        embedder,
-        chat,
+        embedder: Mutex::new(embedder),
+        chat: Mutex::new(chat),
         chunker: ChunkerConfig::default(),
         retriever: RetrieverConfig::default(),
         config_path,
+        db_path,
         config: Mutex::new(config),
         watch: Mutex::new(None),
     })
@@ -400,6 +503,9 @@ pub fn run() {
             remove_source,
             get_config,
             set_config,
+            get_index_status,
+            rebuild_index,
+            reinit_and_rebuild_index,
             add_watch_folder,
             remove_watch_folder,
             list_chat_sessions,
@@ -407,6 +513,7 @@ pub fn run() {
             delete_chat_session,
             list_chat_messages,
             ask_in_session,
+            ask_in_session_stream,
             check_lark_connection,
             sync_lark_doc,
             sync_lark_sheet,
