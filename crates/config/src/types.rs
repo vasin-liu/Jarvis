@@ -72,7 +72,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             watch_folders: Vec::new(),
-            embedder: EmbedderProvider::Mock,
+            embedder: EmbedderProvider::FastEmbed,
             chat: ChatProvider::Mock,
             mock_embed_dim: 4,
             ollama_base_url: "http://127.0.0.1:11434".to_string(),

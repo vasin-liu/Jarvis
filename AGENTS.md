@@ -35,7 +35,7 @@ Always prefer **latest stable** releases when scaffolding or adding dependencies
 | Storage | SQLite (`rusqlite` bundled + FTS5) + `sqlite-vec` |
 | Serialization | `serde` / `serde_json` |
 | Errors | `thiserror` |
-| Embedding (later) | `fastembed-rs` (ONNX), Ollama, cloud APIs |
+| Embedding | `fastembed-rs` (ONNX, default), Ollama, cloud APIs |
 | Feishu (later) | `lark-cli` subprocess via injectable `CommandRunner` |
 
 ### Frontend
@@ -188,6 +188,7 @@ npm test
 | M6 | Streaming Q&A (Channel), rebuild index UX, Vitest + E2E harness |
 | M7 | FastEmbed local embedder, streaming UI polish, GitHub Actions CI (E2E on `workflow_dispatch`) |
 | M8 | OpenAI-compatible cloud providers, embed cache, library index stats |
+| M9 | Index progress events, source retry/resync, FastEmbed default, motion + Tabler icons |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

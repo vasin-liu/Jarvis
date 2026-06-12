@@ -6,7 +6,10 @@ use std::sync::{Arc, Mutex};
 use chunker::ChunkerConfig;
 use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
 use embedder::Embedder;
-use index_ops::{index_status_view, rebuild_all_sources, IndexStatusView, RebuildReport};
+use index_ops::{
+    index_status_view, rebuild_all_sources, retry_source_by_id, IndexProgressEvent,
+    IndexStatusView, RebuildReport,
+};
 use indexer::{index_document, index_path};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
@@ -15,7 +18,7 @@ use retriever::RetrieverConfig;
 use serde::Serialize;
 use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store};
 use tauri::ipc::Channel;
-use tauri::Manager;
+use tauri::{AppHandle, Emitter, Manager};
 use watcher::{scan_folder, spawn_watcher, unindex_path, WatchEvent, WatchHandle};
 
 #[derive(Clone, Serialize)]
@@ -169,21 +172,37 @@ fn set_config(config: AppConfig, state: tauri::State<'_, AppState>) -> Result<()
     state.restart_watcher()
 }
 
+fn emit_index_progress(app: &AppHandle, event: IndexProgressEvent) {
+    let _ = app.emit("index-progress", event);
+}
+
+fn emit_index_complete(app: &AppHandle, report: &RebuildReport) {
+    let _ = app.emit("index-complete", report);
+}
+
 #[tauri::command]
-async fn rebuild_index(state: tauri::State<'_, AppState>) -> Result<RebuildReport, String> {
+async fn rebuild_index(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<RebuildReport, String> {
     let cfg = state.config();
-    rebuild_all_sources(
+    let report = rebuild_all_sources(
         state.store.as_ref(),
         state.embedder().as_ref(),
         &state.chunker,
         &ProcessRunner,
         &cfg.lark_cli_bin,
+        "rebuild",
+        |event| emit_index_progress(&app, event),
     )
-    .await
+    .await?;
+    emit_index_complete(&app, &report);
+    Ok(report)
 }
 
 #[tauri::command]
 async fn reinit_and_rebuild_index(
+    app: AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<RebuildReport, String> {
     let cfg = state.config();
@@ -193,14 +212,39 @@ async fn reinit_and_rebuild_index(
         .store
         .reinit_vectors(new_dim)
         .map_err(|e| e.to_string())?;
-    rebuild_all_sources(
+    let report = rebuild_all_sources(
         state.store.as_ref(),
         state.embedder().as_ref(),
         &state.chunker,
         &ProcessRunner,
         &cfg.lark_cli_bin,
+        "reinit",
+        |event| emit_index_progress(&app, event),
     )
-    .await
+    .await?;
+    emit_index_complete(&app, &report);
+    Ok(report)
+}
+
+#[tauri::command]
+async fn retry_source(
+    id: String,
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<RebuildReport, String> {
+    let cfg = state.config();
+    let report = retry_source_by_id(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &ProcessRunner,
+        &cfg.lark_cli_bin,
+        &id,
+        |event| emit_index_progress(&app, event),
+    )
+    .await?;
+    emit_index_complete(&app, &report);
+    Ok(report)
 }
 
 #[tauri::command]
@@ -506,6 +550,7 @@ pub fn run() {
             get_index_status,
             rebuild_index,
             reinit_and_rebuild_index,
+            retry_source,
             add_watch_folder,
             remove_watch_folder,
             list_chat_sessions,

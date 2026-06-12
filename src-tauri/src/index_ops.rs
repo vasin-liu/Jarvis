@@ -13,6 +13,17 @@ pub struct RebuildReport {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IndexProgressEvent {
+    pub phase: String,
+    pub current: usize,
+    pub total: usize,
+    pub source_title: String,
+    pub outcome: Option<String>,
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IndexStatusView {
     pub store_dim: usize,
     pub config_embed_dim: usize,
@@ -53,25 +64,152 @@ pub fn index_status_view(store: &Store, config: &AppConfig, embedder: &dyn Embed
     }
 }
 
-pub async fn rebuild_all_sources(
+pub async fn rebuild_all_sources<F>(
     store: &Store,
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
     lark_cli_bin: &str,
-) -> Result<RebuildReport, String> {
+    phase: &str,
+    mut on_progress: F,
+) -> Result<RebuildReport, String>
+where
+    F: FnMut(IndexProgressEvent),
+{
     let sources = store.list_sources().map_err(|e| e.to_string())?;
+    let total = sources.len();
     let mut indexed = 0;
     let mut failed = 0;
     let mut skipped = 0;
 
-    for source in sources {
+    for (i, source) in sources.into_iter().enumerate() {
+        let current = i + 1;
+        on_progress(IndexProgressEvent {
+            phase: phase.to_string(),
+            current,
+            total,
+            source_title: source.title.clone(),
+            outcome: None,
+            message: None,
+        });
+
         match reindex_source(store, embedder, chunker, runner, lark_cli_bin, &source).await {
-            Ok(true) => indexed += 1,
-            Ok(false) => skipped += 1,
-            Err(_) => failed += 1,
+            Ok(true) => {
+                indexed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: phase.to_string(),
+                    current,
+                    total,
+                    source_title: source.title.clone(),
+                    outcome: Some("indexed".into()),
+                    message: None,
+                });
+            }
+            Ok(false) => {
+                skipped += 1;
+                on_progress(IndexProgressEvent {
+                    phase: phase.to_string(),
+                    current,
+                    total,
+                    source_title: source.title.clone(),
+                    outcome: Some("skipped".into()),
+                    message: source.error.clone(),
+                });
+            }
+            Err(e) => {
+                failed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: phase.to_string(),
+                    current,
+                    total,
+                    source_title: source.title.clone(),
+                    outcome: Some("failed".into()),
+                    message: Some(e),
+                });
+            }
         }
     }
+
+    store
+        .set_meta("embedder_id", embedder.id())
+        .map_err(|e| e.to_string())?;
+
+    Ok(RebuildReport {
+        indexed,
+        failed,
+        skipped,
+    })
+}
+
+pub async fn retry_source_by_id<F>(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
+    runner: &dyn CommandRunner,
+    lark_cli_bin: &str,
+    source_id: &str,
+    mut on_progress: F,
+) -> Result<RebuildReport, String>
+where
+    F: FnMut(IndexProgressEvent),
+{
+    let source = store
+        .get_source(source_id)
+        .map_err(|e| e.to_string())?;
+
+    on_progress(IndexProgressEvent {
+        phase: "retry".into(),
+        current: 1,
+        total: 1,
+        source_title: source.title.clone(),
+        outcome: None,
+        message: None,
+    });
+
+    let (indexed, failed, skipped) = match reindex_source(
+        store,
+        embedder,
+        chunker,
+        runner,
+        lark_cli_bin,
+        &source,
+    )
+    .await
+    {
+        Ok(true) => {
+            on_progress(IndexProgressEvent {
+                phase: "retry".into(),
+                current: 1,
+                total: 1,
+                source_title: source.title.clone(),
+                outcome: Some("indexed".into()),
+                message: None,
+            });
+            (1, 0, 0)
+        }
+        Ok(false) => {
+            on_progress(IndexProgressEvent {
+                phase: "retry".into(),
+                current: 1,
+                total: 1,
+                source_title: source.title.clone(),
+                outcome: Some("skipped".into()),
+                message: source.error.clone(),
+            });
+            (0, 0, 1)
+        }
+        Err(e) => {
+            on_progress(IndexProgressEvent {
+                phase: "retry".into(),
+                current: 1,
+                total: 1,
+                source_title: source.title.clone(),
+                outcome: Some("failed".into()),
+                message: Some(e),
+            });
+            (0, 1, 0)
+        }
+    };
 
     store
         .set_meta("embedder_id", embedder.id())
@@ -186,9 +324,17 @@ mod tests {
             .unwrap();
         store.reinit_vectors(4).unwrap();
 
-        let report = rebuild_all_sources(&store, &embedder, &chunker, &runner, "lark-cli")
-            .await
-            .unwrap();
+        let report = rebuild_all_sources(
+            &store,
+            &embedder,
+            &chunker,
+            &runner,
+            "lark-cli",
+            "rebuild",
+            |_| {},
+        )
+        .await
+        .unwrap();
         assert_eq!(report.indexed, 1);
         assert!(store.count_chunks().unwrap() > 0);
     }

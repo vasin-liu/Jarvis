@@ -1,8 +1,29 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import {
+  IconAlertCircle,
+  IconBooks,
+  IconCircleCheck,
+  IconClock,
+  IconFile,
+  IconFileText,
+  IconMail,
+  IconMessageChatbot,
+  IconMessages,
+  IconSettings,
+  IconTable,
+} from "@tabler/icons-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { parseCitations } from "./lib/citations";
+import {
+  formatIndexedAt,
+  sourceKindLabel,
+  statusLabel,
+  statusTone,
+} from "./lib/sourceDisplay";
 
 type View = "chat" | "library" | "settings";
 
@@ -28,7 +49,17 @@ interface Source {
   uri: string;
   title: string;
   status: string;
+  indexed_at?: number | null;
   error?: string | null;
+}
+
+interface IndexProgressView {
+  phase: string;
+  current: number;
+  total: number;
+  sourceTitle: string;
+  outcome?: string | null;
+  message?: string | null;
 }
 
 interface AppConfig {
@@ -67,6 +98,66 @@ interface RebuildReport {
   skipped: number;
 }
 
+function SourceKindIcon({ kind }: { kind: string }) {
+  const cls = "size-4 shrink-0 text-cyan-300/80";
+  switch (kind) {
+    case "local_file":
+      return <IconFile className={cls} aria-hidden />;
+    case "lark_doc":
+      return <IconFileText className={cls} aria-hidden />;
+    case "lark_sheet":
+      return <IconTable className={cls} aria-hidden />;
+    case "lark_mail":
+      return <IconMail className={cls} aria-hidden />;
+    case "lark_msg":
+      return <IconMessages className={cls} aria-hidden />;
+    default:
+      return <IconFile className={cls} aria-hidden />;
+  }
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const tone = statusTone(status);
+  const Icon =
+    status === "indexed"
+      ? IconCircleCheck
+      : status === "failed"
+        ? IconAlertCircle
+        : IconClock;
+  return (
+    <span className={`status-badge status-badge-${tone}`}>
+      <Icon className="size-3" aria-hidden />
+      {statusLabel(status)}
+    </span>
+  );
+}
+
+function IndexProgressBanner({ progress }: { progress: IndexProgressView }) {
+  const pct =
+    progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : 0;
+  return (
+    <div
+      data-testid="index-progress"
+      className="glass-panel border-cyan-400/20 px-4 py-3 text-sm text-zinc-200"
+    >
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400">
+        <span>
+          索引中 · {progress.phase} · {progress.sourceTitle}
+          {progress.outcome ? ` · ${progress.outcome}` : ""}
+        </span>
+        <span>
+          {progress.current}/{progress.total}
+        </span>
+      </div>
+      <div className="index-progress-track">
+        <div className="index-progress-fill" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 async function openCitation(uri: string) {
   if (uri.startsWith("http://") || uri.startsWith("https://")) {
     await openUrl(uri);
@@ -90,7 +181,11 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [streamingDraft, setStreamingDraft] = useState("");
+  const [indexProgress, setIndexProgress] = useState<IndexProgressView | null>(
+    null,
+  );
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   const [sources, setSources] = useState<Source[]>([]);
   const [indexStatus, setIndexStatus] = useState<IndexStatusView | null>(null);
@@ -166,6 +261,21 @@ function App() {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages, streamingDraft]);
+
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    void listen<IndexProgressView>("index-progress", (event) => {
+      setIndexProgress(event.payload);
+    }).then((unlisten) => unsubs.push(unlisten));
+    void listen<RebuildReport>("index-complete", () => {
+      setIndexProgress(null);
+      void refreshLibrary();
+      void refreshIndexStatus();
+    }).then((unlisten) => unsubs.push(unlisten));
+    return () => {
+      for (const unlisten of unsubs) unlisten();
+    };
+  }, [refreshIndexStatus, refreshLibrary]);
 
   async function handleNewSession() {
     setErr(null);
@@ -250,6 +360,20 @@ function App() {
       if (selected === null) return;
       await invoke<string>("index_file", { path: selected });
       await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRetrySource(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke<RebuildReport>("retry_source", { id });
+      await refreshLibrary();
+      await refreshIndexStatus();
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -401,23 +525,24 @@ function App() {
         </div>
         {(
           [
-            ["chat", "对话"],
-            ["library", "资料库"],
-            ["settings", "设置"],
+            ["chat", "对话", IconMessageChatbot],
+            ["library", "资料库", IconBooks],
+            ["settings", "设置", IconSettings],
           ] as const
-        ).map(([id, label]) => (
+        ).map(([id, label, Icon]) => (
           <button
             key={id}
             type="button"
             data-testid={`nav-${id}`}
-            className={`nav-btn ${view === id ? "nav-btn-active" : "nav-btn-idle"}`}
+            className={`nav-btn flex items-center gap-2 ${view === id ? "nav-btn-active" : "nav-btn-idle"}`}
             onClick={() => setView(id)}
           >
+            <Icon className="size-4 shrink-0 opacity-80" aria-hidden />
             {label}
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · M8
+          来源 {sources.length} · M9
         </div>
       </aside>
 
@@ -428,8 +553,18 @@ function App() {
           </div>
         )}
 
-        {view === "chat" && (
-          <section className="glass-panel flex min-h-[70vh] flex-1 overflow-hidden">
+        {indexProgress && <IndexProgressBanner progress={indexProgress} />}
+
+        <AnimatePresence mode="wait">
+          {view === "chat" && (
+            <motion.section
+              key="chat"
+              className="glass-panel flex min-h-[70vh] flex-1 overflow-hidden"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
             <div className="flex w-52 shrink-0 flex-col border-r border-white/10 p-3">
               <button
                 type="button"
@@ -557,11 +692,18 @@ function App() {
                 </button>
               </div>
             </div>
-          </section>
-        )}
+            </motion.section>
+          )}
 
-        {view === "library" && (
-          <section className="glass-panel flex flex-1 flex-col gap-4 p-5">
+          {view === "library" && (
+            <motion.section
+              key="library"
+              className="glass-panel flex flex-1 flex-col gap-4 p-5"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
             <div
               data-testid="library-stats"
               className="rounded-xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-300"
@@ -673,37 +815,62 @@ function App() {
                     key={s.id}
                     className="flex items-start justify-between gap-4 px-4 py-3 text-sm"
                   >
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-zinc-100">
-                        {s.title}
+                    <div className="flex min-w-0 gap-3">
+                      <SourceKindIcon kind={s.kind} />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="truncate font-medium text-zinc-100">
+                            {s.title}
+                          </div>
+                          <StatusBadge status={s.status} />
+                        </div>
+                        <div className="mt-1 truncate text-xs text-zinc-500">
+                          {sourceKindLabel(s.kind)} · 更新{" "}
+                          {formatIndexedAt(s.indexed_at)} · {s.uri}
+                        </div>
+                        {s.error && (
+                          <div className="mt-1 text-xs text-red-300">
+                            {s.error}
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-1 truncate text-xs text-zinc-500">
-                        {s.kind} · {s.status} · {s.uri}
-                      </div>
-                      {s.error && (
-                        <div className="mt-1 text-xs text-red-300">{s.error}</div>
-                      )}
                     </div>
-                    <button
-                      type="button"
-                      className="btn-ghost shrink-0 text-xs"
-                      disabled={busy}
-                      onClick={() => handleRemoveSource(s.id)}
-                    >
-                      移除
-                    </button>
+                    <div className="flex shrink-0 flex-col gap-2">
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        disabled={busy}
+                        data-testid={`retry-source-${s.id}`}
+                        onClick={() => handleRetrySource(s.id)}
+                      >
+                        {s.status === "failed" ? "重试" : "重新同步"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        disabled={busy}
+                        onClick={() => handleRemoveSource(s.id)}
+                      >
+                        移除
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
-          </section>
-        )}
+            </motion.section>
+          )}
 
-        {view === "settings" && config && (
-          <section
-            data-testid="settings-panel"
-            className="glass-panel flex flex-col gap-5 p-5"
-          >
+          {view === "settings" && config && (
+            <motion.section
+              key="settings"
+              data-testid="settings-panel"
+              className="glass-panel flex flex-col gap-5 p-5"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
             <h2 className="text-base font-medium">设置</h2>
 
             {indexStatus && (
@@ -1025,8 +1192,9 @@ function App() {
                 )}
               </ul>
             </div>
-          </section>
-        )}
+            </motion.section>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

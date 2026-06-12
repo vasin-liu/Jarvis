@@ -65,4 +65,32 @@
       opacity: 0;
     }
   }
+
+  .index-progress-track {
+    @apply h-1.5 overflow-hidden rounded-full bg-zinc-800;
+  }
+
+  .index-progress-fill {
+    @apply h-full rounded-full bg-cyan-400 transition-[width] duration-300 ease-out;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  .status-badge-ok {
+    @apply bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/20;
+  }
+
+  .status-badge-warn {
+    @apply bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/20;
+  }
+
+  .status-badge-err {
+    @apply bg-red-500/15 text-red-200 ring-1 ring-red-400/20;
+  }
+
+  .status-badge-muted {
+    @apply bg-zinc-500/15 text-zinc-300 ring-1 ring-zinc-400/20;
+  }
 }
