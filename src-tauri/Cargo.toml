@@ -32,5 +32,8 @@ indexer = { path = "../crates/indexer" }
 retriever = { path = "../crates/retriever" }
 llm = { path = "../crates/llm" }
 rag = { path = "../crates/rag" }
+config = { path = "../crates/config" }
+watcher = { path = "../crates/watcher" }
+lark = { path = "../crates/lark" }
 tokio = { workspace = true }
 

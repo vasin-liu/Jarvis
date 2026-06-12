@@ -1,16 +1,15 @@
 [package]
-name = "embedder"
+name = "config"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-sha2 = { workspace = true }
-thiserror = { workspace = true }
-reqwest = { workspace = true }
+embedder = { path = "../embedder" }
+llm = { path = "../llm" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
+tempfile = "3"

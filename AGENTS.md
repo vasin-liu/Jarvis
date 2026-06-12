@@ -183,7 +183,8 @@ npm test
 | M1 | Workspace + Tauri shell + `store` crate |
 | M2 | `chunker`, `ingest`, `embedder` (Mock), `indexer` — local file index pipeline |
 | M3 | `retriever` (RRF), `llm` (Mock), `rag` — hybrid search + Q&A with citations |
-| M4+ | Watcher, lark, real embedder/LLM, Chat/Library/Settings UI |
+| M4 | `config`, `watcher`, `lark`, Ollama providers — folder watch, Feishu sync, persistent store, Chat/Library/Settings UI |
+| M5+ | Agent sessions, full lark coverage, in-app agent runtime |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

@@ -1,8 +1,10 @@
 mod error;
 mod mock;
+mod ollama;
 
 pub use error::{EmbedError, Result};
 pub use mock::MockEmbedder;
+pub use ollama::OllamaEmbedder;
 
 use async_trait::async_trait;
 

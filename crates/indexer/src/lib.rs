@@ -12,6 +12,7 @@ pub async fn index_document(
     embedder: &dyn Embedder,
     config: &ChunkerConfig,
     doc: Document,
+    kind: SourceKind,
 ) -> Result<()> {
     if embedder.dim() != store.dim() {
         return Err(IndexError::DimMismatch {
@@ -30,7 +31,7 @@ pub async fn index_document(
 
     let pending = Source {
         id: source_id.clone(),
-        kind: SourceKind::LocalFile,
+        kind,
         uri: doc.uri.clone(),
         title: doc.title.clone(),
         content_hash: doc.content_hash.clone(),
@@ -75,7 +76,7 @@ pub async fn index_document(
         Ok(()) => {
             let indexed = Source {
                 id: source_id,
-                kind: SourceKind::LocalFile,
+                kind,
                 uri: doc.uri,
                 title: doc.title,
                 content_hash: doc.content_hash,
@@ -89,7 +90,7 @@ pub async fn index_document(
         Err(e) => {
             let failed = Source {
                 id: source_id.clone(),
-                kind: SourceKind::LocalFile,
+                kind,
                 uri: doc.uri,
                 title: doc.title,
                 content_hash: doc.content_hash,
@@ -111,7 +112,7 @@ pub async fn index_path(
 ) -> Result<String> {
     let doc = ingest::load_path(path)?;
     let source_id = doc.uri.clone();
-    index_document(store, embedder, config, doc).await?;
+    index_document(store, embedder, config, doc, SourceKind::LocalFile).await?;
     Ok(source_id)
 }
 
