@@ -30,7 +30,7 @@ Always prefer **latest stable** releases when scaffolding or adding dependencies
 
 | Layer | Choice |
 |-------|--------|
-| Language | Rust (`stable` toolchain, edition `2021`) |
+| Language | Rust **`stable`** (`rust-toolchain.toml`), MSRV **1.85**, edition **2021** |
 | Desktop shell | Tauri 2.x (e.g. `2.11.x`) |
 | Storage | SQLite (`rusqlite` bundled + FTS5) + `sqlite-vec` |
 | Serialization | `serde` / `serde_json` |
@@ -181,7 +181,8 @@ npm test
 | Milestone | Deliverable |
 |-----------|-------------|
 | M1 | Workspace + Tauri shell + `store` crate |
-| M2+ | Ingest, chunker, embedder, retriever, RAG, watcher, lark, UI views |
+| M2 | `chunker`, `ingest`, `embedder` (Mock), `indexer` — local file index pipeline |
+| M3+ | Retriever (RRF), RAG, watcher, lark, real embedder, UI views |
 
 Refer to design spec for non-goals (no auto-summary, no Cursor session index in v1, etc.).
 

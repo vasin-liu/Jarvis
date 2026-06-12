@@ -1,0 +1,17 @@
+[package]
+name = "indexer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chunker = { path = "../chunker" }
+embedder = { path = "../embedder" }
+ingest = { path = "../ingest" }
+store = { path = "../store" }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+embedder = { path = "../embedder" }
+tempfile = "3"
+tokio = { workspace = true }

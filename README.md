@@ -18,6 +18,12 @@ Personal AI knowledge hub — Tauri 2 + Rust + React. Local-first RAG over docum
 
 This project uses Tauri, React and TypeScript with Vite.
 
+### Rust toolchain
+
+- **Channel:** latest stable (see `rust-toolchain.toml`)
+- **Setup:** [rustup](https://rustup.rs/) → `rustup update stable`
+- **Verify:** `rustc --version` (should report stable)
+
 ## Recommended IDE Setup
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)

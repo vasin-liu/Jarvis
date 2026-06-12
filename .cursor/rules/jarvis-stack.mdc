@@ -11,7 +11,8 @@ Pin **latest stable** versions at implementation time. Re-check crates.io / npm 
 
 | Component | Target |
 |-----------|--------|
-| Rust toolchain | `stable` (via `rustup`) |
+| Rust toolchain | **`stable`** — pinned via `rust-toolchain.toml`; run `rustup update stable` to refresh |
+| MSRV | `rust-version = "1.85"` in workspace `Cargo.toml` |
 | Edition | `2021` (workspace default) |
 | Tauri | `2.x` latest stable (e.g. `tauri = "2.11"`, `tauri-build`, `tauri-cli` aligned) |
 | SQLite | `rusqlite` with `bundled` + FTS5 |
@@ -32,6 +33,7 @@ Pin **latest stable** versions at implementation time. Re-check crates.io / npm 
 
 ## Policy
 
+- **Rust:** Do not pin a fixed `rustc` patch version in `rust-toolchain.toml`; use `channel = "stable"`. Bump MSRV in workspace only when a dependency requires it.
 - Workspace layout: `src-tauri/` + `crates/*` + `src/` (React).
 - Core logic in library crates; Tauri commands stay thin.
 - No pinned pre-release unless required; document why if used.

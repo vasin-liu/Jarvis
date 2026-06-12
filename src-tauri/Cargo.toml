@@ -1,9 +1,10 @@
 [package]
 name = "tauri-app"
-version = "0.1.0"
+version.workspace = true
 description = "A Tauri App"
 authors = ["you"]
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,4 +24,9 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 store = { path = "../crates/store" }
+chunker = { path = "../crates/chunker" }
+ingest = { path = "../crates/ingest" }
+embedder = { path = "../crates/embedder" }
+indexer = { path = "../crates/indexer" }
+tokio = { workspace = true }
 
