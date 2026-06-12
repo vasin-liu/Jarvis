@@ -8,6 +8,8 @@ alwaysApply: false
 
 **Skill:** Read and follow `design-taste-frontend` before any UI work.
 
+**Reference mockup (non-normative):** `docs/personal_agent_ui_mockup.html` — layout and visual direction only; open in browser. Spec wins on conflicts.
+
 ## Design Read (Jarvis)
 
 *"Reading this as: desktop knowledge-hub product UI for power users, with dark-tech + Apple liquid-glass language, leaning toward Tailwind v4 + Motion + frosted-glass panels."*

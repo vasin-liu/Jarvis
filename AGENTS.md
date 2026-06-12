@@ -5,6 +5,15 @@ Personal AI knowledge hub (Tauri 2 desktop app). Local-first RAG over documents 
 **Design spec:** `docs/superpowers/specs/2026-06-12-personal-ai-knowledge-hub-design.md`  
 **M1 plan:** `docs/superpowers/plans/2026-06-12-m1-scaffold-storage-core.md`
 
+**Reference only (non-normative):**
+
+| Asset | Path | Purpose |
+|-------|------|---------|
+| UI mockup | `docs/personal_agent_ui_mockup.html` | Layout / visual direction for product UI (open in browser) |
+| Architecture diagram | `docs/personal_ai_agent_architecture.svg` | Long-term system vision; v1 scope follows the design spec |
+
+Do not treat these as implementation contracts. When they conflict with the design spec or code, follow the spec and code.
+
 ---
 
 ## Role
@@ -183,3 +192,5 @@ Refer to design spec for non-goals (no auto-summary, no Cursor session index in 
 - [Tauri 2 docs](https://v2.tauri.app/)
 - [design-taste-frontend skill](~/.agents/skills/design-taste-frontend/SKILL.md)
 - [Rust API guidelines](https://rust-lang.github.io/api-guidelines/)
+- UI mockup (reference): `docs/personal_agent_ui_mockup.html`
+- Architecture diagram (reference): `docs/personal_ai_agent_architecture.svg`

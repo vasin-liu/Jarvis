@@ -1,6 +1,22 @@
-# Tauri + React + Typescript
+# Jarvis
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Personal AI knowledge hub — Tauri 2 + Rust + React. Local-first RAG over documents and Feishu content.
+
+**Docs:** `docs/superpowers/specs/2026-06-12-personal-ai-knowledge-hub-design.md`  
+**Agent guide:** `AGENTS.md`
+
+### Reference assets (non-normative)
+
+| Asset | Path |
+| --- | --- |
+| UI mockup | `docs/personal_agent_ui_mockup.html` |
+| Architecture diagram | `docs/personal_ai_agent_architecture.svg` |
+
+---
+
+## Tauri + React + TypeScript
+
+This project uses Tauri, React and TypeScript with Vite.
 
 ## Recommended IDE Setup
 
