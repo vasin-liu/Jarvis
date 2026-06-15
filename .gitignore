@@ -29,3 +29,6 @@ debug/
 *.pdb
 **/*.rs.bk
 **/mutants.out*/
+
+# FastEmbed local model cache
+src-tauri/.fastembed_cache/
