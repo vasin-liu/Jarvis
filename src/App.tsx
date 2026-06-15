@@ -108,6 +108,23 @@ interface AppConfig {
   scheduled_sync_watch_folders: boolean;
   scheduled_sync_cursor: boolean;
   auto_learn_from_chat: boolean;
+  agents: AgentProfile[];
+  active_agent_id: string;
+  enabled_skill_ids: string[];
+}
+
+interface AgentProfile {
+  id: string;
+  name: string;
+  system_prompt: string;
+  enabled: boolean;
+}
+
+interface SkillItem {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
 }
 
 interface SyncStatusView {
@@ -249,6 +266,8 @@ function App() {
   const [memories, setMemories] = useState<Source[]>([]);
   const [syncStatus, setSyncStatus] = useState<SyncStatusView | null>(null);
   const [newMemoryText, setNewMemoryText] = useState("");
+  const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [agentMode, setAgentMode] = useState(true);
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -273,6 +292,11 @@ function App() {
     setMemories(list);
   }, []);
 
+  const refreshSkills = useCallback(async () => {
+    const list = await invoke<SkillItem[]>("list_skills");
+    setSkills(list);
+  }, []);
+
   const refreshTasks = useCallback(async () => {
     const list = await invoke<TaskItem[]>("list_tasks");
     setTasks(list);
@@ -287,7 +311,8 @@ function App() {
     setCursorCandidates(transcripts);
     await refreshTasks();
     await refreshMemories();
-  }, [refreshMemories, refreshTasks]);
+    await refreshSkills();
+  }, [refreshMemories, refreshSkills, refreshTasks]);
 
   const refreshConfig = useCallback(async () => {
     const cfg = await invoke<AppConfig>("get_config");
@@ -406,7 +431,7 @@ function App() {
       channel.onmessage = (msg) => {
         setStreamingDraft((prev) => prev + msg.token);
       };
-      await invoke("ask_in_session_stream", {
+      await invoke(agentMode ? "ask_agent_in_session_stream" : "ask_in_session_stream", {
         sessionId: activeSessionId,
         question: q,
         onToken: channel,
@@ -422,6 +447,28 @@ function App() {
       setBusy(false);
       setStreamingDraft("");
     }
+  }
+
+  async function handleSetActiveAgent(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("set_active_agent", { id });
+      await refreshConfig();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleToggleSkill(skillId: string) {
+    if (!config) return;
+    const enabled = config.enabled_skill_ids.includes(skillId);
+    const next = enabled
+      ? config.enabled_skill_ids.filter((id) => id !== skillId)
+      : [...config.enabled_skill_ids, skillId];
+    await handleSaveConfig({ ...config, enabled_skill_ids: next });
   }
 
   async function handlePickAndIndex() {
@@ -747,7 +794,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · 记忆 {memories.length} · v4
+          来源 {sources.length} · v5
         </div>
       </aside>
 
@@ -882,6 +929,34 @@ function App() {
               </div>
 
               <div className="border-t border-white/10 pt-4">
+                <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+                  <label className="flex items-center gap-2 text-zinc-300">
+                    <input
+                      type="checkbox"
+                      data-testid="agent-mode-toggle"
+                      checked={agentMode}
+                      onChange={(e) => setAgentMode(e.target.checked)}
+                    />
+                    Agent 模式（工具调用）
+                  </label>
+                  {agentMode && config && (
+                    <select
+                      className="field max-w-xs text-sm"
+                      data-testid="agent-profile-select"
+                      value={config.active_agent_id}
+                      onChange={(e) => void handleSetActiveAgent(e.target.value)}
+                      disabled={busy}
+                    >
+                      {config.agents
+                        .filter((a) => a.enabled)
+                        .map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
                 <textarea
                   className="field min-h-24 resize-y"
                   value={question}
@@ -1586,6 +1661,52 @@ function App() {
             >
               保存配置
             </button>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                Agent 与 Skills
+              </h3>
+              <p className="mb-3 text-xs text-zinc-500">
+                Skills 位于应用数据目录下的 <code className="text-zinc-400">skills/</code>，Markdown 格式。
+              </p>
+              {config.agents.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  {config.agents.map((agent) => (
+                    <div
+                      key={agent.id}
+                      className="rounded-xl border border-white/10 px-3 py-2 text-sm"
+                    >
+                      <div className="font-medium text-zinc-200">{agent.name}</div>
+                      <div className="mt-1 text-xs text-zinc-500">{agent.system_prompt}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex flex-col gap-2 text-sm">
+                {skills.length === 0 ? (
+                  <p className="text-zinc-500">暂无 Skills。</p>
+                ) : (
+                  skills.map((skill) => (
+                    <label
+                      key={skill.id}
+                      className="flex items-start gap-2 rounded-xl border border-white/10 px-3 py-2 text-zinc-300"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={config.enabled_skill_ids.includes(skill.id)}
+                        onChange={() => void handleToggleSkill(skill.id)}
+                      />
+                      <span>
+                        <span className="font-medium text-zinc-100">{skill.name}</span>
+                        <span className="mt-0.5 block text-xs text-zinc-500">
+                          {skill.description}
+                        </span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
 
             <div className="border-t border-white/10 pt-4">
               <h3 className="mb-3 text-sm font-medium text-zinc-200">

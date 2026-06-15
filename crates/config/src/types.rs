@@ -1,3 +1,4 @@
+use agent::default_profiles;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,6 +67,19 @@ pub struct AppConfig {
     /// After each Q&A, extract long-term memories into the knowledge base.
     #[serde(default)]
     pub auto_learn_from_chat: bool,
+    /// Configurable agent profiles for tool-augmented chat.
+    #[serde(default = "default_profiles")]
+    pub agents: Vec<agent::AgentProfile>,
+    /// Active agent profile id for chat.
+    #[serde(default = "default_active_agent_id")]
+    pub active_agent_id: String,
+    /// Enabled skill ids from the skills directory.
+    #[serde(default)]
+    pub enabled_skill_ids: Vec<String>,
+}
+
+fn default_active_agent_id() -> String {
+    "default".to_string()
 }
 
 fn default_fastembed_model() -> String {
@@ -127,6 +141,9 @@ impl Default for AppConfig {
             scheduled_sync_watch_folders: true,
             scheduled_sync_cursor: true,
             auto_learn_from_chat: false,
+            agents: default_profiles(),
+            active_agent_id: default_active_agent_id(),
+            enabled_skill_ids: Vec::new(),
         }
     }
 }

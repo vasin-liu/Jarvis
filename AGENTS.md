@@ -209,7 +209,13 @@ npm test
 |-----------|-------------|
 | v4 | **1.3.0** — `sync_scheduler`: periodic watch-folder + Cursor sync; `crates/memory`: chat learning + `SourceKind::Memory`; Memory UI; scheduled sync settings |
 
-Refer to design spec for non-goals (no task execution, no full agent platform in v4, etc.).
+## Milestones (v5)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v5 | **1.4.0** — `crates/agent`: agent profiles, text-based tool loop (`search_knowledge`, `list_sources`, `list_tasks`); Skills from `skills/*.md`; Agent mode in chat |
+
+Refer to design spec for non-goals (full plugin runtime, multi-agent orchestration UI in v5, etc.).
 
 ---
 

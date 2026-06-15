@@ -20,6 +20,7 @@ use insights::{extract_tasks_from_source, summarize_source};
 use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, InsightsReport};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
+use agent::{load_skills_from_dir, run_agent, AgentProfile, AgentResponse, Skill};
 use memory::{add_memory, learn_from_exchange, list_memories};
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
@@ -44,6 +45,7 @@ struct AppState {
     retriever: RetrieverConfig,
     config_path: PathBuf,
     db_path: PathBuf,
+    skills_dir: PathBuf,
     config: Mutex<AppConfig>,
     watch: Mutex<Option<WatchHandle>>,
     scheduler: Mutex<Option<SchedulerHandle>>,
@@ -483,6 +485,125 @@ async fn persist_assistant(
     Ok(())
 }
 
+fn resolve_active_agent(cfg: &AppConfig) -> Result<AgentProfile, String> {
+    cfg.agents
+        .iter()
+        .find(|a| a.id == cfg.active_agent_id)
+        .cloned()
+        .ok_or_else(|| format!("agent not found: {}", cfg.active_agent_id))
+}
+
+fn seed_skills_dir(dir: &PathBuf) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let example = dir.join("concise-answers.md");
+    if !example.exists() {
+        std::fs::write(
+            &example,
+            "---\nname: 简洁回答\ndescription: 回答尽量简短、分点列出\n---\n回答时使用要点列表，避免冗长铺垫。",
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn list_agent_profiles(state: tauri::State<'_, AppState>) -> Result<Vec<AgentProfile>, String> {
+    Ok(state.config().agents)
+}
+
+#[tauri::command]
+fn list_skills(state: tauri::State<'_, AppState>) -> Result<Vec<Skill>, String> {
+    Ok(load_skills_from_dir(&state.skills_dir))
+}
+
+#[tauri::command]
+fn set_active_agent(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut cfg = state.config();
+    if !cfg.agents.iter().any(|a| a.id == id && a.enabled) {
+        return Err(format!("agent not found or disabled: {id}"));
+    }
+    cfg.active_agent_id = id;
+    state.save_config(&cfg)
+}
+
+#[tauri::command]
+async fn ask_agent_in_session(
+    session_id: String,
+    question: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<AskResponse, String> {
+    state
+        .store
+        .append_chat_message(&session_id, ChatRole::User, &question, None)
+        .map_err(|e| e.to_string())?;
+
+    let cfg = state.config();
+    let profile = resolve_active_agent(&cfg)?;
+    let skills = load_skills_from_dir(&state.skills_dir);
+    let agent_resp = run_agent(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        state.chat().as_ref(),
+        &state.retriever,
+        &profile,
+        &skills,
+        &cfg.enabled_skill_ids,
+        &question,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let resp = agent_response_to_ask(agent_resp);
+    persist_assistant(&state, &session_id, &question, &resp).await?;
+    Ok(resp)
+}
+
+#[tauri::command]
+async fn ask_agent_in_session_stream(
+    session_id: String,
+    question: String,
+    on_token: Channel<TokenEvent>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AskResponse, String> {
+    state
+        .store
+        .append_chat_message(&session_id, ChatRole::User, &question, None)
+        .map_err(|e| e.to_string())?;
+
+    let cfg = state.config();
+    let profile = resolve_active_agent(&cfg)?;
+    let skills = load_skills_from_dir(&state.skills_dir);
+    let agent_resp = run_agent(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        state.chat().as_ref(),
+        &state.retriever,
+        &profile,
+        &skills,
+        &cfg.enabled_skill_ids,
+        &question,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
+    for chunk in agent_resp.answer.split_inclusive(' ') {
+        let _ = on_token.send(TokenEvent {
+            token: chunk.to_string(),
+        });
+    }
+
+    let resp = agent_response_to_ask(agent_resp);
+    persist_assistant(&state, &session_id, &question, &resp).await?;
+    Ok(resp)
+}
+
+fn agent_response_to_ask(resp: AgentResponse) -> AskResponse {
+    AskResponse {
+        answer: resp.answer,
+        citations: resp.citations,
+    }
+}
+
 #[tauri::command]
 fn check_lark_connection(state: tauri::State<'_, AppState>) -> Result<String, String> {
     let cfg = state.config();
@@ -706,6 +827,8 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
 
     let config_path = app_data.join("config.json");
     let db_path = app_data.join("kb.sqlite");
+    let skills_dir = app_data.join("skills");
+    seed_skills_dir(&skills_dir)?;
     let mut config = if is_e2e_mode() {
         AppConfig::default()
     } else {
@@ -734,6 +857,7 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
         retriever: RetrieverConfig::default(),
         config_path,
         db_path,
+        skills_dir,
         config: Mutex::new(config),
         watch: Mutex::new(None),
         scheduler: Mutex::new(None),
@@ -794,7 +918,12 @@ pub fn run() {
             get_sync_status,
             run_scheduled_sync_cmd,
             list_memories_cmd,
-            add_memory_cmd
+            add_memory_cmd,
+            list_agent_profiles,
+            list_skills,
+            set_active_agent,
+            ask_agent_in_session,
+            ask_agent_in_session_stream
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

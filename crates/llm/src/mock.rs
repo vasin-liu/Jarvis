@@ -27,7 +27,20 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         return Ok("知识库中未找到相关内容。".to_string());
     }
 
-    if system.contains("记忆提取") || system.contains("JSON 数组") && user.contains("问题：") {
+    if system.contains("可用工具") {
+        let has_tool_result = messages
+            .iter()
+            .any(|m| m.content.contains("工具 `") && m.content.contains("返回"));
+        if has_tool_result {
+            return Ok("（Mock Agent 回答）已结合工具检索结果作答。".to_string());
+        }
+        return Ok(
+            r#"<tool_call>{"name":"search_knowledge","arguments":{"query":"agent"}}</tool_call>"#
+                .to_string(),
+        );
+    }
+
+    if system.contains("记忆提取") || (system.contains("JSON 数组") && user.contains("问题：")) {
         return Ok(r#"[{"content":"用户关注 Jarvis 知识库相关主题"}]"#.to_string());
     }
 

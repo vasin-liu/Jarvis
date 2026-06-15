@@ -1,16 +1,21 @@
 [package]
-name = "config"
+name = "agent"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-agent = { path = "../agent" }
 embedder = { path = "../embedder" }
 llm = { path = "../llm" }
+rag = { path = "../rag" }
+retriever = { path = "../retriever" }
+store = { path = "../store" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+tokio = { workspace = true }
+indexer = { path = "../indexer" }
+chunker = { path = "../chunker" }
 tempfile = "3"

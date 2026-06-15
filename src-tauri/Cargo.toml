@@ -36,6 +36,7 @@ config = { path = "../crates/config" }
 watcher = { path = "../crates/watcher" }
 lark = { path = "../crates/lark" }
 cursor = { path = "../crates/cursor" }
+agent = { path = "../crates/agent" }
 memory = { path = "../crates/memory" }
 insights = { path = "../crates/insights" }
 tokio = { workspace = true }
