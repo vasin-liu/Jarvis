@@ -215,7 +215,13 @@ npm test
 |-----------|-------------|
 | v5 | **1.4.0** — `crates/agent`: agent profiles, text-based tool loop (`search_knowledge`, `list_sources`, `list_tasks`); Skills from `skills/*.md`; Agent mode in chat |
 
-Refer to design spec for non-goals (full plugin runtime, multi-agent orchestration UI in v5, etc.).
+## Milestones (v6)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v6 | **1.5.0** — Agent Hooks (`hooks/*.json`); Plugins (`plugins/*/plugin.json`); extended tools (`list_memories`, `add_memory`, `complete_task`); multi-profile default (`任务助手`); tool-call UI |
+
+Refer to design spec for non-goals (full plugin runtime, multi-agent orchestration UI, etc.).
 
 ---
 

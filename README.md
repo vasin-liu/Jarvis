@@ -2,7 +2,7 @@
 
 Personal AI knowledge hub — Tauri 2 + Rust + React. Local-first RAG over documents and Feishu content.
 
-**Version:** 1.4.0 (v5 — agent profiles, tool loop, skills; v4 sync & memory; v1 M1–M10)
+**Version:** 1.5.0 (v6 — hooks, plugins, extended agent tools; v5 agent platform; v1 M1–M10)
 
 **Docs:** `docs/superpowers/specs/2026-06-12-personal-ai-knowledge-hub-design.md`  
 **Agent guide:** `AGENTS.md`

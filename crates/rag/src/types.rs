@@ -11,7 +11,16 @@ pub struct Citation {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ToolCallInfo {
+    pub name: String,
+    pub arguments: serde_json::Value,
+    pub result: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AskResponse {
     pub answer: String,
     pub citations: Vec<Citation>,
+    #[serde(default)]
+    pub tool_calls: Vec<ToolCallInfo>,
 }

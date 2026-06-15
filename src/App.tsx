@@ -111,6 +111,20 @@ interface AppConfig {
   agents: AgentProfile[];
   active_agent_id: string;
   enabled_skill_ids: string[];
+  enabled_hook_ids: string[];
+  enabled_plugin_ids: string[];
+}
+
+interface ToolCallInfo {
+  name: string;
+  arguments: Record<string, unknown>;
+  result: string;
+}
+
+interface AskResponse {
+  answer: string;
+  citations: unknown[];
+  tool_calls?: ToolCallInfo[];
 }
 
 interface AgentProfile {
@@ -125,6 +139,21 @@ interface SkillItem {
   name: string;
   description: string;
   content: string;
+}
+
+interface HookItem {
+  id: string;
+  name: string;
+  description: string;
+  event: string;
+  command: string;
+}
+
+interface PluginItem {
+  id: string;
+  name: string;
+  description: string;
+  tools: { name: string; description: string; command: string }[];
 }
 
 interface SyncStatusView {
@@ -267,6 +296,9 @@ function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatusView | null>(null);
   const [newMemoryText, setNewMemoryText] = useState("");
   const [skills, setSkills] = useState<SkillItem[]>([]);
+  const [hooks, setHooks] = useState<HookItem[]>([]);
+  const [plugins, setPlugins] = useState<PluginItem[]>([]);
+  const [lastToolCalls, setLastToolCalls] = useState<ToolCallInfo[]>([]);
   const [agentMode, setAgentMode] = useState(true);
 
   const refreshSessions = useCallback(async () => {
@@ -297,6 +329,16 @@ function App() {
     setSkills(list);
   }, []);
 
+  const refreshHooks = useCallback(async () => {
+    const list = await invoke<HookItem[]>("list_hooks");
+    setHooks(list);
+  }, []);
+
+  const refreshPlugins = useCallback(async () => {
+    const list = await invoke<PluginItem[]>("list_plugins");
+    setPlugins(list);
+  }, []);
+
   const refreshTasks = useCallback(async () => {
     const list = await invoke<TaskItem[]>("list_tasks");
     setTasks(list);
@@ -312,7 +354,9 @@ function App() {
     await refreshTasks();
     await refreshMemories();
     await refreshSkills();
-  }, [refreshMemories, refreshSkills, refreshTasks]);
+    await refreshHooks();
+    await refreshPlugins();
+  }, [refreshHooks, refreshMemories, refreshPlugins, refreshSkills, refreshTasks]);
 
   const refreshConfig = useCallback(async () => {
     const cfg = await invoke<AppConfig>("get_config");
@@ -431,11 +475,15 @@ function App() {
       channel.onmessage = (msg) => {
         setStreamingDraft((prev) => prev + msg.token);
       };
-      await invoke(agentMode ? "ask_agent_in_session_stream" : "ask_in_session_stream", {
-        sessionId: activeSessionId,
-        question: q,
-        onToken: channel,
-      });
+      const resp = await invoke<AskResponse>(
+        agentMode ? "ask_agent_in_session_stream" : "ask_in_session_stream",
+        {
+          sessionId: activeSessionId,
+          question: q,
+          onToken: channel,
+        },
+      );
+      setLastToolCalls(agentMode ? (resp.tool_calls ?? []) : []);
       setQuestion("");
       setStreamingDraft("");
       await refreshMessages(activeSessionId);
@@ -469,6 +517,24 @@ function App() {
       ? config.enabled_skill_ids.filter((id) => id !== skillId)
       : [...config.enabled_skill_ids, skillId];
     await handleSaveConfig({ ...config, enabled_skill_ids: next });
+  }
+
+  async function handleToggleHook(hookId: string) {
+    if (!config) return;
+    const enabled = config.enabled_hook_ids.includes(hookId);
+    const next = enabled
+      ? config.enabled_hook_ids.filter((id) => id !== hookId)
+      : [...config.enabled_hook_ids, hookId];
+    await handleSaveConfig({ ...config, enabled_hook_ids: next });
+  }
+
+  async function handleTogglePlugin(pluginId: string) {
+    if (!config) return;
+    const enabled = config.enabled_plugin_ids.includes(pluginId);
+    const next = enabled
+      ? config.enabled_plugin_ids.filter((id) => id !== pluginId)
+      : [...config.enabled_plugin_ids, pluginId];
+    await handleSaveConfig({ ...config, enabled_plugin_ids: next });
   }
 
   async function handlePickAndIndex() {
@@ -794,7 +860,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v5
+          来源 {sources.length} · v6
         </div>
       </aside>
 
@@ -905,6 +971,28 @@ function App() {
                       )}
                   </div>
                 ))}
+                {!busy && agentMode && lastToolCalls.length > 0 && (
+                  <div
+                    data-testid="agent-tool-calls"
+                    className="mr-8 rounded-xl border border-amber-400/20 bg-amber-950/20 px-4 py-3 text-sm"
+                  >
+                    <div className="mb-2 text-xs uppercase text-amber-200/80">
+                      工具调用
+                    </div>
+                    <ul className="space-y-2">
+                      {lastToolCalls.map((tc, i) => (
+                        <li key={`${tc.name}-${i}`} className="text-xs">
+                          <span className="font-mono text-amber-200">{tc.name}</span>
+                          <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                            {tc.result.length > 400
+                              ? `${tc.result.slice(0, 400)}…`
+                              : tc.result}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {busy && (
                   <div
                     data-testid="streaming-answer"
@@ -1700,6 +1788,79 @@ function App() {
                         <span className="font-medium text-zinc-100">{skill.name}</span>
                         <span className="mt-0.5 block text-xs text-zinc-500">
                           {skill.description}
+                        </span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                Hooks
+              </h3>
+              <p className="mb-3 text-xs text-zinc-500">
+                Hooks 位于 <code className="text-zinc-400">hooks/*.json</code>
+                ，在 Agent 事件时执行 shell 命令（环境变量：JARVIS_HOOK_EVENT、JARVIS_TOOL_NAME 等）。
+              </p>
+              <div className="flex flex-col gap-2 text-sm">
+                {hooks.length === 0 ? (
+                  <p className="text-zinc-500">暂无 Hooks。</p>
+                ) : (
+                  hooks.map((hook) => (
+                    <label
+                      key={hook.id}
+                      className="flex items-start gap-2 rounded-xl border border-white/10 px-3 py-2"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={config.enabled_hook_ids.includes(hook.id)}
+                        onChange={() => void handleToggleHook(hook.id)}
+                      />
+                      <span>
+                        <span className="font-medium text-zinc-100">{hook.name}</span>
+                        <span className="mt-0.5 block text-xs text-zinc-500">
+                          {hook.event} · {hook.description || hook.command}
+                        </span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                Plugins
+              </h3>
+              <p className="mb-3 text-xs text-zinc-500">
+                Plugins 位于 <code className="text-zinc-400">plugins/*/plugin.json</code>
+                ，可向 Agent 注册额外工具（shell 命令，环境变量 JARVIS_TOOL_ARGS）。
+              </p>
+              <div className="flex flex-col gap-2 text-sm">
+                {plugins.length === 0 ? (
+                  <p className="text-zinc-500">暂无 Plugins。</p>
+                ) : (
+                  plugins.map((plugin) => (
+                    <label
+                      key={plugin.id}
+                      className="flex items-start gap-2 rounded-xl border border-white/10 px-3 py-2"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={config.enabled_plugin_ids.includes(plugin.id)}
+                        onChange={() => void handleTogglePlugin(plugin.id)}
+                      />
+                      <span>
+                        <span className="font-medium text-zinc-100">{plugin.name}</span>
+                        <span className="mt-0.5 block text-xs text-zinc-500">
+                          {plugin.description || plugin.id}
+                        </span>
+                        <span className="mt-1 block text-xs text-zinc-600">
+                          工具：{plugin.tools.map((t) => t.name).join(", ")}
                         </span>
                       </span>
                     </label>

@@ -12,6 +12,10 @@ pub enum AgentError {
     UnknownTool(String),
     #[error("tool args: {0}")]
     ToolArgs(String),
+    #[error("plugin exec: {0}")]
+    PluginExec(String),
+    #[error("memory: {0}")]
+    Memory(#[from] memory::MemoryError),
     #[error("llm: {0}")]
     Llm(#[from] llm::LlmError),
     #[error("retrieve: {0}")]

@@ -10,12 +10,13 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
 name = "agent"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chunker",
  "embedder",
  "indexer",
  "llm",
+ "memory",
  "rag",
  "retriever",
  "serde",
@@ -654,7 +655,7 @@ dependencies = [
 
 [[package]]
 name = "chunker"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "serde",
 ]
@@ -701,7 +702,7 @@ dependencies = [
 
 [[package]]
 name = "config"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "agent",
  "embedder",
@@ -912,7 +913,7 @@ checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
 name = "cursor"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "ingest",
  "serde",
@@ -1262,7 +1263,7 @@ checksum = "4ef6b89e5b37196644d8796de5268852ff179b44e96276cf4290264843743bb7"
 
 [[package]]
 name = "embedder"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "fastembed",
@@ -2411,7 +2412,7 @@ checksum = "89194689a993ab15268672e99e7b0e19da2da3268ac682e8f02d29d4d1434cd7"
 
 [[package]]
 name = "indexer"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -2469,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "ingest"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "hex",
  "serde",
@@ -2500,7 +2501,7 @@ dependencies = [
 
 [[package]]
 name = "insights"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "llm",
  "serde",
@@ -2713,7 +2714,7 @@ dependencies = [
 
 [[package]]
 name = "lark"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "ingest",
  "serde",
@@ -2832,7 +2833,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llm"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "futures-util",
@@ -2943,7 +2944,7 @@ dependencies = [
 
 [[package]]
 name = "memory"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4034,7 +4035,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rag"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4042,6 +4043,7 @@ dependencies = [
  "llm",
  "retriever",
  "serde",
+ "serde_json",
  "store",
  "tempfile",
  "thiserror 1.0.69",
@@ -4322,7 +4324,7 @@ dependencies = [
 
 [[package]]
 name = "retriever"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "chunker",
  "embedder",
@@ -4939,7 +4941,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "store"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "rusqlite",
  "serde",
@@ -5181,7 +5183,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-app"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "agent",
  "chunker",
@@ -6314,7 +6316,7 @@ dependencies = [
 
 [[package]]
 name = "watcher"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "notify",
  "store",

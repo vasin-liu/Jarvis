@@ -5,8 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+chunker = { path = "../chunker" }
 embedder = { path = "../embedder" }
 llm = { path = "../llm" }
+memory = { path = "../memory" }
 rag = { path = "../rag" }
 retriever = { path = "../retriever" }
 store = { path = "../store" }

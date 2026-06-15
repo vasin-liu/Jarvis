@@ -31,10 +31,20 @@ pub struct AgentResponse {
 }
 
 pub fn default_profiles() -> Vec<AgentProfile> {
-    vec![AgentProfile {
-        id: "default".into(),
-        name: "知识助手".into(),
-        system_prompt: "你是 Jarvis 知识库助手。优先使用工具检索事实，回答简洁准确，使用中文。".into(),
-        enabled: true,
-    }]
+    vec![
+        AgentProfile {
+            id: "default".into(),
+            name: "知识助手".into(),
+            system_prompt: "你是 Jarvis 知识库助手。优先使用工具检索事实，回答简洁准确，使用中文。".into(),
+            enabled: true,
+        },
+        AgentProfile {
+            id: "tasks".into(),
+            name: "任务助手".into(),
+            system_prompt:
+                "你是 Jarvis 任务助手。优先用 list_tasks 查看待办，用 complete_task 标记完成，必要时 search_knowledge 查背景。回答简洁，使用中文。"
+                    .into(),
+            enabled: true,
+        },
+    ]
 }

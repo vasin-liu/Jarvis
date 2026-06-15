@@ -20,7 +20,10 @@ use insights::{extract_tasks_from_source, summarize_source};
 use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, InsightsReport};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
-use agent::{load_skills_from_dir, run_agent, AgentProfile, AgentResponse, Skill};
+use agent::{
+    load_hooks_from_dir, load_plugins_from_dir, load_skills_from_dir, run_agent, AgentProfile,
+    AgentResponse, AgentRunContext, Hook, PluginManifest, Skill,
+};
 use memory::{add_memory, learn_from_exchange, list_memories};
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
@@ -46,6 +49,8 @@ struct AppState {
     config_path: PathBuf,
     db_path: PathBuf,
     skills_dir: PathBuf,
+    hooks_dir: PathBuf,
+    plugins_dir: PathBuf,
     config: Mutex<AppConfig>,
     watch: Mutex<Option<WatchHandle>>,
     scheduler: Mutex<Option<SchedulerHandle>>,
@@ -506,6 +511,70 @@ fn seed_skills_dir(dir: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+fn seed_hooks_dir(dir: &PathBuf) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let example = dir.join("log-tool-calls.json");
+    if !example.exists() {
+        let hook = serde_json::json!({
+            "id": "log-tool-calls",
+            "name": "记录工具调用",
+            "description": "在 after_tool_call 时输出工具名（示例 Hook）",
+            "event": "after_tool_call",
+            "command": "echo tool called: %JARVIS_TOOL_NAME%"
+        });
+        std::fs::write(&example, serde_json::to_string_pretty(&hook).unwrap())
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn seed_plugins_dir(dir: &PathBuf) -> Result<(), String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let plugin_dir = dir.join("datetime");
+    std::fs::create_dir_all(&plugin_dir).map_err(|e| e.to_string())?;
+    let manifest = plugin_dir.join("plugin.json");
+    if !manifest.exists() {
+        #[cfg(windows)]
+        let command = r#"powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss'""#;
+        #[cfg(not(windows))]
+        let command = "date '+%Y-%m-%d %H:%M:%S'";
+        let plugin = serde_json::json!({
+            "id": "datetime",
+            "name": "日期时间",
+            "description": "提供当前本地日期时间",
+            "tools": [{
+                "name": "current_time",
+                "description": "返回当前本地日期时间",
+                "command": command
+            }]
+        });
+        std::fs::write(&manifest, serde_json::to_string_pretty(&plugin).unwrap())
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn build_agent_context<'a>(
+    state: &'a AppState,
+    cfg: &'a AppConfig,
+    embedder: &'a dyn Embedder,
+    chat: &'a dyn ChatModel,
+    hooks: &'a [Hook],
+    plugins: &'a [PluginManifest],
+) -> AgentRunContext<'a> {
+    AgentRunContext {
+        store: state.store.as_ref(),
+        embedder,
+        chat,
+        chunker: &state.chunker,
+        retriever: &state.retriever,
+        hooks,
+        enabled_hook_ids: &cfg.enabled_hook_ids,
+        plugins,
+        enabled_plugin_ids: &cfg.enabled_plugin_ids,
+    }
+}
+
 #[tauri::command]
 fn list_agent_profiles(state: tauri::State<'_, AppState>) -> Result<Vec<AgentProfile>, String> {
     Ok(state.config().agents)
@@ -514,6 +583,16 @@ fn list_agent_profiles(state: tauri::State<'_, AppState>) -> Result<Vec<AgentPro
 #[tauri::command]
 fn list_skills(state: tauri::State<'_, AppState>) -> Result<Vec<Skill>, String> {
     Ok(load_skills_from_dir(&state.skills_dir))
+}
+
+#[tauri::command]
+fn list_hooks(state: tauri::State<'_, AppState>) -> Result<Vec<Hook>, String> {
+    Ok(load_hooks_from_dir(&state.hooks_dir))
+}
+
+#[tauri::command]
+fn list_plugins(state: tauri::State<'_, AppState>) -> Result<Vec<PluginManifest>, String> {
+    Ok(load_plugins_from_dir(&state.plugins_dir))
 }
 
 #[tauri::command]
@@ -540,11 +619,20 @@ async fn ask_agent_in_session(
     let cfg = state.config();
     let profile = resolve_active_agent(&cfg)?;
     let skills = load_skills_from_dir(&state.skills_dir);
+    let hooks = load_hooks_from_dir(&state.hooks_dir);
+    let plugins = load_plugins_from_dir(&state.plugins_dir);
+    let embedder = state.embedder();
+    let chat = state.chat();
+    let ctx = build_agent_context(
+        &state,
+        &cfg,
+        embedder.as_ref(),
+        chat.as_ref(),
+        &hooks,
+        &plugins,
+    );
     let agent_resp = run_agent(
-        state.store.as_ref(),
-        state.embedder().as_ref(),
-        state.chat().as_ref(),
-        &state.retriever,
+        &ctx,
         &profile,
         &skills,
         &cfg.enabled_skill_ids,
@@ -573,11 +661,20 @@ async fn ask_agent_in_session_stream(
     let cfg = state.config();
     let profile = resolve_active_agent(&cfg)?;
     let skills = load_skills_from_dir(&state.skills_dir);
+    let hooks = load_hooks_from_dir(&state.hooks_dir);
+    let plugins = load_plugins_from_dir(&state.plugins_dir);
+    let embedder = state.embedder();
+    let chat = state.chat();
+    let ctx = build_agent_context(
+        &state,
+        &cfg,
+        embedder.as_ref(),
+        chat.as_ref(),
+        &hooks,
+        &plugins,
+    );
     let agent_resp = run_agent(
-        state.store.as_ref(),
-        state.embedder().as_ref(),
-        state.chat().as_ref(),
-        &state.retriever,
+        &ctx,
         &profile,
         &skills,
         &cfg.enabled_skill_ids,
@@ -601,6 +698,15 @@ fn agent_response_to_ask(resp: AgentResponse) -> AskResponse {
     AskResponse {
         answer: resp.answer,
         citations: resp.citations,
+        tool_calls: resp
+            .tool_calls
+            .into_iter()
+            .map(|t| rag::ToolCallInfo {
+                name: t.name,
+                arguments: t.arguments,
+                result: t.result,
+            })
+            .collect(),
     }
 }
 
@@ -828,7 +934,11 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
     let config_path = app_data.join("config.json");
     let db_path = app_data.join("kb.sqlite");
     let skills_dir = app_data.join("skills");
+    let hooks_dir = app_data.join("hooks");
+    let plugins_dir = app_data.join("plugins");
     seed_skills_dir(&skills_dir)?;
+    seed_hooks_dir(&hooks_dir)?;
+    seed_plugins_dir(&plugins_dir)?;
     let mut config = if is_e2e_mode() {
         AppConfig::default()
     } else {
@@ -858,6 +968,8 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
         config_path,
         db_path,
         skills_dir,
+        hooks_dir,
+        plugins_dir,
         config: Mutex::new(config),
         watch: Mutex::new(None),
         scheduler: Mutex::new(None),
@@ -921,6 +1033,8 @@ pub fn run() {
             add_memory_cmd,
             list_agent_profiles,
             list_skills,
+            list_hooks,
+            list_plugins,
             set_active_agent,
             ask_agent_in_session,
             ask_agent_in_session_stream

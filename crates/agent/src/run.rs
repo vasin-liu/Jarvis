@@ -1,19 +1,31 @@
+use chunker::ChunkerConfig;
 use embedder::Embedder;
 use llm::{ChatModel, Message, Role};
 use retriever::RetrieverConfig;
 use store::Store;
 
 use crate::error::{AgentError, Result};
-use crate::tools::{execute_tool, parse_tool_call, tools_prompt};
+use crate::hooks::{run_hooks, HookContext, HookEvent};
+use crate::plugins::PluginManifest;
+use crate::tools::{build_tools_prompt, execute_tool, parse_tool_call};
 use crate::types::{AgentProfile, AgentResponse, Skill};
 
 const MAX_TOOL_ROUNDS: usize = 3;
 
+pub struct AgentRunContext<'a> {
+    pub store: &'a Store,
+    pub embedder: &'a dyn Embedder,
+    pub chat: &'a dyn ChatModel,
+    pub chunker: &'a ChunkerConfig,
+    pub retriever: &'a RetrieverConfig,
+    pub hooks: &'a [crate::hooks::Hook],
+    pub enabled_hook_ids: &'a [String],
+    pub plugins: &'a [PluginManifest],
+    pub enabled_plugin_ids: &'a [String],
+}
+
 pub async fn run_agent(
-    store: &Store,
-    embedder: &dyn Embedder,
-    chat: &dyn ChatModel,
-    retriever: &RetrieverConfig,
+    ctx: &AgentRunContext<'_>,
     profile: &AgentProfile,
     skills: &[Skill],
     enabled_skill_ids: &[String],
@@ -36,7 +48,7 @@ pub async fn run_agent(
     let system = format!(
         "{}\n\n{}\n{skill_block}",
         profile.system_prompt,
-        tools_prompt()
+        build_tools_prompt(ctx.plugins, ctx.enabled_plugin_ids)
     );
 
     let mut messages = vec![
@@ -54,17 +66,47 @@ pub async fn run_agent(
     let mut citations = Vec::new();
 
     for _ in 0..MAX_TOOL_ROUNDS {
-        let reply = chat.complete(&messages).await?;
+        let reply = ctx.chat.complete(&messages).await?;
         if let Some(payload) = parse_tool_call(&reply) {
+            run_hooks(
+                ctx.hooks,
+                ctx.enabled_hook_ids,
+                HookEvent::BeforeToolCall,
+                &HookContext {
+                    question: Some(question),
+                    tool_name: Some(&payload.name),
+                    tool_args: Some(&payload.arguments),
+                    tool_result: None,
+                    answer: None,
+                },
+            );
+
             let (result, cites) = execute_tool(
-                store,
-                embedder,
-                retriever,
+                ctx.store,
+                ctx.embedder,
+                ctx.chunker,
+                ctx.retriever,
+                ctx.plugins,
+                ctx.enabled_plugin_ids,
                 &payload.name,
                 &payload.arguments,
             )
             .await?;
             citations.extend(cites);
+
+            run_hooks(
+                ctx.hooks,
+                ctx.enabled_hook_ids,
+                HookEvent::AfterToolCall,
+                &HookContext {
+                    question: Some(question),
+                    tool_name: Some(&payload.name),
+                    tool_args: Some(&payload.arguments),
+                    tool_result: Some(&result),
+                    answer: None,
+                },
+            );
+
             tool_calls.push(crate::types::ToolCallRecord {
                 name: payload.name.clone(),
                 arguments: payload.arguments.clone(),
@@ -76,10 +118,26 @@ pub async fn run_agent(
             });
             messages.push(Message {
                 role: Role::User,
-                content: format!("工具 `{name}` 返回：\n{result}\n\n请给出最终中文答案。", name = payload.name),
+                content: format!(
+                    "工具 `{name}` 返回：\n{result}\n\n请给出最终中文答案。",
+                    name = payload.name
+                ),
             });
             continue;
         }
+
+        run_hooks(
+            ctx.hooks,
+            ctx.enabled_hook_ids,
+            HookEvent::BeforeAnswer,
+            &HookContext {
+                question: Some(question),
+                tool_name: None,
+                tool_args: None,
+                tool_result: None,
+                answer: Some(&reply),
+            },
+        );
 
         return Ok(AgentResponse {
             answer: reply,
@@ -88,7 +146,20 @@ pub async fn run_agent(
         });
     }
 
-    let final_reply = chat.complete(&messages).await?;
+    let final_reply = ctx.chat.complete(&messages).await?;
+    run_hooks(
+        ctx.hooks,
+        ctx.enabled_hook_ids,
+        HookEvent::BeforeAnswer,
+        &HookContext {
+            question: Some(question),
+            tool_name: None,
+            tool_args: None,
+            tool_result: None,
+            answer: Some(&final_reply),
+        },
+    );
+
     Ok(AgentResponse {
         answer: final_reply,
         citations,
@@ -124,19 +195,26 @@ mod tests {
             enabled: true,
         };
 
-        let resp = run_agent(
-            &store,
-            &embedder,
-            &MockChatModel,
-            &RetrieverConfig::default(),
-            &profile,
-            &[],
-            &[],
-            "agent platform tools",
-        )
-        .await
-        .unwrap();
+        let retriever = RetrieverConfig::default();
+        let chunker = ChunkerConfig::default();
+        let chat = MockChatModel;
+        let ctx = AgentRunContext {
+            store: &store,
+            embedder: &embedder,
+            chat: &chat,
+            chunker: &chunker,
+            retriever: &retriever,
+            hooks: &[],
+            enabled_hook_ids: &[],
+            plugins: &[],
+            enabled_plugin_ids: &[],
+        };
+
+        let resp = run_agent(&ctx, &profile, &[], &[], "agent platform tools")
+            .await
+            .unwrap();
 
         assert!(!resp.answer.is_empty());
+        assert!(!resp.tool_calls.is_empty());
     }
 }

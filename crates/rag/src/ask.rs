@@ -21,6 +21,7 @@ pub async fn ask(
         return Ok(AskResponse {
             answer: NO_CONTEXT.to_string(),
             citations: vec![],
+            tool_calls: vec![],
         });
     }
 
@@ -28,7 +29,11 @@ pub async fn ask(
     let messages = build_messages(question, &hits, &citations);
 
     let answer = chat.complete(&messages).await?;
-    Ok(AskResponse { answer, citations })
+    Ok(AskResponse {
+        answer,
+        citations,
+        tool_calls: vec![],
+    })
 }
 
 pub async fn ask_stream(
@@ -47,13 +52,18 @@ pub async fn ask_stream(
         return Ok(AskResponse {
             answer,
             citations: vec![],
+            tool_calls: vec![],
         });
     }
 
     let citations = hits_to_citations(store, &hits)?;
     let messages = build_messages(question, &hits, &citations);
     let answer = chat.complete_stream(&messages, on_token).await?;
-    Ok(AskResponse { answer, citations })
+    Ok(AskResponse {
+        answer,
+        citations,
+        tool_calls: vec![],
+    })
 }
 
 fn hits_to_citations(store: &Store, hits: &[ChunkHit]) -> Result<Vec<Citation>> {

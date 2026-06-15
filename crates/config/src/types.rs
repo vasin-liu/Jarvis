@@ -76,6 +76,12 @@ pub struct AppConfig {
     /// Enabled skill ids from the skills directory.
     #[serde(default)]
     pub enabled_skill_ids: Vec<String>,
+    /// Enabled hook ids from the hooks directory.
+    #[serde(default)]
+    pub enabled_hook_ids: Vec<String>,
+    /// Enabled plugin ids from the plugins directory.
+    #[serde(default)]
+    pub enabled_plugin_ids: Vec<String>,
 }
 
 fn default_active_agent_id() -> String {
@@ -144,6 +150,8 @@ impl Default for AppConfig {
             agents: default_profiles(),
             active_agent_id: default_active_agent_id(),
             enabled_skill_ids: Vec::new(),
+            enabled_hook_ids: Vec::new(),
+            enabled_plugin_ids: Vec::new(),
         }
     }
 }

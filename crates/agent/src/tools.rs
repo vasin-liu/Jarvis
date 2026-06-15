@@ -1,10 +1,15 @@
+use chunker::ChunkerConfig;
 use embedder::Embedder;
+use memory::{add_memory, list_memories};
 use retriever::{retrieve, RetrieverConfig};
 use serde::Deserialize;
 use serde_json::json;
 use store::{IndexStatus, Store, TaskStatus};
 
 use crate::error::{AgentError, Result};
+use crate::plugins::{
+    enabled_plugin_tools, execute_plugin_tool, find_plugin_tool, PluginManifest,
+};
 use crate::types::ToolCallRecord;
 use rag::Citation;
 
@@ -24,10 +29,18 @@ pub fn parse_tool_call(text: &str) -> Option<ToolCallPayload> {
 pub async fn execute_tool(
     store: &Store,
     embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
     retriever: &RetrieverConfig,
+    plugins: &[PluginManifest],
+    enabled_plugin_ids: &[String],
     name: &str,
     args: &serde_json::Value,
 ) -> Result<(String, Vec<Citation>)> {
+    if let Some((plugin, tool)) = find_plugin_tool(plugins, enabled_plugin_ids, name) {
+        let result = execute_plugin_tool(tool, args)?;
+        return Ok((format!("[插件 {}] {result}", plugin.name), vec![]));
+    }
+
     match name {
         "search_knowledge" => {
             let query = args
@@ -78,7 +91,8 @@ pub async fn execute_tool(
                 .filter(|t| t.status == TaskStatus::Pending)
                 .map(|t| {
                     format!(
-                        "- {}{}",
+                        "- [{}] {}{}",
+                        t.id,
                         t.title,
                         t.description
                             .as_ref()
@@ -89,28 +103,88 @@ pub async fn execute_tool(
                 .collect();
             Ok((lines.join("\n"), vec![]))
         }
+        "list_memories" => {
+            let memories = list_memories(store)?;
+            if memories.is_empty() {
+                return Ok(("暂无长期记忆。".into(), vec![]));
+            }
+            let lines: Vec<String> = memories
+                .into_iter()
+                .map(|m| format!("- {} ({})", m.title, m.uri))
+                .collect();
+            Ok((lines.join("\n"), vec![]))
+        }
+        "add_memory" => {
+            let content = args
+                .get("content")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| AgentError::ToolArgs("content required".into()))?;
+            let title = args.get("title").and_then(|v| v.as_str());
+            let uri = add_memory(store, embedder, chunker, content, title).await?;
+            Ok((format!("已写入记忆：{uri}"), vec![]))
+        }
+        "complete_task" => {
+            let id = args.get("id").and_then(|v| v.as_str());
+            let title = args.get("title").and_then(|v| v.as_str());
+            let task = if let Some(id) = id {
+                store.get_task(id).ok()
+            } else if let Some(title) = title {
+                store
+                    .list_tasks()?
+                    .into_iter()
+                    .find(|t| t.status == TaskStatus::Pending && t.title.contains(title))
+            } else {
+                None
+            };
+            let Some(task) = task else {
+                return Ok(("未找到匹配的待办任务。".into(), vec![]));
+            };
+            store.update_task_status(&task.id, TaskStatus::Done)?;
+            Ok((format!("已将任务「{}」标记为完成。", task.title), vec![]))
+        }
         other => Err(AgentError::UnknownTool(other.to_string())),
     }
 }
 
-pub fn tools_prompt() -> &'static str {
-    r#"可用工具（需要时仅回复一行 tool_call，不要其他文字）：
-<tool_call>{"name":"search_knowledge","arguments":{"query":"关键词"}}</tool_call>
-<tool_call>{"name":"list_sources","arguments":{}}</tool_call>
-<tool_call>{"name":"list_tasks","arguments":{}}</tool_call>
-拿到工具结果后，用中文给出最终答案。"#
+pub fn build_tools_prompt(plugins: &[PluginManifest], enabled_plugin_ids: &[String]) -> String {
+    let mut lines = vec![
+        "可用工具（需要时仅回复一行 tool_call，不要其他文字）：".to_string(),
+        r#"<tool_call>{"name":"search_knowledge","arguments":{"query":"关键词"}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"list_sources","arguments":{}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"list_tasks","arguments":{}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"list_memories","arguments":{}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"add_memory","arguments":{"content":"要记住的事实","title":"可选标题"}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"complete_task","arguments":{"id":"任务id"}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"complete_task","arguments":{"title":"任务标题关键词"}}</tool_call>"#.into(),
+    ];
+
+    for (_, tool) in enabled_plugin_tools(plugins, enabled_plugin_ids) {
+        lines.push(format!(
+            r#"<tool_call>{{"name":"{}","arguments":{{}}}}</tool_call>"#,
+            tool.name
+        ));
+    }
+
+    lines.push("拿到工具结果后，用中文给出最终答案。".into());
+    lines.join("\n")
 }
 
 pub async fn run_tool_call(
     store: &Store,
     embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
     retriever: &RetrieverConfig,
+    plugins: &[PluginManifest],
+    enabled_plugin_ids: &[String],
     payload: &ToolCallPayload,
 ) -> Result<ToolCallRecord> {
     let (result, _) = execute_tool(
         store,
         embedder,
+        chunker,
         retriever,
+        plugins,
+        enabled_plugin_ids,
         &payload.name,
         &payload.arguments,
     )
@@ -135,5 +209,21 @@ mod tests {
         let text = r#"prefix <tool_call>{"name":"list_tasks","arguments":{}}</tool_call>"#;
         let call = parse_tool_call(text).unwrap();
         assert_eq!(call.name, "list_tasks");
+    }
+
+    #[test]
+    fn build_prompt_includes_plugin_tool() {
+        let plugins = vec![PluginManifest {
+            id: "demo".into(),
+            name: "Demo".into(),
+            description: String::new(),
+            tools: vec![crate::plugins::PluginTool {
+                name: "ping".into(),
+                description: "ping".into(),
+                command: "echo pong".into(),
+            }],
+        }];
+        let prompt = build_tools_prompt(&plugins, &["demo".into()]);
+        assert!(prompt.contains("ping"));
     }
 }
