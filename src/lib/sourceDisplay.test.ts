@@ -11,6 +11,7 @@ describe("sourceDisplay", () => {
     expect(sourceKindLabel("local_file")).toBe("本地文件");
     expect(sourceKindLabel("lark_doc")).toBe("飞书文档");
     expect(sourceKindLabel("cursor_transcript")).toBe("Cursor 会话");
+    expect(sourceKindLabel("memory")).toBe("记忆");
   });
 
   it("maps status to tone", () => {

@@ -27,7 +27,11 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         return Ok("知识库中未找到相关内容。".to_string());
     }
 
-    if system.contains("任务提取") || system.contains("JSON 数组") {
+    if system.contains("记忆提取") || system.contains("JSON 数组") && user.contains("问题：") {
+        return Ok(r#"[{"content":"用户关注 Jarvis 知识库相关主题"}]"#.to_string());
+    }
+
+    if system.contains("任务提取") {
         return Ok(r#"[{"title":"整理要点","description":"根据来源整理可执行待办"}]"#.to_string());
     }
 

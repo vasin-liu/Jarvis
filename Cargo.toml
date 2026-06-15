@@ -14,11 +14,12 @@ members = [
     "crates/lark",
     "crates/cursor",
     "crates/insights",
+    "crates/memory",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 rust-version = "1.85"
 

@@ -13,6 +13,7 @@ import {
   IconMail,
   IconMessageChatbot,
   IconListCheck,
+  IconBrain,
   IconMessages,
   IconRobot,
   IconSettings,
@@ -27,7 +28,7 @@ import {
   statusTone,
 } from "./lib/sourceDisplay";
 
-type View = "chat" | "library" | "tasks" | "settings";
+type View = "chat" | "library" | "tasks" | "memory" | "settings";
 
 interface ChatSession {
   id: string;
@@ -102,6 +103,17 @@ interface AppConfig {
   cursor_projects_root: string;
   auto_summarize_on_index: boolean;
   auto_extract_tasks_on_index: boolean;
+  scheduled_sync_enabled: boolean;
+  scheduled_sync_interval_minutes: number;
+  scheduled_sync_watch_folders: boolean;
+  scheduled_sync_cursor: boolean;
+  auto_learn_from_chat: boolean;
+}
+
+interface SyncStatusView {
+  lastScheduledSyncAt?: number | null;
+  scheduledSyncEnabled: boolean;
+  scheduledSyncIntervalMinutes: number;
 }
 
 interface CursorTranscriptSummary {
@@ -143,6 +155,8 @@ function SourceKindIcon({ kind }: { kind: string }) {
       return <IconMessages className={cls} aria-hidden />;
     case "cursor_transcript":
       return <IconRobot className={cls} aria-hidden />;
+    case "memory":
+      return <IconBrain className={cls} aria-hidden />;
     default:
       return <IconFile className={cls} aria-hidden />;
   }
@@ -232,6 +246,9 @@ function App() {
   >([]);
   const [newWatchFolder, setNewWatchFolder] = useState("");
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [memories, setMemories] = useState<Source[]>([]);
+  const [syncStatus, setSyncStatus] = useState<SyncStatusView | null>(null);
+  const [newMemoryText, setNewMemoryText] = useState("");
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -244,6 +261,16 @@ function App() {
       sessionId,
     });
     setMessages(list);
+  }, []);
+
+  const refreshSyncStatus = useCallback(async () => {
+    const status = await invoke<SyncStatusView>("get_sync_status");
+    setSyncStatus(status);
+  }, []);
+
+  const refreshMemories = useCallback(async () => {
+    const list = await invoke<Source[]>("list_memories_cmd");
+    setMemories(list);
   }, []);
 
   const refreshTasks = useCallback(async () => {
@@ -259,7 +286,8 @@ function App() {
     );
     setCursorCandidates(transcripts);
     await refreshTasks();
-  }, [refreshTasks]);
+    await refreshMemories();
+  }, [refreshMemories, refreshTasks]);
 
   const refreshConfig = useCallback(async () => {
     const cfg = await invoke<AppConfig>("get_config");
@@ -291,9 +319,10 @@ function App() {
       refreshLibrary(),
       refreshConfig(),
       refreshIndexStatus(),
+      refreshSyncStatus(),
       ensureSession(),
     ]).catch((e) => setErr(String(e)));
-  }, [ensureSession, refreshConfig, refreshIndexStatus, refreshLibrary]);
+  }, [ensureSession, refreshConfig, refreshIndexStatus, refreshLibrary, refreshSyncStatus]);
 
   useEffect(() => {
     if (activeSessionId) {
@@ -584,6 +613,39 @@ function App() {
     }
   }
 
+  async function handleRunScheduledSync() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const report = await invoke<RebuildReport>("run_scheduled_sync_cmd");
+      await refreshLibrary();
+      await refreshSyncStatus();
+      setLarkStatus(
+        `定时同步完成：成功 ${report.indexed}，失败 ${report.failed}`,
+      );
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAddMemory() {
+    const text = newMemoryText.trim();
+    if (!text) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("add_memory_cmd", { content: text, title: null });
+      setNewMemoryText("");
+      await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleSyncCursorTranscripts() {
     setErr(null);
     setBusy(true);
@@ -669,6 +731,7 @@ function App() {
             ["chat", "对话", IconMessageChatbot],
             ["library", "资料库", IconBooks],
             ["tasks", "任务", IconListCheck],
+            ["memory", "记忆", IconBrain],
             ["settings", "设置", IconSettings],
           ] as const
         ).map(([id, label, Icon]) => (
@@ -684,7 +747,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · 任务 {tasks.filter((t) => t.status === "pending").length} · v3
+          来源 {sources.length} · 记忆 {memories.length} · v4
         </div>
       </aside>
 
@@ -1152,6 +1215,72 @@ function App() {
             </motion.section>
           )}
 
+          {view === "memory" && (
+            <motion.section
+              key="memory"
+              className="glass-panel flex flex-1 flex-col gap-4 p-5"
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-medium">长期记忆</h2>
+                <span className="text-sm text-zinc-400">共 {memories.length} 条</span>
+              </div>
+              <p className="text-sm text-zinc-500">
+                从对话中自动提取或手动添加的记忆会参与 RAG 检索。
+              </p>
+              <div className="flex gap-2">
+                <input
+                  className="field flex-1"
+                  data-testid="new-memory-input"
+                  value={newMemoryText}
+                  onChange={(e) => setNewMemoryText(e.target.value)}
+                  placeholder="手动添加一条记忆…"
+                />
+                <button
+                  type="button"
+                  className="btn-primary shrink-0"
+                  disabled={busy || !newMemoryText.trim()}
+                  onClick={() => void handleAddMemory()}
+                >
+                  添加
+                </button>
+              </div>
+              {memories.length === 0 ? (
+                <p className="text-sm text-zinc-500">暂无记忆。</p>
+              ) : (
+                <ul
+                  className="divide-y divide-white/10 overflow-auto rounded-xl border border-white/10"
+                  data-testid="memory-list"
+                >
+                  {memories.map((m) => (
+                    <li
+                      key={m.id}
+                      className="flex items-start justify-between gap-4 px-4 py-3 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium text-zinc-100">{m.title}</div>
+                        {m.summary && (
+                          <div className="mt-1 text-xs text-zinc-400">{m.summary}</div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-ghost shrink-0 text-xs"
+                        disabled={busy}
+                        onClick={() => void handleRemoveSource(m.id)}
+                      >
+                        删除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </motion.section>
+          )}
+
           {view === "settings" && config && (
             <motion.section
               key="settings"
@@ -1457,6 +1586,101 @@ function App() {
             >
               保存配置
             </button>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                定时同步
+              </h3>
+              <div className="mb-4 flex flex-col gap-3 text-sm">
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.scheduled_sync_enabled}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        scheduled_sync_enabled: e.target.checked,
+                      })
+                    }
+                  />
+                  启用定时同步
+                </label>
+                <label className="space-y-1">
+                  <span className="text-zinc-400">间隔（分钟，最少 5）</span>
+                  <input
+                    type="number"
+                    min={5}
+                    className="field max-w-xs"
+                    value={config.scheduled_sync_interval_minutes}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        scheduled_sync_interval_minutes: Math.max(
+                          5,
+                          Number(e.target.value) || 5,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.scheduled_sync_watch_folders}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        scheduled_sync_watch_folders: e.target.checked,
+                      })
+                    }
+                  />
+                  同步监听文件夹
+                </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.scheduled_sync_cursor}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        scheduled_sync_cursor: e.target.checked,
+                      })
+                    }
+                  />
+                  同步 Cursor 会话
+                </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.auto_learn_from_chat}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        auto_learn_from_chat: e.target.checked,
+                      })
+                    }
+                  />
+                  对话后自动提取记忆
+                </label>
+              </div>
+              {syncStatus && (
+                <p className="mb-3 text-xs text-zinc-500">
+                  上次定时同步：
+                  {syncStatus.lastScheduledSyncAt
+                    ? formatIndexedAt(syncStatus.lastScheduledSyncAt)
+                    : "尚未执行"}
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn-ghost text-sm"
+                data-testid="run-scheduled-sync"
+                disabled={busy}
+                onClick={() => void handleRunScheduledSync()}
+              >
+                立即同步
+              </button>
+            </div>
 
             <div className="border-t border-white/10 pt-4">
               <h3 className="mb-3 text-sm font-medium text-zinc-200">

@@ -203,7 +203,13 @@ npm test
 |-----------|-------------|
 | v3 | **1.2.0** — `crates/insights`: LLM source summaries + task extraction; `tasks` table + `sources.summary`; Tasks UI; optional auto-insights on index; Library per-source + bulk actions |
 
-Refer to design spec for non-goals (no task execution, no scheduled sync in v3, etc.).
+## Milestones (v4)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v4 | **1.3.0** — `sync_scheduler`: periodic watch-folder + Cursor sync; `crates/memory`: chat learning + `SourceKind::Memory`; Memory UI; scheduled sync settings |
+
+Refer to design spec for non-goals (no task execution, no full agent platform in v4, etc.).
 
 ---
 

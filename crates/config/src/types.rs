@@ -51,6 +51,21 @@ pub struct AppConfig {
     /// After indexing, auto-extract tasks from sources via LLM.
     #[serde(default)]
     pub auto_extract_tasks_on_index: bool,
+    /// Enable periodic background sync.
+    #[serde(default)]
+    pub scheduled_sync_enabled: bool,
+    /// Interval in minutes (minimum 5 when enabled).
+    #[serde(default = "default_sync_interval_minutes")]
+    pub scheduled_sync_interval_minutes: u32,
+    /// Include watch-folder rescan in scheduled sync.
+    #[serde(default = "default_true")]
+    pub scheduled_sync_watch_folders: bool,
+    /// Include Cursor transcript sync in scheduled sync.
+    #[serde(default = "default_true")]
+    pub scheduled_sync_cursor: bool,
+    /// After each Q&A, extract long-term memories into the knowledge base.
+    #[serde(default)]
+    pub auto_learn_from_chat: bool,
 }
 
 fn default_fastembed_model() -> String {
@@ -77,6 +92,14 @@ fn default_cloud_embed_dim() -> usize {
     1536
 }
 
+fn default_sync_interval_minutes() -> u32 {
+    60
+}
+
+fn default_true() -> bool {
+    true
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
@@ -99,6 +122,11 @@ impl Default for AppConfig {
             cursor_projects_root: String::new(),
             auto_summarize_on_index: false,
             auto_extract_tasks_on_index: false,
+            scheduled_sync_enabled: false,
+            scheduled_sync_interval_minutes: default_sync_interval_minutes(),
+            scheduled_sync_watch_folders: true,
+            scheduled_sync_cursor: true,
+            auto_learn_from_chat: false,
         }
     }
 }

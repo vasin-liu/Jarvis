@@ -1,0 +1,19 @@
+[package]
+name = "memory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chunker = { path = "../chunker" }
+embedder = { path = "../embedder" }
+indexer = { path = "../indexer" }
+ingest = { path = "../ingest" }
+llm = { path = "../llm" }
+store = { path = "../store" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

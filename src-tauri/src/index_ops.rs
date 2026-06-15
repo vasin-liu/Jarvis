@@ -4,6 +4,7 @@ use chunker::ChunkerConfig;
 use config::AppConfig;
 use cursor::{discover_transcripts, load_transcript, resolve_transcript_path};
 use embedder::Embedder;
+use ingest::Document;
 use llm::ChatModel;
 use indexer::{index_document, index_path};
 use lark::{fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, CommandRunner};
@@ -436,6 +437,16 @@ async fn reindex_source(
     cursor_projects_root: &str,
     source: &Source,
 ) -> Result<bool, String> {
+    let memory_text = if source.kind == SourceKind::Memory {
+        Some(
+            store
+                .source_chunk_text(&source.id)
+                .map_err(|e| e.to_string())?,
+        )
+    } else {
+        None
+    };
+
     store
         .delete_chunks_for_source(&source.id)
         .map_err(|e| e.to_string())?;
@@ -492,6 +503,23 @@ async fn reindex_source(
                 .ok_or_else(|| format!("transcript not found for {}", source.uri))?;
             let doc = load_transcript(&path).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::CursorTranscript)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        SourceKind::Memory => {
+            let text = memory_text.unwrap_or_default();
+            if text.trim().is_empty() {
+                mark_failed(store, source, "memory text missing")?;
+                return Ok(false);
+            }
+            let doc = Document {
+                uri: source.uri.clone(),
+                title: source.title.clone(),
+                text,
+                content_hash: source.content_hash.clone(),
+            };
+            index_document(store, embedder, chunker, doc, SourceKind::Memory)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(true)

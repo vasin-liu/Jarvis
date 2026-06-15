@@ -12,6 +12,8 @@ export function sourceKindLabel(kind: string): string {
       return "会话";
     case "cursor_transcript":
       return "Cursor 会话";
+    case "memory":
+      return "记忆";
     default:
       return kind;
   }

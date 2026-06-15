@@ -8,6 +8,7 @@ pub enum SourceKind {
     LarkSheet,
     LarkMail,
     CursorTranscript,
+    Memory,
 }
 
 impl SourceKind {
@@ -19,6 +20,7 @@ impl SourceKind {
             SourceKind::LarkSheet => "lark_sheet",
             SourceKind::LarkMail => "lark_mail",
             SourceKind::CursorTranscript => "cursor_transcript",
+            SourceKind::Memory => "memory",
         }
     }
 
@@ -30,6 +32,7 @@ impl SourceKind {
             "lark_sheet" => SourceKind::LarkSheet,
             "lark_mail" => SourceKind::LarkMail,
             "cursor_transcript" => SourceKind::CursorTranscript,
+            "memory" => SourceKind::Memory,
             _ => return None,
         })
     }
@@ -186,6 +189,7 @@ mod tests {
             SourceKind::LarkSheet,
             SourceKind::LarkMail,
             SourceKind::CursorTranscript,
+            SourceKind::Memory,
         ] {
             assert_eq!(SourceKind::parse(k.as_str()), Some(k));
         }

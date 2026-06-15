@@ -1,6 +1,7 @@
 mod e2e;
 mod index_ops;
 mod insights_ops;
+mod sync_scheduler;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -15,13 +16,15 @@ use index_ops::{
     sync_cursor_transcripts, IndexProgressEvent, IndexStatusView, RebuildReport,
 };
 use indexer::{index_document, index_path};
+use insights::{extract_tasks_from_source, summarize_source};
+use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, InsightsReport};
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
+use memory::{add_memory, learn_from_exchange, list_memories};
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
 use serde::Serialize;
-use insights::{extract_tasks_from_source, summarize_source};
-use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, InsightsReport};
+use sync_scheduler::{run_scheduled_sync, spawn_scheduler, sync_status_view, SchedulerHandle, SyncStatusView};
 use store::{ChatMessage, ChatRole, ChatSession, Source, SourceKind, Store, Task, TaskStatus};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager};
@@ -43,6 +46,7 @@ struct AppState {
     db_path: PathBuf,
     config: Mutex<AppConfig>,
     watch: Mutex<Option<WatchHandle>>,
+    scheduler: Mutex<Option<SchedulerHandle>>,
 }
 
 impl AppState {
@@ -116,6 +120,15 @@ impl AppState {
         Ok(())
     }
 
+    fn restart_scheduler(&self, app: &AppHandle) {
+        if let Some(handle) = self.scheduler.lock().unwrap().take() {
+            handle.stop();
+        }
+        if !is_e2e_mode() {
+            *self.scheduler.lock().unwrap() = Some(spawn_scheduler(app.clone()));
+        }
+    }
+
     fn initial_scan_with_progress(&self, app: &AppHandle) -> Result<(), String> {
         let cfg = self.config();
         let mut all_paths = Vec::new();
@@ -183,16 +196,18 @@ fn get_index_status(state: tauri::State<'_, AppState>) -> Result<IndexStatusView
 }
 
 #[tauri::command]
-fn set_config(config: AppConfig, state: tauri::State<'_, AppState>) -> Result<(), String> {
+fn set_config(config: AppConfig, app: AppHandle, state: tauri::State<'_, AppState>) -> Result<(), String> {
     state.save_config(&config)?;
-    state.restart_watcher()
+    state.restart_watcher()?;
+    state.restart_scheduler(&app);
+    Ok(())
 }
 
-fn emit_index_progress(app: &AppHandle, event: IndexProgressEvent) {
+pub(crate) fn emit_index_progress(app: &AppHandle, event: IndexProgressEvent) {
     let _ = app.emit("index-progress", event);
 }
 
-fn emit_index_complete(app: &AppHandle, report: &RebuildReport) {
+pub(crate) fn emit_index_complete(app: &AppHandle, report: &RebuildReport) {
     let _ = app.emit("index-complete", report);
 }
 
@@ -397,7 +412,7 @@ async fn ask_in_session(
     .await
     .map_err(|e| e.to_string())?;
 
-    persist_assistant(&state, &session_id, &question, &resp)?;
+    persist_assistant(&state, &session_id, &question, &resp).await?;
     Ok(resp)
 }
 
@@ -426,11 +441,11 @@ async fn ask_in_session_stream(
     .await
     .map_err(|e| e.to_string())?;
 
-    persist_assistant(&state, &session_id, &question, &resp)?;
+    persist_assistant(&state, &session_id, &question, &resp).await?;
     Ok(resp)
 }
 
-fn persist_assistant(
+async fn persist_assistant(
     state: &AppState,
     session_id: &str,
     question: &str,
@@ -452,6 +467,18 @@ fn persist_assistant(
             let title: String = question.chars().take(32).collect();
             let _ = state.store.rename_chat_session(session_id, title.trim());
         }
+    }
+
+    if state.config().auto_learn_from_chat {
+        let _ = learn_from_exchange(
+            state.store.as_ref(),
+            state.embedder().as_ref(),
+            state.chat().as_ref(),
+            &state.chunker,
+            question,
+            &resp.answer,
+        )
+        .await;
     }
     Ok(())
 }
@@ -552,6 +579,41 @@ fn update_task_status(
 #[tauri::command]
 fn delete_task(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
     state.store.delete_task(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_sync_status(state: tauri::State<'_, AppState>) -> Result<SyncStatusView, String> {
+    Ok(sync_status_view(&state))
+}
+
+#[tauri::command]
+async fn run_scheduled_sync_cmd(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<RebuildReport, String> {
+    run_scheduled_sync(&app, &state).await
+}
+
+#[tauri::command]
+fn list_memories_cmd(state: tauri::State<'_, AppState>) -> Result<Vec<Source>, String> {
+    list_memories(state.store.as_ref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn add_memory_cmd(
+    content: String,
+    title: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    add_memory(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &content,
+        title.as_deref(),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -674,6 +736,7 @@ fn init_state(app: &tauri::App) -> Result<AppState, String> {
         db_path,
         config: Mutex::new(config),
         watch: Mutex::new(None),
+        scheduler: Mutex::new(None),
     })
 }
 
@@ -689,6 +752,7 @@ pub fn run() {
                 state.initial_scan_with_progress(&handle)?;
             }
             state.restart_watcher()?;
+            state.restart_scheduler(&handle);
             app.manage(state);
             Ok(())
         })
@@ -726,7 +790,11 @@ pub fn run() {
             run_insights_all_cmd,
             list_tasks,
             update_task_status,
-            delete_task
+            delete_task,
+            get_sync_status,
+            run_scheduled_sync_cmd,
+            list_memories_cmd,
+            add_memory_cmd
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
