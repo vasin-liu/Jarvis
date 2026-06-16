@@ -21,9 +21,10 @@ use insights_ops::{maybe_run_insights_for_source, run_insights_for_all_indexed, 
 use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, ProcessRunner};
 use llm::ChatModel;
 use agent::{
-    load_hooks_from_dir, load_plugins_from_dir, load_skills_from_dir, run_agent, AgentProfile,
-    AgentResponse, AgentRunContext, Hook, PluginManifest, Skill,
+    load_hooks_from_dir, load_plugins_from_dir, load_skills_from_dir, run_agent,
+    run_orchestrated, AgentProfile, AgentResponse, AgentRunContext, Hook, PluginManifest, Skill,
 };
+use config::AgentOrchestrationMode;
 use memory::{add_memory, learn_from_exchange, list_memories};
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
@@ -606,6 +607,40 @@ fn set_active_agent(id: String, state: tauri::State<'_, AppState>) -> Result<(),
 }
 
 #[tauri::command]
+fn remove_agent_profile(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    if id == "default" {
+        return Err("cannot remove built-in default agent".into());
+    }
+    let mut cfg = state.config();
+    cfg.agents.retain(|a| a.id != id);
+    if cfg.agents.is_empty() {
+        return Err("must keep at least one agent profile".into());
+    }
+    if cfg.active_agent_id == id {
+        cfg.active_agent_id = "default".to_string();
+    }
+    cfg.pipeline_agent_ids.retain(|x| x != &id);
+    state.save_config(&cfg)
+}
+
+#[tauri::command]
+fn upsert_agent_profile(
+    profile: AgentProfile,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    if profile.id.trim().is_empty() || profile.name.trim().is_empty() {
+        return Err("agent id and name are required".into());
+    }
+    let mut cfg = state.config();
+    if let Some(idx) = cfg.agents.iter().position(|a| a.id == profile.id) {
+        cfg.agents[idx] = profile;
+    } else {
+        cfg.agents.push(profile);
+    }
+    state.save_config(&cfg)
+}
+
+#[tauri::command]
 async fn ask_agent_in_session(
     session_id: String,
     question: String,
@@ -617,29 +652,7 @@ async fn ask_agent_in_session(
         .map_err(|e| e.to_string())?;
 
     let cfg = state.config();
-    let profile = resolve_active_agent(&cfg)?;
-    let skills = load_skills_from_dir(&state.skills_dir);
-    let hooks = load_hooks_from_dir(&state.hooks_dir);
-    let plugins = load_plugins_from_dir(&state.plugins_dir);
-    let embedder = state.embedder();
-    let chat = state.chat();
-    let ctx = build_agent_context(
-        &state,
-        &cfg,
-        embedder.as_ref(),
-        chat.as_ref(),
-        &hooks,
-        &plugins,
-    );
-    let agent_resp = run_agent(
-        &ctx,
-        &profile,
-        &skills,
-        &cfg.enabled_skill_ids,
-        &question,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let agent_resp = execute_agent_question(&state, &cfg, &question).await?;
 
     let resp = agent_response_to_ask(agent_resp);
     persist_assistant(&state, &session_id, &question, &resp).await?;
@@ -659,29 +672,7 @@ async fn ask_agent_in_session_stream(
         .map_err(|e| e.to_string())?;
 
     let cfg = state.config();
-    let profile = resolve_active_agent(&cfg)?;
-    let skills = load_skills_from_dir(&state.skills_dir);
-    let hooks = load_hooks_from_dir(&state.hooks_dir);
-    let plugins = load_plugins_from_dir(&state.plugins_dir);
-    let embedder = state.embedder();
-    let chat = state.chat();
-    let ctx = build_agent_context(
-        &state,
-        &cfg,
-        embedder.as_ref(),
-        chat.as_ref(),
-        &hooks,
-        &plugins,
-    );
-    let agent_resp = run_agent(
-        &ctx,
-        &profile,
-        &skills,
-        &cfg.enabled_skill_ids,
-        &question,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let agent_resp = execute_agent_question(&state, &cfg, &question).await?;
 
     for chunk in agent_resp.answer.split_inclusive(' ') {
         let _ = on_token.send(TokenEvent {
@@ -707,6 +698,69 @@ fn agent_response_to_ask(resp: AgentResponse) -> AskResponse {
                 result: t.result,
             })
             .collect(),
+        orchestration_steps: resp
+            .orchestration_steps
+            .into_iter()
+            .map(|s| rag::OrchestrationStepInfo {
+                agent_id: s.agent_id,
+                agent_name: s.agent_name,
+                answer: s.answer,
+                tool_calls: s
+                    .tool_calls
+                    .into_iter()
+                    .map(|t| rag::ToolCallInfo {
+                        name: t.name,
+                        arguments: t.arguments,
+                        result: t.result,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
+async fn execute_agent_question(
+    state: &AppState,
+    cfg: &AppConfig,
+    question: &str,
+) -> Result<AgentResponse, String> {
+    let skills = load_skills_from_dir(&state.skills_dir);
+    let hooks = load_hooks_from_dir(&state.hooks_dir);
+    let plugins = load_plugins_from_dir(&state.plugins_dir);
+    let embedder = state.embedder();
+    let chat = state.chat();
+    let ctx = build_agent_context(
+        state,
+        cfg,
+        embedder.as_ref(),
+        chat.as_ref(),
+        &hooks,
+        &plugins,
+    );
+
+    match cfg.agent_orchestration_mode {
+        AgentOrchestrationMode::Single => {
+            let profile = resolve_active_agent(cfg)?;
+            run_agent(
+                &ctx,
+                &profile,
+                &skills,
+                &cfg.enabled_skill_ids,
+                question,
+            )
+            .await
+            .map_err(|e| e.to_string())
+        }
+        AgentOrchestrationMode::Pipeline => run_orchestrated(
+            &ctx,
+            &cfg.agents,
+            &cfg.pipeline_agent_ids,
+            &skills,
+            &cfg.enabled_skill_ids,
+            question,
+        )
+        .await
+        .map_err(|e| e.to_string()),
     }
 }
 
@@ -1035,6 +1089,8 @@ pub fn run() {
             list_skills,
             list_hooks,
             list_plugins,
+            upsert_agent_profile,
+            remove_agent_profile,
             set_active_agent,
             ask_agent_in_session,
             ask_agent_in_session_stream

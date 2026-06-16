@@ -22,6 +22,7 @@ pub async fn ask(
             answer: NO_CONTEXT.to_string(),
             citations: vec![],
             tool_calls: vec![],
+            orchestration_steps: vec![],
         });
     }
 
@@ -33,6 +34,7 @@ pub async fn ask(
         answer,
         citations,
         tool_calls: vec![],
+        orchestration_steps: vec![],
     })
 }
 
@@ -53,6 +55,7 @@ pub async fn ask_stream(
             answer,
             citations: vec![],
             tool_calls: vec![],
+            orchestration_steps: vec![],
         });
     }
 
@@ -63,6 +66,7 @@ pub async fn ask_stream(
         answer,
         citations,
         tool_calls: vec![],
+        orchestration_steps: vec![],
     })
 }
 

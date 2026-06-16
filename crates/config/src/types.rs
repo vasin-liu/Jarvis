@@ -1,6 +1,14 @@
 use agent::default_profiles;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentOrchestrationMode {
+    #[default]
+    Single,
+    Pipeline,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EmbedderProvider {
@@ -82,6 +90,12 @@ pub struct AppConfig {
     /// Enabled plugin ids from the plugins directory.
     #[serde(default)]
     pub enabled_plugin_ids: Vec<String>,
+    /// Agent orchestration: single profile or multi-agent pipeline.
+    #[serde(default)]
+    pub agent_orchestration_mode: AgentOrchestrationMode,
+    /// Ordered agent ids for pipeline mode; empty means all enabled agents.
+    #[serde(default)]
+    pub pipeline_agent_ids: Vec<String>,
 }
 
 fn default_active_agent_id() -> String {
@@ -152,6 +166,8 @@ impl Default for AppConfig {
             enabled_skill_ids: Vec::new(),
             enabled_hook_ids: Vec::new(),
             enabled_plugin_ids: Vec::new(),
+            agent_orchestration_mode: AgentOrchestrationMode::Single,
+            pipeline_agent_ids: Vec::new(),
         }
     }
 }

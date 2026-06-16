@@ -143,6 +143,7 @@ pub async fn run_agent(
             answer: reply,
             citations,
             tool_calls,
+            orchestration_steps: vec![],
         });
     }
 
@@ -164,6 +165,7 @@ pub async fn run_agent(
         answer: final_reply,
         citations,
         tool_calls,
+        orchestration_steps: vec![],
     })
 }
 

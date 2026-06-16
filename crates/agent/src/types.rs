@@ -24,10 +24,20 @@ pub struct ToolCallRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrchestrationStep {
+    pub agent_id: String,
+    pub agent_name: String,
+    pub answer: String,
+    pub tool_calls: Vec<ToolCallRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentResponse {
     pub answer: String,
     pub citations: Vec<rag::Citation>,
     pub tool_calls: Vec<ToolCallRecord>,
+    #[serde(default)]
+    pub orchestration_steps: Vec<OrchestrationStep>,
 }
 
 pub fn default_profiles() -> Vec<AgentProfile> {

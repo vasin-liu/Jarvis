@@ -18,9 +18,19 @@ pub struct ToolCallInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OrchestrationStepInfo {
+    pub agent_id: String,
+    pub agent_name: String,
+    pub answer: String,
+    pub tool_calls: Vec<ToolCallInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AskResponse {
     pub answer: String,
     pub citations: Vec<Citation>,
     #[serde(default)]
     pub tool_calls: Vec<ToolCallInfo>,
+    #[serde(default)]
+    pub orchestration_steps: Vec<OrchestrationStepInfo>,
 }

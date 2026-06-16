@@ -221,7 +221,13 @@ npm test
 |-----------|-------------|
 | v6 | **1.5.0** — Agent Hooks (`hooks/*.json`); Plugins (`plugins/*/plugin.json`); extended tools (`list_memories`, `add_memory`, `complete_task`); multi-profile default (`任务助手`); tool-call UI |
 
-Refer to design spec for non-goals (full plugin runtime, multi-agent orchestration UI, etc.).
+## Milestones (v7)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v7 | **1.6.0** — Multi-agent pipeline orchestration; `agent_orchestration_mode` + `pipeline_agent_ids`; Agent profile CRUD; orchestration steps UI |
+
+Refer to design spec for non-goals (full plugin runtime sandbox, advanced orchestration graphs, etc.).
 
 ---
 

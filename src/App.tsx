@@ -113,6 +113,15 @@ interface AppConfig {
   enabled_skill_ids: string[];
   enabled_hook_ids: string[];
   enabled_plugin_ids: string[];
+  agent_orchestration_mode: "single" | "pipeline";
+  pipeline_agent_ids: string[];
+}
+
+interface OrchestrationStepInfo {
+  agent_id: string;
+  agent_name: string;
+  answer: string;
+  tool_calls: ToolCallInfo[];
 }
 
 interface ToolCallInfo {
@@ -125,6 +134,7 @@ interface AskResponse {
   answer: string;
   citations: unknown[];
   tool_calls?: ToolCallInfo[];
+  orchestration_steps?: OrchestrationStepInfo[];
 }
 
 interface AgentProfile {
@@ -299,7 +309,13 @@ function App() {
   const [hooks, setHooks] = useState<HookItem[]>([]);
   const [plugins, setPlugins] = useState<PluginItem[]>([]);
   const [lastToolCalls, setLastToolCalls] = useState<ToolCallInfo[]>([]);
+  const [lastOrchestrationSteps, setLastOrchestrationSteps] = useState<
+    OrchestrationStepInfo[]
+  >([]);
   const [agentMode, setAgentMode] = useState(true);
+  const [newAgentId, setNewAgentId] = useState("");
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentPrompt, setNewAgentPrompt] = useState("");
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -484,6 +500,9 @@ function App() {
         },
       );
       setLastToolCalls(agentMode ? (resp.tool_calls ?? []) : []);
+      setLastOrchestrationSteps(
+        agentMode ? (resp.orchestration_steps ?? []) : [],
+      );
       setQuestion("");
       setStreamingDraft("");
       await refreshMessages(activeSessionId);
@@ -535,6 +554,65 @@ function App() {
       ? config.enabled_plugin_ids.filter((id) => id !== pluginId)
       : [...config.enabled_plugin_ids, pluginId];
     await handleSaveConfig({ ...config, enabled_plugin_ids: next });
+  }
+
+  async function handleUpsertAgent() {
+    if (!config) return;
+    const id = newAgentId.trim();
+    const name = newAgentName.trim();
+    const system_prompt = newAgentPrompt.trim();
+    if (!id || !name || !system_prompt) {
+      setErr("Agent id、名称与系统提示不能为空");
+      return;
+    }
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("upsert_agent_profile", {
+        profile: { id, name, system_prompt, enabled: true },
+      });
+      setNewAgentId("");
+      setNewAgentName("");
+      setNewAgentPrompt("");
+      await refreshConfig();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRemoveAgent(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("remove_agent_profile", { id });
+      await refreshConfig();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleTogglePipelineAgent(agentId: string) {
+    if (!config) return;
+    const ids = config.pipeline_agent_ids;
+    const next = ids.includes(agentId)
+      ? ids.filter((id) => id !== agentId)
+      : [...ids, agentId];
+    setConfig({ ...config, pipeline_agent_ids: next });
+  }
+
+  function handleMovePipelineAgent(agentId: string, direction: -1 | 1) {
+    if (!config) return;
+    const ids = [...config.pipeline_agent_ids];
+    const idx = ids.indexOf(agentId);
+    if (idx < 0) return;
+    const target = idx + direction;
+    if (target < 0 || target >= ids.length) return;
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    setConfig({ ...config, pipeline_agent_ids: ids });
   }
 
   async function handlePickAndIndex() {
@@ -860,7 +938,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v6
+          来源 {sources.length} · v7
         </div>
       </aside>
 
@@ -971,6 +1049,30 @@ function App() {
                       )}
                   </div>
                 ))}
+                {!busy && agentMode && lastOrchestrationSteps.length > 0 && (
+                  <div
+                    data-testid="orchestration-steps"
+                    className="mr-8 rounded-xl border border-violet-400/20 bg-violet-950/20 px-4 py-3 text-sm"
+                  >
+                    <div className="mb-2 text-xs uppercase text-violet-200/80">
+                      多 Agent 编排 ({lastOrchestrationSteps.length} 步)
+                    </div>
+                    <ul className="space-y-3">
+                      {lastOrchestrationSteps.map((step, i) => (
+                        <li key={`${step.agent_id}-${i}`} className="text-xs">
+                          <span className="font-medium text-violet-200">
+                            {i + 1}. {step.agent_name}
+                          </span>
+                          <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                            {step.answer.length > 300
+                              ? `${step.answer.slice(0, 300)}…`
+                              : step.answer}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {!busy && agentMode && lastToolCalls.length > 0 && (
                   <div
                     data-testid="agent-tool-calls"
@@ -1027,7 +1129,7 @@ function App() {
                     />
                     Agent 模式（工具调用）
                   </label>
-                  {agentMode && config && (
+                  {agentMode && config && config.agent_orchestration_mode === "single" && (
                     <select
                       className="field max-w-xs text-sm"
                       data-testid="agent-profile-select"
@@ -1044,6 +1146,13 @@ function App() {
                         ))}
                     </select>
                   )}
+                  {agentMode &&
+                    config &&
+                    config.agent_orchestration_mode === "pipeline" && (
+                      <span className="text-xs text-violet-300">
+                        流水线模式
+                      </span>
+                    )}
                 </div>
                 <textarea
                   className="field min-h-24 resize-y"
@@ -1752,24 +1861,179 @@ function App() {
 
             <div className="border-t border-white/10 pt-4">
               <h3 className="mb-3 text-sm font-medium text-zinc-200">
-                Agent 与 Skills
+                Agent 编排
+              </h3>
+              <div className="mb-4 flex flex-col gap-3 text-sm">
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="radio"
+                    name="orchestration-mode"
+                    checked={config.agent_orchestration_mode === "single"}
+                    onChange={() =>
+                      setConfig({
+                        ...config,
+                        agent_orchestration_mode: "single",
+                      })
+                    }
+                  />
+                  单 Agent（使用当前选中的配置）
+                </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="radio"
+                    name="orchestration-mode"
+                    data-testid="pipeline-mode-toggle"
+                    checked={config.agent_orchestration_mode === "pipeline"}
+                    onChange={() =>
+                      setConfig({
+                        ...config,
+                        agent_orchestration_mode: "pipeline",
+                      })
+                    }
+                  />
+                  多 Agent 流水线（按顺序协作）
+                </label>
+                {config.agent_orchestration_mode === "pipeline" && (
+                  <div className="ml-6 space-y-2 rounded-xl border border-violet-400/20 p-3">
+                    <p className="text-xs text-zinc-500">
+                      勾选并排序参与流水线的 Agent；留空则使用全部已启用 Agent。
+                    </p>
+                    {config.agents
+                      .filter((a) => a.enabled)
+                      .map((agent) => {
+                        const inPipeline = config.pipeline_agent_ids.includes(
+                          agent.id,
+                        );
+                        const order = config.pipeline_agent_ids.indexOf(
+                          agent.id,
+                        );
+                        return (
+                          <div
+                            key={agent.id}
+                            className="flex flex-wrap items-center gap-2"
+                          >
+                            <label className="flex items-center gap-2 text-zinc-300">
+                              <input
+                                type="checkbox"
+                                checked={inPipeline}
+                                onChange={() =>
+                                  handleTogglePipelineAgent(agent.id)
+                                }
+                              />
+                              {agent.name}
+                              {inPipeline && order >= 0 && (
+                                <span className="text-xs text-violet-300">
+                                  #{order + 1}
+                                </span>
+                              )}
+                            </label>
+                            {inPipeline && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-ghost px-2 py-0.5 text-xs"
+                                  onClick={() =>
+                                    handleMovePipelineAgent(agent.id, -1)
+                                  }
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-ghost px-2 py-0.5 text-xs"
+                                  onClick={() =>
+                                    handleMovePipelineAgent(agent.id, 1)
+                                  }
+                                >
+                                  ↓
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                Agent 配置
               </h3>
               <p className="mb-3 text-xs text-zinc-500">
-                Skills 位于应用数据目录下的 <code className="text-zinc-400">skills/</code>，Markdown 格式。
+                自定义 Agent 配置会保存到 config.json。
               </p>
               {config.agents.length > 0 && (
                 <div className="mb-4 space-y-2">
                   {config.agents.map((agent) => (
                     <div
                       key={agent.id}
-                      className="rounded-xl border border-white/10 px-3 py-2 text-sm"
+                      className="flex items-start justify-between gap-3 rounded-xl border border-white/10 px-3 py-2 text-sm"
                     >
-                      <div className="font-medium text-zinc-200">{agent.name}</div>
-                      <div className="mt-1 text-xs text-zinc-500">{agent.system_prompt}</div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-zinc-200">
+                          {agent.name}{" "}
+                          <span className="font-mono text-xs text-zinc-500">
+                            ({agent.id})
+                          </span>
+                        </div>
+                        <div className="mt-1 text-xs text-zinc-500 line-clamp-2">
+                          {agent.system_prompt}
+                        </div>
+                      </div>
+                      {agent.id !== "default" && (
+                        <button
+                          type="button"
+                          className="btn-ghost shrink-0 text-xs text-red-300"
+                          disabled={busy}
+                          onClick={() => void handleRemoveAgent(agent.id)}
+                        >
+                          删除
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+              <div className="space-y-2 rounded-xl border border-white/10 p-3">
+                <p className="text-xs text-zinc-500">添加或覆盖 Agent</p>
+                <input
+                  className="field text-sm"
+                  placeholder="id（如 researcher）"
+                  value={newAgentId}
+                  onChange={(e) => setNewAgentId(e.target.value)}
+                />
+                <input
+                  className="field text-sm"
+                  placeholder="显示名称"
+                  value={newAgentName}
+                  onChange={(e) => setNewAgentName(e.target.value)}
+                />
+                <textarea
+                  className="field min-h-20 text-sm"
+                  placeholder="系统提示词"
+                  value={newAgentPrompt}
+                  onChange={(e) => setNewAgentPrompt(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-primary w-fit text-sm"
+                  disabled={busy}
+                  onClick={() => void handleUpsertAgent()}
+                >
+                  保存 Agent
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4">
+              <h3 className="mb-3 text-sm font-medium text-zinc-200">
+                Skills
+              </h3>
+              <p className="mb-3 text-xs text-zinc-500">
+                Skills 位于应用数据目录下的 <code className="text-zinc-400">skills/</code>，Markdown 格式。
+              </p>
               <div className="flex flex-col gap-2 text-sm">
                 {skills.length === 0 ? (
                   <p className="text-zinc-500">暂无 Skills。</p>
