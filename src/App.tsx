@@ -113,8 +113,9 @@ interface AppConfig {
   enabled_skill_ids: string[];
   enabled_hook_ids: string[];
   enabled_plugin_ids: string[];
-  agent_orchestration_mode: "single" | "pipeline";
+  agent_orchestration_mode: "single" | "pipeline" | "router";
   pipeline_agent_ids: string[];
+  granted_plugin_permissions: string[];
 }
 
 interface OrchestrationStepInfo {
@@ -142,6 +143,15 @@ interface AgentProfile {
   name: string;
   system_prompt: string;
   enabled: boolean;
+  chat_provider?: string | null;
+}
+
+interface PluginItem {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  tools: { name: string; description: string; command: string }[];
 }
 
 interface SkillItem {
@@ -157,13 +167,6 @@ interface HookItem {
   description: string;
   event: string;
   command: string;
-}
-
-interface PluginItem {
-  id: string;
-  name: string;
-  description: string;
-  tools: { name: string; description: string; command: string }[];
 }
 
 interface SyncStatusView {
@@ -316,6 +319,7 @@ function App() {
   const [newAgentId, setNewAgentId] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentPrompt, setNewAgentPrompt] = useState("");
+  const [newAgentChatProvider, setNewAgentChatProvider] = useState("");
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -556,6 +560,15 @@ function App() {
     await handleSaveConfig({ ...config, enabled_plugin_ids: next });
   }
 
+  async function handleTogglePluginPermission(permission: string) {
+    if (!config) return;
+    const granted = config.granted_plugin_permissions.includes(permission);
+    const next = granted
+      ? config.granted_plugin_permissions.filter((p) => p !== permission)
+      : [...config.granted_plugin_permissions, permission];
+    await handleSaveConfig({ ...config, granted_plugin_permissions: next });
+  }
+
   async function handleUpsertAgent() {
     if (!config) return;
     const id = newAgentId.trim();
@@ -569,11 +582,18 @@ function App() {
     setBusy(true);
     try {
       await invoke("upsert_agent_profile", {
-        profile: { id, name, system_prompt, enabled: true },
+        profile: {
+          id,
+          name,
+          system_prompt,
+          enabled: true,
+          chat_provider: newAgentChatProvider.trim() || null,
+        },
       });
       setNewAgentId("");
       setNewAgentName("");
       setNewAgentPrompt("");
+      setNewAgentChatProvider("");
       await refreshConfig();
     } catch (e) {
       setErr(String(e));
@@ -938,7 +958,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v7
+          来源 {sources.length} · v8
         </div>
       </aside>
 
@@ -1152,6 +1172,11 @@ function App() {
                       <span className="text-xs text-violet-300">
                         流水线模式
                       </span>
+                    )}
+                  {agentMode &&
+                    config &&
+                    config.agent_orchestration_mode === "router" && (
+                      <span className="text-xs text-emerald-300">路由模式</span>
                     )}
                 </div>
                 <textarea
@@ -1893,6 +1918,21 @@ function App() {
                   />
                   多 Agent 流水线（按顺序协作）
                 </label>
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="radio"
+                    name="orchestration-mode"
+                    data-testid="router-mode-toggle"
+                    checked={config.agent_orchestration_mode === "router"}
+                    onChange={() =>
+                      setConfig({
+                        ...config,
+                        agent_orchestration_mode: "router",
+                      })
+                    }
+                  />
+                  智能路由（自动选择最合适的 Agent）
+                </label>
                 {config.agent_orchestration_mode === "pipeline" && (
                   <div className="ml-6 space-y-2 rounded-xl border border-violet-400/20 p-3">
                     <p className="text-xs text-zinc-500">
@@ -1981,6 +2021,11 @@ function App() {
                         <div className="mt-1 text-xs text-zinc-500 line-clamp-2">
                           {agent.system_prompt}
                         </div>
+                        {agent.chat_provider && (
+                          <div className="mt-1 text-xs text-cyan-400/80">
+                            Chat: {agent.chat_provider}
+                          </div>
+                        )}
                       </div>
                       {agent.id !== "default" && (
                         <button
@@ -2016,6 +2061,16 @@ function App() {
                   value={newAgentPrompt}
                   onChange={(e) => setNewAgentPrompt(e.target.value)}
                 />
+                <select
+                  className="field text-sm"
+                  value={newAgentChatProvider}
+                  onChange={(e) => setNewAgentChatProvider(e.target.value)}
+                >
+                  <option value="">Chat Provider：继承全局</option>
+                  <option value="mock">Mock</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="cloud">Cloud</option>
+                </select>
                 <button
                   type="button"
                   className="btn-primary w-fit text-sm"
@@ -2103,6 +2158,18 @@ function App() {
                 Plugins 位于 <code className="text-zinc-400">plugins/*/plugin.json</code>
                 ，可向 Agent 注册额外工具（shell 命令，环境变量 JARVIS_TOOL_ARGS）。
               </p>
+              <div className="mb-3 flex flex-wrap gap-3 text-sm">
+                <label className="flex items-center gap-2 text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={config.granted_plugin_permissions.includes(
+                      "shell_exec",
+                    )}
+                    onChange={() => void handleTogglePluginPermission("shell_exec")}
+                  />
+                  授权 shell_exec
+                </label>
+              </div>
               <div className="flex flex-col gap-2 text-sm">
                 {plugins.length === 0 ? (
                   <p className="text-zinc-500">暂无 Plugins。</p>
@@ -2126,6 +2193,11 @@ function App() {
                         <span className="mt-1 block text-xs text-zinc-600">
                           工具：{plugin.tools.map((t) => t.name).join(", ")}
                         </span>
+                        {plugin.permissions?.length > 0 && (
+                          <span className="mt-1 block text-xs text-amber-400/80">
+                            需要权限：{plugin.permissions.join(", ")}
+                          </span>
+                        )}
                       </span>
                     </label>
                   ))

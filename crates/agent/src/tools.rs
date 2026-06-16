@@ -8,7 +8,8 @@ use store::{IndexStatus, Store, TaskStatus};
 
 use crate::error::{AgentError, Result};
 use crate::plugins::{
-    enabled_plugin_tools, execute_plugin_tool, find_plugin_tool, PluginManifest,
+    enabled_plugin_tools, execute_plugin_tool, find_plugin_tool, plugin_has_permissions,
+    PluginManifest,
 };
 use crate::types::ToolCallRecord;
 use rag::Citation;
@@ -33,10 +34,19 @@ pub async fn execute_tool(
     retriever: &RetrieverConfig,
     plugins: &[PluginManifest],
     enabled_plugin_ids: &[String],
+    granted_plugin_permissions: &[String],
     name: &str,
     args: &serde_json::Value,
 ) -> Result<(String, Vec<Citation>)> {
-    if let Some((plugin, tool)) = find_plugin_tool(plugins, enabled_plugin_ids, name) {
+    if let Some((plugin, tool)) =
+        find_plugin_tool(plugins, enabled_plugin_ids, granted_plugin_permissions, name)
+    {
+        if !plugin_has_permissions(plugin, granted_plugin_permissions) {
+            return Err(AgentError::PluginPermission(format!(
+                "plugin `{}` requires {:?}",
+                plugin.id, plugin.permissions
+            )));
+        }
         let result = execute_plugin_tool(tool, args)?;
         return Ok((format!("[插件 {}] {result}", plugin.name), vec![]));
     }
@@ -146,7 +156,11 @@ pub async fn execute_tool(
     }
 }
 
-pub fn build_tools_prompt(plugins: &[PluginManifest], enabled_plugin_ids: &[String]) -> String {
+pub fn build_tools_prompt(
+    plugins: &[PluginManifest],
+    enabled_plugin_ids: &[String],
+    granted_plugin_permissions: &[String],
+) -> String {
     let mut lines = vec![
         "可用工具（需要时仅回复一行 tool_call，不要其他文字）：".to_string(),
         r#"<tool_call>{"name":"search_knowledge","arguments":{"query":"关键词"}}</tool_call>"#.into(),
@@ -158,7 +172,7 @@ pub fn build_tools_prompt(plugins: &[PluginManifest], enabled_plugin_ids: &[Stri
         r#"<tool_call>{"name":"complete_task","arguments":{"title":"任务标题关键词"}}</tool_call>"#.into(),
     ];
 
-    for (_, tool) in enabled_plugin_tools(plugins, enabled_plugin_ids) {
+    for (_, tool) in enabled_plugin_tools(plugins, enabled_plugin_ids, granted_plugin_permissions) {
         lines.push(format!(
             r#"<tool_call>{{"name":"{}","arguments":{{}}}}</tool_call>"#,
             tool.name
@@ -176,6 +190,7 @@ pub async fn run_tool_call(
     retriever: &RetrieverConfig,
     plugins: &[PluginManifest],
     enabled_plugin_ids: &[String],
+    granted_plugin_permissions: &[String],
     payload: &ToolCallPayload,
 ) -> Result<ToolCallRecord> {
     let (result, _) = execute_tool(
@@ -185,6 +200,7 @@ pub async fn run_tool_call(
         retriever,
         plugins,
         enabled_plugin_ids,
+        granted_plugin_permissions,
         &payload.name,
         &payload.arguments,
     )
@@ -217,13 +233,14 @@ mod tests {
             id: "demo".into(),
             name: "Demo".into(),
             description: String::new(),
+            permissions: vec![],
             tools: vec![crate::plugins::PluginTool {
                 name: "ping".into(),
                 description: "ping".into(),
                 command: "echo pong".into(),
             }],
         }];
-        let prompt = build_tools_prompt(&plugins, &["demo".into()]);
+        let prompt = build_tools_prompt(&plugins, &["demo".into()], &["shell_exec".into()]);
         assert!(prompt.contains("ping"));
     }
 }

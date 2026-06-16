@@ -15,17 +15,18 @@ const MAX_TOOL_ROUNDS: usize = 3;
 pub struct AgentRunContext<'a> {
     pub store: &'a Store,
     pub embedder: &'a dyn Embedder,
-    pub chat: &'a dyn ChatModel,
     pub chunker: &'a ChunkerConfig,
     pub retriever: &'a RetrieverConfig,
     pub hooks: &'a [crate::hooks::Hook],
     pub enabled_hook_ids: &'a [String],
     pub plugins: &'a [PluginManifest],
     pub enabled_plugin_ids: &'a [String],
+    pub granted_plugin_permissions: &'a [String],
 }
 
 pub async fn run_agent(
     ctx: &AgentRunContext<'_>,
+    chat: &dyn ChatModel,
     profile: &AgentProfile,
     skills: &[Skill],
     enabled_skill_ids: &[String],
@@ -48,7 +49,11 @@ pub async fn run_agent(
     let system = format!(
         "{}\n\n{}\n{skill_block}",
         profile.system_prompt,
-        build_tools_prompt(ctx.plugins, ctx.enabled_plugin_ids)
+        build_tools_prompt(
+            ctx.plugins,
+            ctx.enabled_plugin_ids,
+            ctx.granted_plugin_permissions,
+        )
     );
 
     let mut messages = vec![
@@ -66,7 +71,7 @@ pub async fn run_agent(
     let mut citations = Vec::new();
 
     for _ in 0..MAX_TOOL_ROUNDS {
-        let reply = ctx.chat.complete(&messages).await?;
+        let reply = chat.complete(&messages).await?;
         if let Some(payload) = parse_tool_call(&reply) {
             run_hooks(
                 ctx.hooks,
@@ -88,6 +93,7 @@ pub async fn run_agent(
                 ctx.retriever,
                 ctx.plugins,
                 ctx.enabled_plugin_ids,
+                ctx.granted_plugin_permissions,
                 &payload.name,
                 &payload.arguments,
             )
@@ -147,7 +153,7 @@ pub async fn run_agent(
         });
     }
 
-    let final_reply = ctx.chat.complete(&messages).await?;
+    let final_reply = chat.complete(&messages).await?;
     run_hooks(
         ctx.hooks,
         ctx.enabled_hook_ids,
@@ -195,6 +201,7 @@ mod tests {
             name: "T".into(),
             system_prompt: "test".into(),
             enabled: true,
+            chat_provider: None,
         };
 
         let retriever = RetrieverConfig::default();
@@ -203,16 +210,23 @@ mod tests {
         let ctx = AgentRunContext {
             store: &store,
             embedder: &embedder,
-            chat: &chat,
             chunker: &chunker,
             retriever: &retriever,
             hooks: &[],
             enabled_hook_ids: &[],
             plugins: &[],
             enabled_plugin_ids: &[],
+            granted_plugin_permissions: &[],
         };
 
-        let resp = run_agent(&ctx, &profile, &[], &[], "agent platform tools")
+        let resp = run_agent(
+            &ctx,
+            &chat,
+            &profile,
+            &[],
+            &[],
+            "agent platform tools",
+        )
             .await
             .unwrap();
 

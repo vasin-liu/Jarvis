@@ -6,6 +6,9 @@ pub struct AgentProfile {
     pub name: String,
     pub system_prompt: String,
     pub enabled: bool,
+    /// Override global chat provider: `mock`, `ollama`, or `cloud`. None = use app default.
+    #[serde(default)]
+    pub chat_provider: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,6 +50,7 @@ pub fn default_profiles() -> Vec<AgentProfile> {
             name: "知识助手".into(),
             system_prompt: "你是 Jarvis 知识库助手。优先使用工具检索事实，回答简洁准确，使用中文。".into(),
             enabled: true,
+            chat_provider: None,
         },
         AgentProfile {
             id: "tasks".into(),
@@ -55,6 +59,7 @@ pub fn default_profiles() -> Vec<AgentProfile> {
                 "你是 Jarvis 任务助手。优先用 list_tasks 查看待办，用 complete_task 标记完成，必要时 search_knowledge 查背景。回答简洁，使用中文。"
                     .into(),
             enabled: true,
+            chat_provider: None,
         },
     ]
 }

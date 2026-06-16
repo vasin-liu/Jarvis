@@ -5,7 +5,17 @@ use embedder::{
 };
 use llm::{ChatModel, MockChatModel, OllamaChat, OpenAiChat};
 
+use agent::AgentProfile;
 use crate::types::{AppConfig, ChatProvider, EmbedderProvider};
+
+pub fn parse_chat_provider(name: &str) -> Option<ChatProvider> {
+    match name.to_ascii_lowercase().as_str() {
+        "mock" => Some(ChatProvider::Mock),
+        "ollama" => Some(ChatProvider::Ollama),
+        "cloud" => Some(ChatProvider::Cloud),
+        _ => None,
+    }
+}
 
 pub fn build_embedder(config: &AppConfig) -> Result<Arc<dyn Embedder>, EmbedError> {
     match config.embedder {
@@ -27,8 +37,11 @@ pub fn build_embedder(config: &AppConfig) -> Result<Arc<dyn Embedder>, EmbedErro
     }
 }
 
-pub fn build_chat_model(config: &AppConfig) -> Arc<dyn ChatModel> {
-    match config.chat {
+pub fn build_chat_model_with_provider(
+    config: &AppConfig,
+    provider: ChatProvider,
+) -> Arc<dyn ChatModel> {
+    match provider {
         ChatProvider::Mock => Arc::new(MockChatModel),
         ChatProvider::Ollama => Arc::new(OllamaChat::new(
             config.ollama_base_url.clone(),
@@ -40,4 +53,20 @@ pub fn build_chat_model(config: &AppConfig) -> Arc<dyn ChatModel> {
             config.cloud_chat_model.clone(),
         )),
     }
+}
+
+pub fn build_chat_model(config: &AppConfig) -> Arc<dyn ChatModel> {
+    build_chat_model_with_provider(config, config.chat)
+}
+
+pub fn build_chat_model_for_profile(
+    config: &AppConfig,
+    profile: &AgentProfile,
+) -> Arc<dyn ChatModel> {
+    let provider = profile
+        .chat_provider
+        .as_deref()
+        .and_then(parse_chat_provider)
+        .unwrap_or(config.chat);
+    build_chat_model_with_provider(config, provider)
 }

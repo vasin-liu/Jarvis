@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::chat_resolver::ChatResolver;
 use crate::error::{AgentError, Result};
 use crate::run::{run_agent, AgentRunContext};
 use crate::types::{AgentProfile, AgentResponse, OrchestrationStep, Skill};
@@ -22,6 +23,7 @@ pub fn resolve_pipeline_agent_ids(profiles: &[AgentProfile], configured: &[Strin
 
 pub async fn run_orchestrated(
     ctx: &AgentRunContext<'_>,
+    chat_resolver: &dyn ChatResolver,
     profiles: &[AgentProfile],
     pipeline_ids: &[String],
     skills: &[Skill],
@@ -40,7 +42,16 @@ pub async fn run_orchestrated(
             .iter()
             .find(|p| p.id == ids[0])
             .ok_or_else(|| AgentError::ProfileNotFound(ids[0].clone()))?;
-        return run_agent(ctx, profile, skills, enabled_skill_ids, question).await;
+        let chat = chat_resolver.chat_for(profile);
+        return run_agent(
+            ctx,
+            chat.as_ref(),
+            profile,
+            skills,
+            enabled_skill_ids,
+            question,
+        )
+        .await;
     }
 
     let mut steps = Vec::new();
@@ -67,7 +78,16 @@ pub async fn run_orchestrated(
             )
         };
 
-        let resp = run_agent(ctx, profile, skills, enabled_skill_ids, &prompt).await?;
+        let chat = chat_resolver.chat_for(profile);
+        let resp = run_agent(
+            ctx,
+            chat.as_ref(),
+            profile,
+            skills,
+            enabled_skill_ids,
+            &prompt,
+        )
+        .await?;
         steps.push(OrchestrationStep {
             agent_id: profile.id.clone(),
             agent_name: profile.name.clone(),
@@ -103,10 +123,12 @@ fn dedupe_citations(citations: Vec<Citation>) -> Vec<Citation> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chat_resolver::ChatResolver;
     use chunker::ChunkerConfig;
+    use std::sync::Arc;
     use embedder::MockEmbedder;
     use indexer::index_path;
-    use llm::MockChatModel;
+    use llm::{ChatModel, MockChatModel};
     use retriever::RetrieverConfig;
     use store::Store;
 
@@ -133,21 +155,30 @@ mod tests {
         let profiles = crate::types::default_profiles();
         let retriever = RetrieverConfig::default();
         let chunker = ChunkerConfig::default();
-        let chat = MockChatModel;
+        let chat = Arc::new(MockChatModel) as Arc<dyn ChatModel>;
         let ctx = AgentRunContext {
             store: &store,
             embedder: &embedder,
-            chat: &chat,
             chunker: &chunker,
             retriever: &retriever,
             hooks: &[],
             enabled_hook_ids: &[],
             plugins: &[],
             enabled_plugin_ids: &[],
+            granted_plugin_permissions: &[],
         };
+
+        struct TestResolver(Arc<dyn ChatModel>);
+        impl ChatResolver for TestResolver {
+            fn chat_for(&self, _: &AgentProfile) -> Arc<dyn ChatModel> {
+                self.0.clone()
+            }
+        }
+        let resolver = TestResolver(chat);
 
         let resp = run_orchestrated(
             &ctx,
+            &resolver,
             &profiles,
             &["default".into(), "tasks".into()],
             &[],

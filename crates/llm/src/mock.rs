@@ -27,6 +27,19 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         return Ok("知识库中未找到相关内容。".to_string());
     }
 
+    if system.contains("Agent 路由器") {
+        let user = messages
+            .iter()
+            .rev()
+            .find(|m| m.role == Role::User)
+            .map(|m| m.content.as_str())
+            .unwrap_or("");
+        if user.contains("任务") || user.contains("待办") {
+            return Ok(r#"{"agent_id":"tasks"}"#.to_string());
+        }
+        return Ok(r#"{"agent_id":"default"}"#.to_string());
+    }
+
     if system.contains("可用工具") {
         let has_tool_result = messages
             .iter()

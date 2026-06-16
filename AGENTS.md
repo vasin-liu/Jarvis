@@ -227,7 +227,13 @@ npm test
 |-----------|-------------|
 | v7 | **1.6.0** — Multi-agent pipeline orchestration; `agent_orchestration_mode` + `pipeline_agent_ids`; Agent profile CRUD; orchestration steps UI |
 
-Refer to design spec for non-goals (full plugin runtime sandbox, advanced orchestration graphs, etc.).
+## Milestones (v8)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v8 | **1.7.0** — Per-agent `chat_provider` override; plugin `permissions` + `granted_plugin_permissions`; Router orchestration mode |
+
+Refer to design spec for non-goals (full plugin sandbox, DAG orchestration, etc.).
 
 ---
 

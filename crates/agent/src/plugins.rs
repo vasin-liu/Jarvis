@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AgentError, Result};
 
+pub const PERMISSION_SHELL_EXEC: &str = "shell_exec";
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PluginTool {
     pub name: String,
@@ -19,7 +21,13 @@ pub struct PluginManifest {
     pub name: String,
     #[serde(default)]
     pub description: String,
+    #[serde(default)]
+    pub permissions: Vec<String>,
     pub tools: Vec<PluginTool>,
+}
+
+pub fn plugin_has_permissions(plugin: &PluginManifest, granted: &[String]) -> bool {
+    plugin.permissions.is_empty() || plugin.permissions.iter().all(|p| granted.contains(p))
 }
 
 pub fn load_plugins_from_dir(dir: &Path) -> Vec<PluginManifest> {
@@ -66,10 +74,14 @@ fn collect_plugin_manifests(dir: &Path, out: &mut Vec<PluginManifest>) {
 pub fn enabled_plugin_tools<'a>(
     plugins: &'a [PluginManifest],
     enabled_ids: &[String],
+    granted_permissions: &[String],
 ) -> Vec<(&'a PluginManifest, &'a PluginTool)> {
     let mut out = Vec::new();
     for plugin in plugins {
         if !enabled_ids.iter().any(|id| id == &plugin.id) {
+            continue;
+        }
+        if !plugin_has_permissions(plugin, granted_permissions) {
             continue;
         }
         for tool in &plugin.tools {
@@ -82,9 +94,10 @@ pub fn enabled_plugin_tools<'a>(
 pub fn find_plugin_tool<'a>(
     plugins: &'a [PluginManifest],
     enabled_ids: &[String],
+    granted_permissions: &[String],
     name: &str,
 ) -> Option<(&'a PluginManifest, &'a PluginTool)> {
-    enabled_plugin_tools(plugins, enabled_ids)
+    enabled_plugin_tools(plugins, enabled_ids, granted_permissions)
         .into_iter()
         .find(|(_, tool)| tool.name == name)
 }
@@ -136,6 +149,22 @@ fn shell_command(command: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugin_requires_granted_permissions() {
+        let plugin = PluginManifest {
+            id: "p".into(),
+            name: "P".into(),
+            description: String::new(),
+            permissions: vec![PERMISSION_SHELL_EXEC.into()],
+            tools: vec![],
+        };
+        assert!(!plugin_has_permissions(&plugin, &[]));
+        assert!(plugin_has_permissions(
+            &plugin,
+            &[PERMISSION_SHELL_EXEC.into()]
+        ));
+    }
 
     #[test]
     fn loads_nested_plugin_manifest() {

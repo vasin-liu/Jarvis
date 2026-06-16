@@ -14,6 +14,8 @@ pub enum AgentError {
     ToolArgs(String),
     #[error("plugin exec: {0}")]
     PluginExec(String),
+    #[error("plugin permission denied: {0}")]
+    PluginPermission(String),
     #[error("memory: {0}")]
     Memory(#[from] memory::MemoryError),
     #[error("llm: {0}")]

@@ -7,7 +7,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use chunker::ChunkerConfig;
-use config::{build_chat_model, build_embedder, load_config, save_config, AppConfig};
+use config::{
+    build_chat_model, build_chat_model_for_profile, build_embedder, load_config, save_config,
+    AppConfig,
+};
 use embedder::Embedder;
 use e2e::{apply_e2e_config, e2e_data_dir, is_e2e_mode, seed_e2e_fixture};
 use cursor::list_transcript_summaries;
@@ -22,7 +25,8 @@ use lark::{check_auth, fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, Proces
 use llm::ChatModel;
 use agent::{
     load_hooks_from_dir, load_plugins_from_dir, load_skills_from_dir, run_agent,
-    run_orchestrated, AgentProfile, AgentResponse, AgentRunContext, Hook, PluginManifest, Skill,
+    run_orchestrated, run_routed, AgentProfile, AgentResponse, AgentRunContext, ChatResolver,
+    Hook, PluginManifest, Skill,
 };
 use config::AgentOrchestrationMode;
 use memory::{add_memory, learn_from_exchange, list_memories};
@@ -543,6 +547,7 @@ fn seed_plugins_dir(dir: &PathBuf) -> Result<(), String> {
             "id": "datetime",
             "name": "日期时间",
             "description": "提供当前本地日期时间",
+            "permissions": ["shell_exec"],
             "tools": [{
                 "name": "current_time",
                 "description": "返回当前本地日期时间",
@@ -559,20 +564,19 @@ fn build_agent_context<'a>(
     state: &'a AppState,
     cfg: &'a AppConfig,
     embedder: &'a dyn Embedder,
-    chat: &'a dyn ChatModel,
     hooks: &'a [Hook],
     plugins: &'a [PluginManifest],
 ) -> AgentRunContext<'a> {
     AgentRunContext {
         store: state.store.as_ref(),
         embedder,
-        chat,
         chunker: &state.chunker,
         retriever: &state.retriever,
         hooks,
         enabled_hook_ids: &cfg.enabled_hook_ids,
         plugins,
         enabled_plugin_ids: &cfg.enabled_plugin_ids,
+        granted_plugin_permissions: &cfg.granted_plugin_permissions,
     }
 }
 
@@ -719,6 +723,16 @@ fn agent_response_to_ask(resp: AgentResponse) -> AskResponse {
     }
 }
 
+struct ConfigChatResolver {
+    cfg: AppConfig,
+}
+
+impl ChatResolver for ConfigChatResolver {
+    fn chat_for(&self, profile: &AgentProfile) -> std::sync::Arc<dyn ChatModel> {
+        build_chat_model_for_profile(&self.cfg, profile)
+    }
+}
+
 async fn execute_agent_question(
     state: &AppState,
     cfg: &AppConfig,
@@ -728,21 +742,23 @@ async fn execute_agent_question(
     let hooks = load_hooks_from_dir(&state.hooks_dir);
     let plugins = load_plugins_from_dir(&state.plugins_dir);
     let embedder = state.embedder();
-    let chat = state.chat();
     let ctx = build_agent_context(
         state,
         cfg,
         embedder.as_ref(),
-        chat.as_ref(),
         &hooks,
         &plugins,
     );
 
+    let chat_resolver = ConfigChatResolver { cfg: cfg.clone() };
+
     match cfg.agent_orchestration_mode {
         AgentOrchestrationMode::Single => {
             let profile = resolve_active_agent(cfg)?;
+            let chat = chat_resolver.chat_for(&profile);
             run_agent(
                 &ctx,
+                chat.as_ref(),
                 &profile,
                 &skills,
                 &cfg.enabled_skill_ids,
@@ -753,6 +769,7 @@ async fn execute_agent_question(
         }
         AgentOrchestrationMode::Pipeline => run_orchestrated(
             &ctx,
+            &chat_resolver,
             &cfg.agents,
             &cfg.pipeline_agent_ids,
             &skills,
@@ -761,6 +778,20 @@ async fn execute_agent_question(
         )
         .await
         .map_err(|e| e.to_string()),
+        AgentOrchestrationMode::Router => {
+            let router_chat = build_chat_model(cfg);
+            run_routed(
+                &ctx,
+                router_chat,
+                &chat_resolver,
+                &cfg.agents,
+                &skills,
+                &cfg.enabled_skill_ids,
+                question,
+            )
+            .await
+            .map_err(|e| e.to_string())
+        }
     }
 }
 

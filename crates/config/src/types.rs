@@ -7,6 +7,7 @@ pub enum AgentOrchestrationMode {
     #[default]
     Single,
     Pipeline,
+    Router,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -96,6 +97,13 @@ pub struct AppConfig {
     /// Ordered agent ids for pipeline mode; empty means all enabled agents.
     #[serde(default)]
     pub pipeline_agent_ids: Vec<String>,
+    /// Permissions granted to plugins (e.g. shell_exec).
+    #[serde(default = "default_granted_plugin_permissions")]
+    pub granted_plugin_permissions: Vec<String>,
+}
+
+fn default_granted_plugin_permissions() -> Vec<String> {
+    vec!["shell_exec".to_string()]
 }
 
 fn default_active_agent_id() -> String {
@@ -168,6 +176,7 @@ impl Default for AppConfig {
             enabled_plugin_ids: Vec::new(),
             agent_orchestration_mode: AgentOrchestrationMode::Single,
             pipeline_agent_ids: Vec::new(),
+            granted_plugin_permissions: default_granted_plugin_permissions(),
         }
     }
 }
