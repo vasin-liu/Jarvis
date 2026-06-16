@@ -12,6 +12,10 @@ pub enum MemoryError {
     Index(#[from] indexer::IndexError),
     #[error("store: {0}")]
     Store(#[from] store::StoreError),
+    #[error("memory not found: {0}")]
+    NotFound(String),
+    #[error("not a memory source: {0}")]
+    NotMemory(String),
 }
 
 pub type Result<T> = std::result::Result<T, MemoryError>;

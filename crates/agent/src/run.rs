@@ -14,7 +14,6 @@ const MAX_TOOL_ROUNDS: usize = 3;
 
 pub struct AgentRunContext<'a> {
     pub store: &'a Store,
-    pub embedder: &'a dyn Embedder,
     pub chunker: &'a ChunkerConfig,
     pub retriever: &'a RetrieverConfig,
     pub hooks: &'a [crate::hooks::Hook],
@@ -27,6 +26,7 @@ pub struct AgentRunContext<'a> {
 pub async fn run_agent(
     ctx: &AgentRunContext<'_>,
     chat: &dyn ChatModel,
+    embedder: &dyn Embedder,
     profile: &AgentProfile,
     skills: &[Skill],
     enabled_skill_ids: &[String],
@@ -88,7 +88,7 @@ pub async fn run_agent(
 
             let (result, cites) = execute_tool(
                 ctx.store,
-                ctx.embedder,
+                embedder,
                 ctx.chunker,
                 ctx.retriever,
                 ctx.plugins,
@@ -202,6 +202,7 @@ mod tests {
             system_prompt: "test".into(),
             enabled: true,
             chat_provider: None,
+            embedder_provider: None,
         };
 
         let retriever = RetrieverConfig::default();
@@ -209,7 +210,6 @@ mod tests {
         let chat = MockChatModel;
         let ctx = AgentRunContext {
             store: &store,
-            embedder: &embedder,
             chunker: &chunker,
             retriever: &retriever,
             hooks: &[],
@@ -222,6 +222,7 @@ mod tests {
         let resp = run_agent(
             &ctx,
             &chat,
+            &embedder,
             &profile,
             &[],
             &[],

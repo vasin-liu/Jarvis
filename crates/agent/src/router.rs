@@ -3,6 +3,7 @@ use std::sync::Arc;
 use llm::{ChatModel, Message, Role};
 
 use crate::chat_resolver::ChatResolver;
+use crate::embed_resolver::EmbedResolver;
 use crate::error::{AgentError, Result};
 use crate::run::{run_agent, AgentRunContext};
 use crate::types::{AgentProfile, AgentResponse, Skill};
@@ -11,6 +12,7 @@ pub async fn run_routed(
     ctx: &AgentRunContext<'_>,
     router_chat: Arc<dyn ChatModel>,
     chat_resolver: &dyn ChatResolver,
+    embed_resolver: &dyn EmbedResolver,
     profiles: &[AgentProfile],
     skills: &[Skill],
     enabled_skill_ids: &[String],
@@ -33,9 +35,11 @@ pub async fn run_routed(
         .ok_or_else(|| AgentError::ProfileNotFound(agent_id.clone()))?;
 
     let agent_chat = chat_resolver.chat_for(profile);
+    let embedder = embed_resolver.embed_for(profile);
     let mut resp = run_agent(
         ctx,
         agent_chat.as_ref(),
+        embedder.as_ref(),
         profile,
         skills,
         enabled_skill_ids,

@@ -1,6 +1,6 @@
 use chunker::ChunkerConfig;
 use embedder::Embedder;
-use memory::{add_memory, list_memories};
+use memory::{add_memory, forget_memory, get_memory_content, list_memories, update_memory};
 use retriever::{retrieve, RetrieverConfig};
 use serde::Deserialize;
 use serde_json::json;
@@ -133,6 +133,42 @@ pub async fn execute_tool(
             let uri = add_memory(store, embedder, chunker, content, title).await?;
             Ok((format!("已写入记忆：{uri}"), vec![]))
         }
+        "get_memory" => {
+            let id = args
+                .get("id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| AgentError::ToolArgs("id required".into()))?;
+            let content = get_memory_content(store, id)?;
+            let source = store.get_source(id)?;
+            Ok((
+                format!("{} ({})\n\n{content}", source.title, source.uri),
+                vec![],
+            ))
+        }
+        "forget_memory" => {
+            let id = args
+                .get("id")
+                .or_else(|| args.get("title"))
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| AgentError::ToolArgs("id or title required".into()))?;
+            forget_memory(store, id)?;
+            Ok((format!("已删除记忆：{id}"), vec![]))
+        }
+        "update_memory" => {
+            let id = args.get("id").and_then(|v| v.as_str());
+            let title_arg = args.get("title").and_then(|v| v.as_str());
+            let lookup = id
+                .or(title_arg)
+                .ok_or_else(|| AgentError::ToolArgs("id or title required".into()))?;
+            let content = args
+                .get("content")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| AgentError::ToolArgs("content required".into()))?;
+            let new_title = if id.is_some() { title_arg } else { None };
+            let updated =
+                update_memory(store, embedder, chunker, lookup, content, new_title).await?;
+            Ok((format!("已更新记忆：{updated}"), vec![]))
+        }
         "complete_task" => {
             let id = args.get("id").and_then(|v| v.as_str());
             let title = args.get("title").and_then(|v| v.as_str());
@@ -168,6 +204,9 @@ pub fn build_tools_prompt(
         r#"<tool_call>{"name":"list_tasks","arguments":{}}</tool_call>"#.into(),
         r#"<tool_call>{"name":"list_memories","arguments":{}}</tool_call>"#.into(),
         r#"<tool_call>{"name":"add_memory","arguments":{"content":"要记住的事实","title":"可选标题"}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"get_memory","arguments":{"id":"memory://..."}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"forget_memory","arguments":{"id":"memory://..."}}</tool_call>"#.into(),
+        r#"<tool_call>{"name":"update_memory","arguments":{"id":"memory://...","content":"新内容","title":"可选标题"}}</tool_call>"#.into(),
         r#"<tool_call>{"name":"complete_task","arguments":{"id":"任务id"}}</tool_call>"#.into(),
         r#"<tool_call>{"name":"complete_task","arguments":{"title":"任务标题关键词"}}</tool_call>"#.into(),
     ];

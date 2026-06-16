@@ -21,6 +21,76 @@ pub fn list_memories(store: &Store) -> Result<Vec<Source>> {
         .collect())
 }
 
+pub fn get_memory_content(store: &Store, source_id: &str) -> Result<String> {
+    let source = store.get_source(source_id)?;
+    if source.kind != SourceKind::Memory {
+        return Err(MemoryError::NotMemory(source_id.to_string()));
+    }
+    store.source_chunk_text(source_id).map_err(MemoryError::from)
+}
+
+pub fn resolve_memory_id(store: &Store, id_or_title: &str) -> Result<String> {
+    let key = id_or_title.trim();
+    if key.is_empty() {
+        return Err(MemoryError::NotFound(id_or_title.to_string()));
+    }
+    if store.get_source(key).is_ok() {
+        return Ok(key.to_string());
+    }
+    let memories = list_memories(store)?;
+    if let Some(m) = memories.iter().find(|m| m.title == key || m.uri == key) {
+        return Ok(m.id.clone());
+    }
+    if let Some(m) = memories
+        .iter()
+        .find(|m| m.title.contains(key) || m.uri.contains(key))
+    {
+        return Ok(m.id.clone());
+    }
+    Err(MemoryError::NotFound(id_or_title.to_string()))
+}
+
+pub fn forget_memory(store: &Store, id_or_title: &str) -> Result<()> {
+    let id = resolve_memory_id(store, id_or_title)?;
+    let source = store.get_source(&id)?;
+    if source.kind != SourceKind::Memory {
+        return Err(MemoryError::NotMemory(id));
+    }
+    store.delete_source(&id)?;
+    Ok(())
+}
+
+pub async fn update_memory(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
+    id_or_title: &str,
+    content: &str,
+    title: Option<&str>,
+) -> Result<String> {
+    let id = resolve_memory_id(store, id_or_title)?;
+    let source = store.get_source(&id)?;
+    if source.kind != SourceKind::Memory {
+        return Err(MemoryError::NotMemory(id));
+    }
+    let text = content.trim();
+    if text.is_empty() {
+        return Err(MemoryError::EmptyExchange);
+    }
+    let doc_title = title
+        .filter(|t| !t.trim().is_empty())
+        .map(|t| format!("记忆: {t}"))
+        .unwrap_or_else(|| format!("记忆: {}", truncate_title(text)));
+    let doc = Document {
+        uri: source.uri.clone(),
+        title: doc_title,
+        text: text.to_string(),
+        content_hash: hash_text(text),
+    };
+    index_document(store, embedder, chunker, doc, SourceKind::Memory).await?;
+    Ok(id)
+}
+
 pub async fn add_memory(
     store: &Store,
     embedder: &dyn Embedder,
@@ -124,6 +194,34 @@ mod tests {
     fn parse_memory_json() {
         let drafts = parse_memory_drafts(r#"[{"content":"prefers Rust"}]"#).unwrap();
         assert_eq!(drafts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn forget_and_update_memory() {
+        let store = Store::open_in_memory(4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+
+        let id = add_memory(&store, &embedder, &chunker, "likes tea", Some("pref"))
+            .await
+            .unwrap();
+        assert_eq!(list_memories(&store).unwrap().len(), 1);
+        assert!(get_memory_content(&store, &id).unwrap().contains("tea"));
+
+        update_memory(
+            &store,
+            &embedder,
+            &chunker,
+            &id,
+            "likes coffee",
+            Some("pref"),
+        )
+        .await
+        .unwrap();
+        assert!(get_memory_content(&store, &id).unwrap().contains("coffee"));
+
+        forget_memory(&store, &id).unwrap();
+        assert!(list_memories(&store).unwrap().is_empty());
     }
 
     #[tokio::test]

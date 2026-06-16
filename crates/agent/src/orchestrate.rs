@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::chat_resolver::ChatResolver;
+use crate::embed_resolver::EmbedResolver;
 use crate::error::{AgentError, Result};
 use crate::run::{run_agent, AgentRunContext};
 use crate::types::{AgentProfile, AgentResponse, OrchestrationStep, Skill};
@@ -24,6 +25,7 @@ pub fn resolve_pipeline_agent_ids(profiles: &[AgentProfile], configured: &[Strin
 pub async fn run_orchestrated(
     ctx: &AgentRunContext<'_>,
     chat_resolver: &dyn ChatResolver,
+    embed_resolver: &dyn EmbedResolver,
     profiles: &[AgentProfile],
     pipeline_ids: &[String],
     skills: &[Skill],
@@ -43,9 +45,11 @@ pub async fn run_orchestrated(
             .find(|p| p.id == ids[0])
             .ok_or_else(|| AgentError::ProfileNotFound(ids[0].clone()))?;
         let chat = chat_resolver.chat_for(profile);
+        let embedder = embed_resolver.embed_for(profile);
         return run_agent(
             ctx,
             chat.as_ref(),
+            embedder.as_ref(),
             profile,
             skills,
             enabled_skill_ids,
@@ -79,9 +83,11 @@ pub async fn run_orchestrated(
         };
 
         let chat = chat_resolver.chat_for(profile);
+        let embedder = embed_resolver.embed_for(profile);
         let resp = run_agent(
             ctx,
             chat.as_ref(),
+            embedder.as_ref(),
             profile,
             skills,
             enabled_skill_ids,
@@ -124,6 +130,7 @@ fn dedupe_citations(citations: Vec<Citation>) -> Vec<Citation> {
 mod tests {
     use super::*;
     use crate::chat_resolver::ChatResolver;
+    use crate::embed_resolver::EmbedResolver;
     use chunker::ChunkerConfig;
     use std::sync::Arc;
     use embedder::MockEmbedder;
@@ -158,7 +165,6 @@ mod tests {
         let chat = Arc::new(MockChatModel) as Arc<dyn ChatModel>;
         let ctx = AgentRunContext {
             store: &store,
-            embedder: &embedder,
             chunker: &chunker,
             retriever: &retriever,
             hooks: &[],
@@ -174,11 +180,19 @@ mod tests {
                 self.0.clone()
             }
         }
+        struct TestEmbedResolver(Arc<dyn embedder::Embedder>);
+        impl EmbedResolver for TestEmbedResolver {
+            fn embed_for(&self, _: &AgentProfile) -> Arc<dyn embedder::Embedder> {
+                self.0.clone()
+            }
+        }
         let resolver = TestResolver(chat);
+        let embed_resolver = TestEmbedResolver(Arc::new(embedder));
 
         let resp = run_orchestrated(
             &ctx,
             &resolver,
+            &embed_resolver,
             &profiles,
             &["default".into(), "tasks".into()],
             &[],

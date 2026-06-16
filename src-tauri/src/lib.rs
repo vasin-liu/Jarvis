@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use chunker::ChunkerConfig;
 use config::{
-    build_chat_model, build_chat_model_for_profile, build_embedder, load_config, save_config,
-    AppConfig,
+    build_chat_model, build_chat_model_for_profile, build_embedder, build_embedder_with_provider,
+    load_config, parse_embedder_provider, save_config, AppConfig,
 };
 use embedder::Embedder;
 use e2e::{apply_e2e_config, e2e_data_dir, is_e2e_mode, seed_e2e_fixture};
@@ -26,10 +26,13 @@ use llm::ChatModel;
 use agent::{
     load_hooks_from_dir, load_plugins_from_dir, load_skills_from_dir, run_agent,
     run_orchestrated, run_routed, AgentProfile, AgentResponse, AgentRunContext, ChatResolver,
-    Hook, PluginManifest, Skill,
+    EmbedResolver, Hook, PluginManifest, Skill,
 };
 use config::AgentOrchestrationMode;
-use memory::{add_memory, learn_from_exchange, list_memories};
+use memory::{
+    add_memory, forget_memory, get_memory_content, learn_from_exchange, list_memories,
+    update_memory,
+};
 use rag::{ask, ask_stream, AskResponse};
 use retriever::RetrieverConfig;
 use serde::Serialize;
@@ -563,13 +566,11 @@ fn seed_plugins_dir(dir: &PathBuf) -> Result<(), String> {
 fn build_agent_context<'a>(
     state: &'a AppState,
     cfg: &'a AppConfig,
-    embedder: &'a dyn Embedder,
     hooks: &'a [Hook],
     plugins: &'a [PluginManifest],
 ) -> AgentRunContext<'a> {
     AgentRunContext {
         store: state.store.as_ref(),
-        embedder,
         chunker: &state.chunker,
         retriever: &state.retriever,
         hooks,
@@ -733,6 +734,26 @@ impl ChatResolver for ConfigChatResolver {
     }
 }
 
+struct ConfigEmbedResolver {
+    cfg: AppConfig,
+    default_embedder: Arc<dyn Embedder>,
+}
+
+impl EmbedResolver for ConfigEmbedResolver {
+    fn embed_for(&self, profile: &AgentProfile) -> Arc<dyn Embedder> {
+        let provider = profile
+            .embedder_provider
+            .as_deref()
+            .and_then(parse_embedder_provider)
+            .unwrap_or(self.cfg.embedder);
+        if provider == self.cfg.embedder {
+            return self.default_embedder.clone();
+        }
+        build_embedder_with_provider(&self.cfg, provider)
+            .unwrap_or_else(|_| self.default_embedder.clone())
+    }
+}
+
 async fn execute_agent_question(
     state: &AppState,
     cfg: &AppConfig,
@@ -741,24 +762,24 @@ async fn execute_agent_question(
     let skills = load_skills_from_dir(&state.skills_dir);
     let hooks = load_hooks_from_dir(&state.hooks_dir);
     let plugins = load_plugins_from_dir(&state.plugins_dir);
-    let embedder = state.embedder();
-    let ctx = build_agent_context(
-        state,
-        cfg,
-        embedder.as_ref(),
-        &hooks,
-        &plugins,
-    );
+    let default_embedder = state.embedder();
+    let ctx = build_agent_context(state, cfg, &hooks, &plugins);
 
     let chat_resolver = ConfigChatResolver { cfg: cfg.clone() };
+    let embed_resolver = ConfigEmbedResolver {
+        cfg: cfg.clone(),
+        default_embedder: default_embedder.clone(),
+    };
 
     match cfg.agent_orchestration_mode {
         AgentOrchestrationMode::Single => {
             let profile = resolve_active_agent(cfg)?;
             let chat = chat_resolver.chat_for(&profile);
+            let embedder = embed_resolver.embed_for(&profile);
             run_agent(
                 &ctx,
                 chat.as_ref(),
+                embedder.as_ref(),
                 &profile,
                 &skills,
                 &cfg.enabled_skill_ids,
@@ -770,6 +791,7 @@ async fn execute_agent_question(
         AgentOrchestrationMode::Pipeline => run_orchestrated(
             &ctx,
             &chat_resolver,
+            &embed_resolver,
             &cfg.agents,
             &cfg.pipeline_agent_ids,
             &skills,
@@ -784,6 +806,7 @@ async fn execute_agent_question(
                 &ctx,
                 router_chat,
                 &chat_resolver,
+                &embed_resolver,
                 &cfg.agents,
                 &skills,
                 &cfg.enabled_skill_ids,
@@ -909,6 +932,38 @@ async fn run_scheduled_sync_cmd(
 #[tauri::command]
 fn list_memories_cmd(state: tauri::State<'_, AppState>) -> Result<Vec<Source>, String> {
     list_memories(state.store.as_ref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_memory_content_cmd(
+    source_id: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    get_memory_content(state.store.as_ref(), &source_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn forget_memory_cmd(id: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    forget_memory(state.store.as_ref(), &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_memory_cmd(
+    id: String,
+    content: String,
+    title: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    update_memory(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &state.chunker,
+        &id,
+        &content,
+        title.as_deref(),
+    )
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1115,6 +1170,9 @@ pub fn run() {
             get_sync_status,
             run_scheduled_sync_cmd,
             list_memories_cmd,
+            get_memory_content_cmd,
+            forget_memory_cmd,
+            update_memory_cmd,
             add_memory_cmd,
             list_agent_profiles,
             list_skills,

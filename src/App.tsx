@@ -144,6 +144,7 @@ interface AgentProfile {
   system_prompt: string;
   enabled: boolean;
   chat_provider?: string | null;
+  embedder_provider?: string | null;
 }
 
 interface PluginItem {
@@ -320,6 +321,10 @@ function App() {
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentPrompt, setNewAgentPrompt] = useState("");
   const [newAgentChatProvider, setNewAgentChatProvider] = useState("");
+  const [newAgentEmbedderProvider, setNewAgentEmbedderProvider] = useState("");
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [editingMemoryContent, setEditingMemoryContent] = useState("");
+  const [editingMemoryTitle, setEditingMemoryTitle] = useState("");
 
   const refreshSessions = useCallback(async () => {
     const list = await invoke<ChatSession[]>("list_chat_sessions");
@@ -588,12 +593,14 @@ function App() {
           system_prompt,
           enabled: true,
           chat_provider: newAgentChatProvider.trim() || null,
+          embedder_provider: newAgentEmbedderProvider.trim() || null,
         },
       });
       setNewAgentId("");
       setNewAgentName("");
       setNewAgentPrompt("");
       setNewAgentChatProvider("");
+      setNewAgentEmbedderProvider("");
       await refreshConfig();
     } catch (e) {
       setErr(String(e));
@@ -660,6 +667,69 @@ function App() {
       await invoke<RebuildReport>("retry_source", { id });
       await refreshLibrary();
       await refreshIndexStatus();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleForgetMemory(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("forget_memory_cmd", { id });
+      if (editingMemoryId === id) {
+        setEditingMemoryId(null);
+        setEditingMemoryContent("");
+        setEditingMemoryTitle("");
+      }
+      await refreshLibrary();
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEditMemory(id: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      const content = await invoke<string>("get_memory_content_cmd", {
+        sourceId: id,
+      });
+      const memory = memories.find((m) => m.id === id);
+      setEditingMemoryId(id);
+      setEditingMemoryContent(content);
+      const title = memory?.title?.replace(/^记忆:\s*/, "") ?? "";
+      setEditingMemoryTitle(title);
+    } catch (e) {
+      setErr(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSaveMemoryEdit() {
+    if (!editingMemoryId) return;
+    const content = editingMemoryContent.trim();
+    if (!content) {
+      setErr("记忆内容不能为空");
+      return;
+    }
+    setErr(null);
+    setBusy(true);
+    try {
+      await invoke("update_memory_cmd", {
+        id: editingMemoryId,
+        content,
+        title: editingMemoryTitle.trim() || null,
+      });
+      setEditingMemoryId(null);
+      setEditingMemoryContent("");
+      setEditingMemoryTitle("");
+      await refreshLibrary();
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -958,7 +1028,7 @@ function App() {
           </button>
         ))}
         <div className="mt-auto px-2 pt-4 text-xs text-zinc-500">
-          来源 {sources.length} · v8
+          来源 {sources.length} · v9
         </div>
       </aside>
 
@@ -1555,22 +1625,72 @@ function App() {
                   {memories.map((m) => (
                     <li
                       key={m.id}
-                      className="flex items-start justify-between gap-4 px-4 py-3 text-sm"
+                      className="flex flex-col gap-2 px-4 py-3 text-sm"
                     >
-                      <div className="min-w-0">
-                        <div className="font-medium text-zinc-100">{m.title}</div>
-                        {m.summary && (
-                          <div className="mt-1 text-xs text-zinc-400">{m.summary}</div>
-                        )}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="font-medium text-zinc-100">{m.title}</div>
+                          {m.summary && (
+                            <div className="mt-1 text-xs text-zinc-400">{m.summary}</div>
+                          )}
+                          <div className="mt-1 font-mono text-xs text-zinc-600">{m.uri}</div>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs"
+                            disabled={busy}
+                            onClick={() => void handleEditMemory(m.id)}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost shrink-0 text-xs text-red-300"
+                            disabled={busy}
+                            onClick={() => void handleForgetMemory(m.id)}
+                          >
+                            忘记
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn-ghost shrink-0 text-xs"
-                        disabled={busy}
-                        onClick={() => void handleRemoveSource(m.id)}
-                      >
-                        删除
-                      </button>
+                      {editingMemoryId === m.id && (
+                        <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">
+                          <input
+                            className="field text-sm"
+                            placeholder="标题（可选）"
+                            value={editingMemoryTitle}
+                            onChange={(e) => setEditingMemoryTitle(e.target.value)}
+                          />
+                          <textarea
+                            className="field min-h-24 text-sm"
+                            value={editingMemoryContent}
+                            onChange={(e) => setEditingMemoryContent(e.target.value)}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              className="btn-primary text-xs"
+                              disabled={busy}
+                              onClick={() => void handleSaveMemoryEdit()}
+                            >
+                              保存
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-ghost text-xs"
+                              disabled={busy}
+                              onClick={() => {
+                                setEditingMemoryId(null);
+                                setEditingMemoryContent("");
+                                setEditingMemoryTitle("");
+                              }}
+                            >
+                              取消
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -2026,6 +2146,11 @@ function App() {
                             Chat: {agent.chat_provider}
                           </div>
                         )}
+                        {agent.embedder_provider && (
+                          <div className="mt-1 text-xs text-emerald-400/80">
+                            Embedder: {agent.embedder_provider}
+                          </div>
+                        )}
                       </div>
                       {agent.id !== "default" && (
                         <button
@@ -2069,6 +2194,17 @@ function App() {
                   <option value="">Chat Provider：继承全局</option>
                   <option value="mock">Mock</option>
                   <option value="ollama">Ollama</option>
+                  <option value="cloud">Cloud</option>
+                </select>
+                <select
+                  className="field text-sm"
+                  value={newAgentEmbedderProvider}
+                  onChange={(e) => setNewAgentEmbedderProvider(e.target.value)}
+                >
+                  <option value="">Embedder：继承全局</option>
+                  <option value="mock">Mock</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="fastembed">FastEmbed</option>
                   <option value="cloud">Cloud</option>
                 </select>
                 <button

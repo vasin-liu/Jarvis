@@ -233,6 +233,12 @@ npm test
 |-----------|-------------|
 | v8 | **1.7.0** — Per-agent `chat_provider` override; plugin `permissions` + `granted_plugin_permissions`; Router orchestration mode |
 
+## Milestones (v9)
+
+| Milestone | Deliverable |
+|-----------|-------------|
+| v9 | **1.8.0** — Memory forget/update tools + UI; per-agent `embedder_provider` override; `EmbedResolver` |
+
 Refer to design spec for non-goals (full plugin sandbox, DAG orchestration, etc.).
 
 ---

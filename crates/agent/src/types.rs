@@ -9,6 +9,9 @@ pub struct AgentProfile {
     /// Override global chat provider: `mock`, `ollama`, or `cloud`. None = use app default.
     #[serde(default)]
     pub chat_provider: Option<String>,
+    /// Override global embedder: `mock`, `ollama`, `fastembed`, or `cloud`. None = use app default.
+    #[serde(default)]
+    pub embedder_provider: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -51,6 +54,7 @@ pub fn default_profiles() -> Vec<AgentProfile> {
             system_prompt: "你是 Jarvis 知识库助手。优先使用工具检索事实，回答简洁准确，使用中文。".into(),
             enabled: true,
             chat_provider: None,
+            embedder_provider: None,
         },
         AgentProfile {
             id: "tasks".into(),
@@ -60,6 +64,7 @@ pub fn default_profiles() -> Vec<AgentProfile> {
                     .into(),
             enabled: true,
             chat_provider: None,
+            embedder_provider: None,
         },
     ]
 }
