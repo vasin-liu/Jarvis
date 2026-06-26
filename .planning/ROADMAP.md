@@ -11,8 +11,8 @@
 
 | # | Phase | Goal | Requirements | Version |
 |---|-------|------|--------------|---------|
-| 1 | Scaffold + Shell Foundation | Establish refactor structure without behavior change | FE-01, SHELL-01, QA-01, QA-03 | v1.9.0 |
-| 2 | Chat Extraction + Config Types | Extract highest-traffic view; nest config types | FE-02, FE-06, SHELL-02, CFG-01 | v1.9.1 |
+| 1 | Scaffold + Shell Foundation | 3/3 | Complete   | 2026-06-17 |
+| 2 | Chat Extraction + Config Types | 3/3 | Complete    | 2026-06-26 |
 | 3 | Library/Tasks + Keychain | Extract index views; secrets to OS keychain | FE-03, SHELL-03, CFG-02, CFG-03 | v1.9.2 |
 | 4 | Memory Model + View | Stable memory URIs; extract Memory view | FE-04, SHELL-04, MEM-01, MEM-02 | v1.9.3 |
 | 5 | Agent Protocol | Structured tool calls; agent command module | AGT-01, AGT-02, AGT-03, SHELL-05 | v1.9.4 |
@@ -31,6 +31,7 @@
 **Requirements:** FE-01, SHELL-01, QA-01, QA-03
 
 **Success Criteria:**
+
 1. `src/views/` directory exists with placeholder or first extracted layout component
 2. `src-tauri/src/state.rs` holds `AppState`; `commands/mod.rs` registered
 3. At least 2 command groups moved to `commands/*.rs` with identical IPC signatures
@@ -52,6 +53,7 @@
 **Requirements:** FE-02, FE-06, SHELL-02, CFG-01
 
 **Success Criteria:**
+
 1. `ChatView.tsx` + `useChat.ts` own all chat/agent UI logic
 2. `commands/chat.rs` contains all chat/session commands
 3. `AppConfig` nested structs load/save existing flat `config.json`
@@ -73,6 +75,7 @@
 **Requirements:** FE-03, SHELL-03, CFG-02, CFG-03
 
 **Success Criteria:**
+
 1. `LibraryView.tsx` and `TasksView.tsx` extracted with hooks
 2. `commands/index.rs` and `commands/lark.rs` complete
 3. `cloud_api_key` read/written via `keyring`; not persisted in plaintext JSON
@@ -94,6 +97,7 @@
 **Requirements:** FE-04, SHELL-04, MEM-01, MEM-02
 
 **Success Criteria:**
+
 1. New memories created with `memory://{uuid}` URI
 2. `resolve_memory_id` uses strict ID/URI only (title fallback deprecated with log)
 3. Migration sets URI on existing memory sources
@@ -115,6 +119,7 @@
 **Requirements:** AGT-01, AGT-02, AGT-03, SHELL-05
 
 **Success Criteria:**
+
 1. `ToolCallParser` trait with JSON implementation for Mock + OpenAI-compatible
 2. Parse errors returned in response metadata and shown in Chat UI
 3. XML parser remains as fallback (logged when used)
@@ -136,6 +141,7 @@
 **Requirements:** FE-05, QA-02, QA-04
 
 **Success Criteria:**
+
 1. `SettingsView.tsx` + `useJarvisConfig.ts` extracted; `App.tsx` under 300 lines
 2. `lib.rs` under 200 lines (registration + startup only)
 3. Scheduled sync errors persisted in `store.meta` and visible in Settings
