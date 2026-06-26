@@ -82,7 +82,7 @@ Extract the highest-traffic **Chat view** and its RAG session logic from `App.ts
 - **D-35:** Agent E2E updated in same PR for split submit controls (no hidden compat shim elements).
 
 ### Phase 3 Prerequisite (User Vision — Lark/Local Auto Sync)
-- **D-36:** Record for Phase 3 planning: Feishu/Lark docs, chat, mail, tasks, and local documents should sync via **`lark-cli` continuous/scheduled fetch** — **manual URL/token copy should not be the primary path**. Phase 3 CONTEXT should treat this as a requirement, not stretch.
+- **D-36:** [informational] Record for Phase 3 planning: Feishu/Lark docs, chat, mail, tasks, and local documents should sync via **`lark-cli` continuous/scheduled fetch** — **manual URL/token copy should not be the primary path**. Phase 3 CONTEXT should treat this as a requirement, not stretch. No Phase 2 implementation.
 
 ### Claude's Discretion
 - Exact nested struct field assignments within the five config buckets (as long as flatten preserves flat JSON keys).
