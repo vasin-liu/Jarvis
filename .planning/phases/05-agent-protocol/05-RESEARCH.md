@@ -473,7 +473,7 @@ pub struct AskResponse {
 
 **Note:** A3 verified — `Glob **/commands/agent.rs` returned 0 files [VERIFIED: codebase].
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Line selection in multi-line replies**
    - What we know: D-01 requires one bare JSON line; discretion allows first non-empty line vs whole-text trim.
