@@ -13,9 +13,9 @@
 |---|-------|------|--------------|---------|
 | 1 | Scaffold + Shell Foundation | 3/3 | Complete   | 2026-06-17 |
 | 2 | Chat Extraction + Config Types | 3/3 | Complete    | 2026-06-26 |
-| 3 | Library/Tasks + Keychain | Extract index views; secrets to OS keychain | FE-03, SHELL-03, CFG-02, CFG-03 | v1.9.2 |
-| 4 | Memory Model + View | Stable memory URIs; extract Memory view | FE-04, SHELL-04, MEM-01, MEM-02 | v1.9.3 |
-| 5 | Agent Protocol | Structured tool calls; agent command module | AGT-01, AGT-02, AGT-03, SHELL-05 | v1.9.4 |
+| 3 | Library/Tasks + Keychain | 5/5 | Complete    | 2026-06-27 |
+| 4 | Memory Model + View | 4/4 | Complete    | 2026-06-27 |
+| 5 | Agent Protocol | 4/4 | Complete    | 2026-06-29 |
 | 6 | Settings + Arch Review | Complete extraction; sync UX; sign-off | FE-05, QA-02, QA-04 | v1.9.5–1.9.6 |
 
 **Total:** 6 phases | 22 requirements | 100% coverage ✓
@@ -130,6 +130,15 @@
 
 **Key files:** `crates/agent/src/tools.rs`, `crates/llm/`, `src/views/ChatView.tsx`
 
+**Plans:** 4/4 plans complete
+
+Plans:
+
+- [x] 05-01-PLAN.md — ToolCallParser strict JSON + run.rs outcome loop (AGT-01, AGT-02)
+- [x] 05-02-PLAN.md — Mock JSON, prompt, AskResponse IPC, orchestration warnings (AGT-01, AGT-02, AGT-03)
+- [x] 05-03-PLAN.md — Relocate agent IPC to commands/agent.rs (SHELL-05)
+- [x] 05-04-PLAN.md — ChatView warnings UI + E2E gate (AGT-02, AGT-03)
+
 ---
 
 ### Phase 6: Settings + Architecture Review
@@ -151,6 +160,21 @@
 **UI hint:** yes
 
 **Key files:** `src/views/SettingsView.tsx`, `src/App.tsx`, `src-tauri/src/lib.rs`, `src-tauri/src/sync_scheduler.rs`
+
+**Plans:** 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Settings extraction: useJarvisConfig, AppShell, accordion SettingsView, Chat handler migration, App.tsx slim (FE-05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-02-PLAN.md — Sync error persistence + Settings UI display + E2E extension (FE-05, QA-02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-03-PLAN.md — Shell slim: bootstrap.rs, events.rs, state.rs init, E2E commands + architecture VERIFICATION.md (QA-02, QA-04)
 
 ---
 
