@@ -16,7 +16,7 @@
 | 3 | Library/Tasks + Keychain | 5/5 | Complete    | 2026-06-27 |
 | 4 | Memory Model + View | 4/4 | Complete    | 2026-06-27 |
 | 5 | Agent Protocol | 4/4 | Complete    | 2026-06-29 |
-| 6 | Settings + Arch Review | 2/3 | In Progress|  |
+| 6 | Settings + Arch Review | 3/3 | Complete    | 2026-07-01 |
 
 **Total:** 6 phases | 22 requirements | 100% coverage ✓
 
@@ -161,7 +161,7 @@ Plans:
 
 **Key files:** `src/views/SettingsView.tsx`, `src/App.tsx`, `src-tauri/src/lib.rs`, `src-tauri/src/sync_scheduler.rs`
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -174,7 +174,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-03-PLAN.md — Shell slim: bootstrap.rs, events.rs, state.rs init, E2E commands + architecture VERIFICATION.md (QA-02, QA-04)
+- [x] 06-03-PLAN.md — Shell slim: bootstrap.rs, events.rs, state.rs init, E2E commands + architecture VERIFICATION.md (QA-02, QA-04)
 
 ---
 

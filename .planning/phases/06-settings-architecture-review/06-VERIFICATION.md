@@ -13,13 +13,13 @@ score: 10/10
 
 | ID | Description | Phase | Status |
 |----|-------------|-------|--------|
-| FE-01 | `App.tsx` reduced to layout shell, navigation, and view router | 1, 6 | **Complete** (385 lines; views in `src/views/`) |
+| FE-01 | `App.tsx` reduced to layout shell, navigation, and view router | 1, 6 | **Complete** (416 lines; views in `src/views/`) |
 | FE-02 | Chat view + `useChat` hook | 2 | Complete |
 | FE-03 | Library and Tasks views extracted | 3 | Complete |
 | FE-04 | Memory view + `useMemory` | 4 | Complete |
 | FE-05 | Settings view + `useJarvisConfig` accordion | 6 | **Complete** |
 | FE-06 | `data-testid` contract preserved | 2 | Complete |
-| SHELL-01 | `AppState` in `state.rs`; `lib.rs` registration + startup only | 1, 6 | **Complete** (104 lines) |
+| SHELL-01 | `AppState` in `state.rs`; `lib.rs` registration + startup only | 1, 6 | **Complete** (109 lines) |
 | SHELL-02 | Chat commands in `commands/chat.rs` | 2 | Complete |
 | SHELL-03 | Index/Lark commands in `commands/index.rs`, `commands/lark.rs` | 3 | Complete |
 | SHELL-04 | Memory/agent commands in `commands/memory.rs`, `commands/agent.rs` | 4 | Complete |
@@ -42,8 +42,8 @@ score: 10/10
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
 | Module boundaries match crate layout (single DB owner in `store`, thin shell, fat crates) | PASS | `crates/store` sole SQLite owner; domain logic in `crates/*`; Tauri delegates via `commands/*` |
-| `lib.rs` is registration + startup only | PASS | **104 lines** — `run()`, `generate_handler!`, module declarations, re-exports only |
-| `App.tsx` is view router + coordination only | PASS | **385 lines** — views in `src/views/*`, hooks in `src/hooks/*` |
+| `lib.rs` is registration + startup only | PASS | **109 lines** — `run()`, `generate_handler!`, module declarations, re-exports only |
+| `App.tsx` is view router + coordination only | PASS | **416 lines** — views in `src/views/*`, hooks in `src/hooks/*` |
 | No new Tauri IPC commands added | PASS | Same `generate_handler!` list; commands relocated, not added |
 | No new crates added | PASS | Phase 6 adds modules within `src-tauri`, no workspace members |
 | All views extracted to `src/views/` with dedicated hooks | PASS | Chat, Library, Tasks, Memory, Settings + hooks |
@@ -62,7 +62,7 @@ score: 10/10
 | CONCERN | Status | Notes |
 |---------|--------|-------|
 | Monolithic `App.tsx` (~2,798 lines) | **PASS** | Reduced to 385-line router; views extracted |
-| Monolithic `lib.rs` (~1,317 lines) | **PASS** | Reduced to 104-line registration shell |
+| Monolithic `lib.rs` (~1,317 lines) | **PASS** | Reduced to 109-line registration shell |
 | Scheduled sync errors swallowed | **PASS** | `last_scheduled_sync_error` in `store.meta` + Settings UI (06-02) |
 | Config plaintext API keys | **PASS** | Keychain migration (Phase 3) |
 | Agent ad-hoc XML tool protocol | **PASS** | JSON `ToolCallParser` + warnings (Phase 5) |
@@ -119,5 +119,5 @@ All Phase 6 changes are **refactor, bugfix, tests, or docs**:
 
 | File | Lines | Target | Status |
 |------|-------|--------|--------|
-| `src-tauri/src/lib.rs` | 104 | <200 | PASS |
-| `src/App.tsx` | 385 | <300 soft | Soft miss — cross-view coordination remains in App |
+| `src-tauri/src/lib.rs` | 109 | <200 | PASS |
+| `src/App.tsx` | 416 | <300 soft | Soft miss — cross-view coordination remains in App |
