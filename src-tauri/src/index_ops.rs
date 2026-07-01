@@ -2,12 +2,13 @@ use std::path::Path;
 
 use chunker::ChunkerConfig;
 use config::AppConfig;
+use crate::e2e;
 use cursor::{discover_transcripts, load_transcript, resolve_transcript_path};
 use embedder::Embedder;
 use ingest::Document;
 use llm::ChatModel;
 use indexer::{index_document, index_path};
-use lark::{fetch_doc, fetch_im_chat, fetch_mail, fetch_sheet, CommandRunner};
+use lark::{fetch_doc, fetch_from_url, fetch_im_chat, fetch_mail, fetch_sheet, CommandRunner, LarkCliOptions};
 use store::{IndexStatus, Source, SourceKind, Store};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -74,7 +75,7 @@ pub async fn rebuild_all_sources<F>(
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
-    lark_cli_bin: &str,
+    lark: &LarkCliOptions<'_>,
     cursor_projects_root: &str,
     phase: &str,
     mut on_progress: F,
@@ -104,7 +105,7 @@ where
             embedder,
             chunker,
             runner,
-            lark_cli_bin,
+            lark,
             cursor_projects_root,
             &source,
         )
@@ -345,12 +346,116 @@ where
     })
 }
 
+pub async fn sync_lark_sources<F>(
+    store: &Store,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
+    runner: &dyn CommandRunner,
+    lark: &LarkCliOptions<'_>,
+    cursor_projects_root: &str,
+    mut on_progress: F,
+) -> Result<RebuildReport, String>
+where
+    F: FnMut(IndexProgressEvent),
+{
+    let sources = store
+        .list_sources()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|s| {
+            matches!(
+                s.kind,
+                SourceKind::LarkDoc
+                    | SourceKind::LarkSheet
+                    | SourceKind::LarkMail
+                    | SourceKind::LarkMsg
+                    | SourceKind::LarkFile
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let total = sources.len();
+    let mut indexed = 0;
+    let mut failed = 0;
+    let mut skipped = 0;
+
+    for (i, source) in sources.into_iter().enumerate() {
+        let current = i + 1;
+        on_progress(IndexProgressEvent {
+            phase: "lark".into(),
+            current,
+            total,
+            source_title: source.title.clone(),
+            outcome: None,
+            message: None,
+        });
+
+        match reindex_source(
+            store,
+            embedder,
+            chunker,
+            runner,
+            lark,
+            cursor_projects_root,
+            &source,
+        )
+        .await
+        {
+            Ok(true) => {
+                indexed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: "lark".into(),
+                    current,
+                    total,
+                    source_title: source.title,
+                    outcome: Some("indexed".into()),
+                    message: None,
+                });
+            }
+            Ok(false) => {
+                skipped += 1;
+                on_progress(IndexProgressEvent {
+                    phase: "lark".into(),
+                    current,
+                    total,
+                    source_title: source.title,
+                    outcome: Some("skipped".into()),
+                    message: None,
+                });
+            }
+            Err(e) => {
+                failed += 1;
+                on_progress(IndexProgressEvent {
+                    phase: "lark".into(),
+                    current,
+                    total,
+                    source_title: source.title,
+                    outcome: Some("failed".into()),
+                    message: Some(e),
+                });
+            }
+        }
+    }
+
+    if indexed > 0 {
+        store
+            .set_meta("embedder_id", embedder.id())
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(RebuildReport {
+        indexed,
+        failed,
+        skipped,
+    })
+}
+
 pub async fn retry_source_by_id<F>(
     store: &Store,
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
-    lark_cli_bin: &str,
+    lark: &LarkCliOptions<'_>,
     cursor_projects_root: &str,
     source_id: &str,
     mut on_progress: F,
@@ -376,7 +481,7 @@ where
         embedder,
         chunker,
         runner,
-        lark_cli_bin,
+        lark,
         cursor_projects_root,
         &source,
     )
@@ -433,7 +538,7 @@ async fn reindex_source(
     embedder: &dyn Embedder,
     chunker: &ChunkerConfig,
     runner: &dyn CommandRunner,
-    lark_cli_bin: &str,
+    lark: &LarkCliOptions<'_>,
     cursor_projects_root: &str,
     source: &Source,
 ) -> Result<bool, String> {
@@ -463,8 +568,14 @@ async fn reindex_source(
             Ok(true)
         }
         SourceKind::LarkDoc => {
+            if let Some((doc, kind)) = e2e::lark_fixture_from_uri(&source.uri) {
+                index_document(store, embedder, chunker, doc, kind)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return Ok(true);
+            }
             let token = lark_suffix(&source.uri, "lark://doc/")?;
-            let doc = fetch_doc(runner, lark_cli_bin, &token).map_err(|e| e.to_string())?;
+            let doc = fetch_doc(runner, lark, &token).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::LarkDoc)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -472,7 +583,7 @@ async fn reindex_source(
         }
         SourceKind::LarkSheet => {
             let token = lark_suffix(&source.uri, "lark://sheet/")?;
-            let doc = fetch_sheet(runner, lark_cli_bin, &token).map_err(|e| e.to_string())?;
+            let doc = fetch_sheet(runner, lark, &token).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::LarkSheet)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -480,7 +591,7 @@ async fn reindex_source(
         }
         SourceKind::LarkMail => {
             let id = lark_suffix(&source.uri, "lark://mail/")?;
-            let doc = fetch_mail(runner, lark_cli_bin, &id).map_err(|e| e.to_string())?;
+            let doc = fetch_mail(runner, lark, &id).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::LarkMail)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -488,8 +599,23 @@ async fn reindex_source(
         }
         SourceKind::LarkMsg => {
             let id = lark_suffix(&source.uri, "lark://im/")?;
-            let doc = fetch_im_chat(runner, lark_cli_bin, &id).map_err(|e| e.to_string())?;
+            let doc = fetch_im_chat(runner, lark, &id).map_err(|e| e.to_string())?;
             index_document(store, embedder, chunker, doc, SourceKind::LarkMsg)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        SourceKind::LarkFile => {
+            if let Some((doc, kind)) = e2e::lark_fixture_from_uri(&source.uri) {
+                index_document(store, embedder, chunker, doc, kind)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                return Ok(true);
+            }
+            let token = lark_suffix(&source.uri, "lark://file/")?;
+            let url = format!("https://www.feishu.cn/file/{token}");
+            let doc = fetch_from_url(runner, lark, &url).map_err(|e| e.to_string())?;
+            index_document(store, embedder, chunker, doc, SourceKind::LarkFile)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(true)
@@ -600,12 +726,15 @@ mod tests {
             .unwrap();
         store.reinit_vectors(4).unwrap();
 
+        use lark::{LarkCliOptions, LarkIdentity};
+
+        let lark = LarkCliOptions::new("lark-cli", LarkIdentity::User);
         let report = rebuild_all_sources(
             &store,
             &embedder,
             &chunker,
             &runner,
-            "lark-cli",
+            &lark,
             "",
             "rebuild",
             |_| {},

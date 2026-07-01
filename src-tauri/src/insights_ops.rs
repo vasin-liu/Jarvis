@@ -17,10 +17,10 @@ pub async fn maybe_run_insights_for_source(
     cfg: &AppConfig,
     source_id: &str,
 ) {
-    if cfg.auto_summarize_on_index {
+    if cfg.sync.auto_summarize_on_index {
         let _ = summarize_source(store, chat, source_id).await;
     }
-    if cfg.auto_extract_tasks_on_index {
+    if cfg.sync.auto_extract_tasks_on_index {
         let _ = extract_tasks_from_source(store, chat, source_id).await;
     }
 }
