@@ -140,11 +140,14 @@ function App() {
     type OrchMode = AppConfig["agent_orchestration_mode"];
     type E2eOrchWindow = Window & {
       __JARVIS_E2E_SET_ORCHESTRATION__?: (mode: OrchMode) => void;
+      __JARVIS_E2E_REFRESH_CONFIG__?: () => Promise<void>;
     };
     if (!e2eMode) {
       delete (window as E2eOrchWindow).__JARVIS_E2E_SET_ORCHESTRATION__;
+      delete (window as E2eOrchWindow).__JARVIS_E2E_REFRESH_CONFIG__;
       return;
     }
+    (window as E2eOrchWindow).__JARVIS_E2E_REFRESH_CONFIG__ = () => refreshConfig();
     (window as E2eOrchWindow).__JARVIS_E2E_SET_ORCHESTRATION__ = (mode) => {
       const cfg = configRef.current;
       if (!cfg) return;
@@ -159,6 +162,7 @@ function App() {
     };
     return () => {
       delete (window as E2eOrchWindow).__JARVIS_E2E_SET_ORCHESTRATION__;
+      delete (window as E2eOrchWindow).__JARVIS_E2E_REFRESH_CONFIG__;
     };
   }, [e2eMode, refreshConfig]);
 

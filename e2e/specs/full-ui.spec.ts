@@ -6,6 +6,7 @@ import {
   setReactCheckbox,
   setReactInputValue,
   setOrchestrationMode,
+  waitForDomText,
 } from "../helpers.ts";
 
 /**
@@ -151,8 +152,8 @@ describe("Jarvis full UI journey", () => {
     await openNav("settings", '[data-testid="settings-panel"]');
     await expandSettingsSection("settings-section-lark");
     await clickViaDom('[data-testid="lark-check-connection"]');
+    await waitForDomText('[data-testid="lark-status-panel"]', "E2E User");
     const panel = await $('[data-testid="lark-status-panel"]');
-    await panel.waitForDisplayed({ timeout: 15_000 });
     expect(await panel.getText()).toContain("E2E User");
 
     await expandSettingsSection("settings-section-advanced");

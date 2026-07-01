@@ -3,6 +3,7 @@ import {
   expandSettingsSection,
   openNav,
   setReactInputValue,
+  waitForDomText,
 } from "../helpers.ts";
 
 const E2E_LARK_URL = "https://e2e.feishu.cn/file/e2e-mock-token";
@@ -13,8 +14,11 @@ describe("Lark / Feishu integration (E2E mock)", () => {
     await openNav("settings", '[data-testid="settings-panel"]');
     await expandSettingsSection("settings-section-lark");
     await clickViaDom('[data-testid="lark-check-connection"]');
+    await waitForDomText(
+      '[data-testid="lark-status-panel"]',
+      "lark-cli 可用",
+    );
     const panel = await $('[data-testid="lark-status-panel"]');
-    await panel.waitForDisplayed({ timeout: 15_000 });
     const text = await panel.getText();
     expect(text).toContain("lark-cli 可用");
     expect(text).toContain("E2E User");

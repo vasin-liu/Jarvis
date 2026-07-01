@@ -23,6 +23,26 @@ export async function expandSettingsSection(testId: string) {
   }
 }
 
+export async function waitForDomText(
+  selector: string,
+  substring: string,
+  timeoutMs = 15_000,
+) {
+  await browser.waitUntil(
+    async () => {
+      const text = await browser.execute((sel) => {
+        const el = document.querySelector(sel);
+        return el?.textContent ?? "";
+      }, selector);
+      return text.includes(substring);
+    },
+    {
+      timeout: timeoutMs,
+      timeoutMsg: `"${substring}" not found in ${selector}`,
+    },
+  );
+}
+
 /** Set value on a React-controlled textarea/input (plain setValue does not update state). */
 export async function setReactCheckbox(
   element: WebdriverIO.Element,
@@ -98,6 +118,12 @@ export async function setOrchestrationMode(
       timeoutMsg: `orchestration mode not set to ${mode}`,
     },
   );
+  await browser.execute(async () => {
+    const w = window as Window & {
+      __JARVIS_E2E_REFRESH_CONFIG__?: () => Promise<void>;
+    };
+    await w.__JARVIS_E2E_REFRESH_CONFIG__?.();
+  });
 }
 
 export async function setReactRadio(selector: string) {
