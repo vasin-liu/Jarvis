@@ -1,6 +1,7 @@
 import {
   askQuestion,
   clickViaDom,
+  expandSettingsSection,
   openNav,
   setReactCheckbox,
   setReactInputValue,
@@ -148,11 +149,13 @@ describe("Jarvis full UI journey", () => {
 
   it("checks lark-cli mock connection and syncs e2e feishu file", async () => {
     await openNav("settings", '[data-testid="settings-panel"]');
+    await expandSettingsSection("settings-section-lark");
     await clickViaDom('[data-testid="lark-check-connection"]');
     const panel = await $('[data-testid="lark-status-panel"]');
     await panel.waitForDisplayed({ timeout: 15_000 });
     expect(await panel.getText()).toContain("E2E User");
 
+    await expandSettingsSection("settings-section-advanced");
     const input = await $('[data-testid="lark-sync-url-input"]');
     await setReactInputValue(
       input,

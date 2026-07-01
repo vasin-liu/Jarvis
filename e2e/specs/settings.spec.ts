@@ -1,20 +1,4 @@
-import { clickViaDom, openNav } from "../helpers.ts";
-
-async function expandSettingsSection(testId: string) {
-  const section = await $(`[data-testid="${testId}"]`);
-  await section.waitForExist({ timeout: 15_000 });
-  const header = await section.$("button");
-  if ((await header.getAttribute("aria-expanded")) !== "true") {
-    await header.click();
-    await browser.waitUntil(
-      async () => (await header.getAttribute("aria-expanded")) === "true",
-      {
-        timeout: 10_000,
-        timeoutMsg: `${testId} did not expand`,
-      },
-    );
-  }
-}
+import { clickViaDom, expandSettingsSection, openNav } from "../helpers.ts";
 
 /**
  * Settings panel: index status, API key keychain UX, accordion layout, and rebuild controls.
