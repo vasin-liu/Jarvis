@@ -563,10 +563,20 @@ export function SettingsView({
             </p>
           )}
           {syncStatus?.lastScheduledSyncError && (
-            <p className="mb-3 text-xs text-red-300">
-              定时同步失败：{syncStatus.lastScheduledSyncError}
-              。请检查监听文件夹与 lark-cli 配置后重试。
-            </p>
+            <div
+              className="mb-3 rounded-xl border border-red-400/30 bg-red-950/30 px-3 py-2 text-xs text-red-300"
+              data-testid="scheduled-sync-error"
+            >
+              <p>
+                定时同步失败：{syncStatus.lastScheduledSyncError}
+                。请检查监听文件夹与 lark-cli 配置后重试。
+              </p>
+              {syncStatus.lastScheduledSyncErrorAt != null && (
+                <p className="mt-1 text-red-400/80">
+                  {formatIndexedAt(syncStatus.lastScheduledSyncErrorAt)}
+                </p>
+              )}
+            </div>
           )}
           <button
             type="button"
