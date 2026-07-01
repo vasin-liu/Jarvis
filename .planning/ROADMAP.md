@@ -16,7 +16,7 @@
 | 3 | Library/Tasks + Keychain | 5/5 | Complete    | 2026-06-27 |
 | 4 | Memory Model + View | 4/4 | Complete    | 2026-06-27 |
 | 5 | Agent Protocol | 4/4 | Complete    | 2026-06-29 |
-| 6 | Settings + Arch Review | Complete extraction; sync UX; sign-off | FE-05, QA-02, QA-04 | v1.9.5–1.9.6 |
+| 6 | Settings + Arch Review | 2/3 | In Progress|  |
 
 **Total:** 6 phases | 22 requirements | 100% coverage ✓
 
@@ -161,16 +161,16 @@ Plans:
 
 **Key files:** `src/views/SettingsView.tsx`, `src/App.tsx`, `src-tauri/src/lib.rs`, `src-tauri/src/sync_scheduler.rs`
 
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Settings extraction: useJarvisConfig, AppShell, accordion SettingsView, Chat handler migration, App.tsx slim (FE-05)
+- [x] 06-01-PLAN.md — Settings extraction: useJarvisConfig, AppShell, accordion SettingsView, Chat handler migration, App.tsx slim (FE-05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md — Sync error persistence + Settings UI display + E2E extension (FE-05, QA-02)
+- [x] 06-02-PLAN.md — Sync error persistence + Settings UI display + E2E extension (FE-05, QA-02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

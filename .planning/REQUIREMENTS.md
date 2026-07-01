@@ -10,41 +10,41 @@ Requirements for v1.9.x refactor release. Each maps to roadmap phases.
 ### Frontend Modularization
 
 - [ ] **FE-01**: `App.tsx` reduced to layout shell, navigation, and view router only (no view-specific business logic)
-- [ ] **FE-02**: Chat view extracted to `src/views/ChatView.tsx` with `useChat` hook; IPC via `src/lib/tauri.ts`
-- [ ] **FE-03**: Library and Tasks views extracted with dedicated hooks; index/Lark actions preserved
-- [ ] **FE-04**: Memory view extracted with `useMemory` hook; memory CRUD UI unchanged in behavior
-- [ ] **FE-05**: Settings view extracted with `useJarvisConfig` hook; all config fields editable
-- [ ] **FE-06**: All existing `data-testid` selectors preserved or updated in same PR as JSX moves
+- [x] **FE-02**: Chat view extracted to `src/views/ChatView.tsx` with `useChat` hook; IPC via `src/lib/tauri.ts`
+- [x] **FE-03**: Library and Tasks views extracted with dedicated hooks; index/Lark actions preserved
+- [x] **FE-04**: Memory view extracted with `useMemory` hook; memory CRUD UI unchanged in behavior
+- [x] **FE-05**: Settings view extracted with `useJarvisConfig` hook; all config fields editable
+- [x] **FE-06**: All existing `data-testid` selectors preserved or updated in same PR as JSX moves
 
 ### Tauri Shell
 
 - [ ] **SHELL-01**: `AppState` moved to `src-tauri/src/state.rs`; `lib.rs` is registration + startup only
-- [ ] **SHELL-02**: Chat commands in `src-tauri/src/commands/chat.rs` with unchanged IPC signatures
-- [ ] **SHELL-03**: Index/Lark commands in `commands/index.rs` and `commands/lark.rs`; progress events preserved
-- [ ] **SHELL-04**: Memory and agent commands in `commands/memory.rs` and `commands/agent.rs`
-- [ ] **SHELL-05**: Config commands in `commands/config.rs`; E2E bootstrap path unchanged in `e2e.rs`
+- [x] **SHELL-02**: Chat commands in `src-tauri/src/commands/chat.rs` with unchanged IPC signatures
+- [x] **SHELL-03**: Index/Lark commands in `commands/index.rs` and `commands/lark.rs`; progress events preserved
+- [x] **SHELL-04**: Memory and agent commands in `commands/memory.rs` and `commands/agent.rs`
+- [x] **SHELL-05**: Config commands in `commands/config.rs`; E2E bootstrap path unchanged in `e2e.rs`
 
 ### Config & Secrets
 
-- [ ] **CFG-01**: `AppConfig` split into nested structs (`EmbeddingConfig`, `SyncConfig`, `AgentConfig`) with serde flatten for backward compat
-- [ ] **CFG-02**: `cloud_api_key` stored in OS keychain via `keyring` crate; plaintext stripped from `config.json` on save
-- [ ] **CFG-03**: Legacy config migration: load plaintext key once, migrate to keychain, round-trip all non-secret fields
+- [x] **CFG-01**: `AppConfig` split into nested structs (`EmbeddingConfig`, `SyncConfig`, `AgentConfig`) with serde flatten for backward compat
+- [x] **CFG-02**: `cloud_api_key` stored in OS keychain via `keyring` crate; plaintext stripped from `config.json` on save
+- [x] **CFG-03**: Legacy config migration: load plaintext key once, migrate to keychain, round-trip all non-secret fields
 
 ### Agent Protocol
 
-- [ ] **AGT-01**: `ToolCallParser` trait with structured JSON path for Mock and OpenAI-compatible providers
-- [ ] **AGT-02**: Tool parse failures surfaced to UI (not silent `None`); XML parser retained as fallback during migration
-- [ ] **AGT-03**: E2E agent specs pass with structured tool call format
+- [x] **AGT-01**: `ToolCallParser` trait with structured JSON path for Mock and OpenAI-compatible providers
+- [x] **AGT-02**: Tool parse failures surfaced to UI (not silent `None`); XML parser retained as fallback during migration
+- [x] **AGT-03**: E2E agent specs pass with structured tool call format
 
 ### Memory Model
 
-- [ ] **MEM-01**: New memories use `uri = memory://{uuid}`; strict ID resolution (no fuzzy title `contains` match)
-- [ ] **MEM-02**: Migration script sets URI on existing memory sources; one-release title fallback with deprecation log
+- [x] **MEM-01**: New memories use `uri = memory://{uuid}`; strict ID resolution (no fuzzy title `contains` match)
+- [x] **MEM-02**: Migration script sets URI on existing memory sources; one-release title fallback with deprecation log
 
 ### Quality Gates
 
 - [ ] **QA-01**: `npm run test:e2e:local` green after every phase merge
-- [ ] **QA-02**: Architecture review checklist passes (module boundaries match crate layout, single DB owner, thin shell)
+- [x] **QA-02**: Architecture review checklist passes (module boundaries match crate layout, single DB owner, thin shell)
 - [ ] **QA-03**: `cargo test --workspace` and `npm test` green after every phase merge
 - [ ] **QA-04**: No new user-facing features except small fixes in files already being refactored
 
@@ -81,27 +81,28 @@ Deferred to post-v1.9 refactor completion.
 | SHELL-01 | Phase 1 | Pending |
 | QA-01 | Phase 1 | Pending |
 | QA-03 | Phase 1 | Pending |
-| FE-02 | Phase 2 | Pending |
-| FE-06 | Phase 2 | Pending |
-| SHELL-02 | Phase 2 | Pending |
-| CFG-01 | Phase 2 | Pending |
-| FE-03 | Phase 3 | Pending |
-| SHELL-03 | Phase 3 | Pending |
-| CFG-02 | Phase 3 | Pending |
-| CFG-03 | Phase 3 | Pending |
-| FE-04 | Phase 4 | Pending |
-| SHELL-04 | Phase 4 | Pending |
-| MEM-01 | Phase 4 | Pending |
-| MEM-02 | Phase 4 | Pending |
-| AGT-01 | Phase 5 | Pending |
-| AGT-02 | Phase 5 | Pending |
-| AGT-03 | Phase 5 | Pending |
-| SHELL-05 | Phase 5 | Pending |
-| FE-05 | Phase 6 | Pending |
-| QA-02 | Phase 6 | Pending |
+| FE-02 | Phase 2 | Complete |
+| FE-06 | Phase 2 | Complete |
+| SHELL-02 | Phase 2 | Complete |
+| CFG-01 | Phase 2 | Complete |
+| FE-03 | Phase 3 | Complete |
+| SHELL-03 | Phase 3 | Complete |
+| CFG-02 | Phase 3 | Complete |
+| CFG-03 | Phase 3 | Complete |
+| FE-04 | Phase 4 | Complete |
+| SHELL-04 | Phase 4 | Complete |
+| MEM-01 | Phase 4 | Complete |
+| MEM-02 | Phase 4 | Complete |
+| AGT-01 | Phase 5 | Complete |
+| AGT-02 | Phase 5 | Complete |
+| AGT-03 | Phase 5 | Complete |
+| SHELL-05 | Phase 5 | Complete |
+| FE-05 | Phase 6 | Complete |
+| QA-02 | Phase 6 | Complete |
 | QA-04 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 22 total
 - Mapped to phases: 22
 - Unmapped: 0 ✓
