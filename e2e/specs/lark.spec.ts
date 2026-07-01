@@ -18,8 +18,10 @@ describe("Lark / Feishu integration (E2E mock)", () => {
       '[data-testid="lark-status-panel"]',
       "lark-cli 可用",
     );
-    const panel = await $('[data-testid="lark-status-panel"]');
-    const text = await panel.getText();
+    const text = await browser.execute(() => {
+      const el = document.querySelector('[data-testid="lark-status-panel"]');
+      return el?.textContent ?? "";
+    });
     expect(text).toContain("lark-cli 可用");
     expect(text).toContain("E2E User");
   });

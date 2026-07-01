@@ -91,7 +91,7 @@ pub fn init_schema(conn: &Connection, dim: usize) -> Result<()> {
 }
 
 fn migrate(conn: &Connection) -> Result<()> {
-    let version: i64 = conn
+    let mut version: i64 = conn
         .query_row(
             "SELECT value FROM meta WHERE key='schema_version'",
             [],
@@ -126,6 +126,7 @@ fn migrate(conn: &Connection) -> Result<()> {
             "UPDATE meta SET value = '2' WHERE key = 'schema_version'",
             [],
         )?;
+        version = 2;
     }
 
     if version < 3 {
@@ -211,6 +212,11 @@ mod tests {
             "
             CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             INSERT INTO meta VALUES ('schema_version', '1');
+            CREATE TABLE sources (
+                id TEXT PRIMARY KEY, kind TEXT NOT NULL, uri TEXT NOT NULL,
+                title TEXT NOT NULL, content_hash TEXT NOT NULL,
+                indexed_at INTEGER, status TEXT NOT NULL, error TEXT
+            );
             ",
         )
         .unwrap();
@@ -222,7 +228,7 @@ mod tests {
                 r.get(0)
             })
             .unwrap();
-        assert_eq!(version, "2");
+        assert_eq!(version, "3");
     }
 
     #[test]
