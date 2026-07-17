@@ -112,7 +112,7 @@
 
 ### Phase 5: Agent Protocol
 
-**Goal:** Replace fragile XML tool parsing with structured JSON; complete agent command module.
+**Goal:** As a Jarvis user, I want to use agent mode with structured JSON tool calls and see parse warnings in chat, so that I can trust agent answers when tool parsing fails.
 
 **Mode:** mvp
 
