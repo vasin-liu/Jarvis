@@ -10,6 +10,19 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
+## Current Milestone: v1.10 Wiki Compile Layer
+
+**Goal:** Add an optional, rebuildable Markdown wiki layer beside existing RAG — with Obsidian zip export — without replacing hybrid retrieval or citations.
+
+**Target features:**
+- `WikiConfig` (default off) + `SourceKind::WikiPage`
+- Insights compile: LLM analysis → entity/concept/source Markdown under `wiki/`
+- Index wiki pages through existing ingest pipeline (`content_hash` idempotent)
+- Library/Settings: compile notes + export Obsidian zip
+- E2E journey: enable → compile → list wiki page → export
+
+**Plan draft:** `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+
 ## Core Value
 
 **Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.**
