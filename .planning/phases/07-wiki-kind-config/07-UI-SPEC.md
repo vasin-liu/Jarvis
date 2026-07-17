@@ -139,14 +139,14 @@ Config plumbing (`WikiConfig` on disk; optional FE `wiki` pass-through) is **not
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS — sole in-scope string locked as `笔记页`; CTA/empty/error/destructive marked N/A
-- [ ] Dimension 2 Visuals: PASS — inherit liquid-glass system; no new chrome; no chip/icon
-- [ ] Dimension 3 Color: PASS — inherit 60/30/10; accent not applied to kind label
-- [ ] Dimension 4 Typography: PASS — inherit sizes/weights; label matches sibling kind labels
-- [ ] Dimension 5 Spacing: PASS — inherit scale; no layout exceptions
-- [ ] Dimension 6 Registry Safety: PASS — no shadcn / no third-party blocks
+- [x] Dimension 1 Copywriting: PASS — sole in-scope string locked as `笔记页`; CTA/empty/error/destructive marked N/A
+- [x] Dimension 2 Visuals: PASS — inherit liquid-glass system; no new chrome; no chip/icon
+- [x] Dimension 3 Color: PASS — inherit 60/30/10; accent not applied to kind label
+- [x] Dimension 4 Typography: PASS — inherit sizes/weights; label matches sibling kind labels
+- [x] Dimension 5 Spacing: PASS — inherit scale; no layout exceptions
+- [x] Dimension 6 Registry Safety: PASS — no shadcn / no third-party blocks
 
-**Approval:** pending
+**Approval:** approved 2026-07-17
 
 ---
 
