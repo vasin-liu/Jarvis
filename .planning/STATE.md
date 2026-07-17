@@ -1,74 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: milestone
-current_phase: 06
-status: Ready to plan
-stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-07-01T04:56:43.175Z"
+milestone: null
+milestone_name: null
+current_phase: null
+status: Milestone v1.9 shipped — ready for /gsd-new-milestone
+stopped_at: Completed v1.9 Structural Refactor closeout
+last_updated: "2026-07-17T05:30:00.000Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 22
-  completed_plans: 21
-  percent: 83
+  completed_plans: 22
+  percent: 100
 ---
 
 # Project State
 
-**Project:** Jarvis v1.9.x Structural Refactor  
+**Project:** Jarvis  
 **Initialized:** 2026-06-17  
-**Current phase:** 06
+**Last milestone:** v1.9 Structural Refactor (SHIPPED 2026-07-17)
 
-## Project Reference
+## Current focus
 
-See: `.planning/PROJECT.md` (updated 2026-06-17)
+Ready for `/gsd-new-milestone` — recommended **v1.10 Wiki Compile Layer**.
 
-**Core value:** Users can ask questions and run agents against their own indexed knowledge — locally, with citations.  
-**Current focus:** Phase 06 — settings-architecture-review
+## Deferred Items
 
-## Progress
+Items acknowledged at milestone close on 2026-07-17:
 
-| Phase | Name | Status | Version |
-|-------|------|--------|---------|
-| 1 | Scaffold + Shell Foundation | Context gathered | v1.9.0 |
-| 2 | Chat Extraction + Config Types | Not started | v1.9.1 |
-| 3 | Library/Tasks + Keychain | Context gathered | v1.9.2 |
-| 4 | Memory Model + View | Not started | v1.9.3 |
-| 5 | Agent Protocol | Not started | v1.9.4 |
-| 6 | Settings + Arch Review | Not started | v1.9.5–1.9.6 |
-
-## Artifacts
-
-| Artifact | Path | Status |
+| Category | Item | Status |
 |----------|------|--------|
-| Project context | `.planning/PROJECT.md` | ✓ |
-| Config | `.planning/config.json` | ✓ |
-| Codebase map | `.planning/codebase/` | ✓ |
-| Research | `.planning/research/` | ✓ |
-| Requirements | `.planning/REQUIREMENTS.md` | ✓ |
-| Roadmap | `.planning/ROADMAP.md` | ✓ |
-| Phase 1 context | `.planning/phases/01-scaffold-shell-foundation/01-CONTEXT.md` | ✓ |
-| Phase 3 context | `.planning/phases/03-library-tasks-keychain/03-CONTEXT.md` | ✓ |
-
-## Decisions Log
-
-| Date | Decision | Rationale |
-|------|----------|-----------|
-| 2026-06-17 | Incremental refactor, v1.9.x framing | Preserve E2E safety; avoid v2.0 breaking expectations |
-| 2026-06-17 | Balanced phasing across layers | No single layer frozen for long |
-| 2026-06-17 | Vertical MVP phase structure | Each phase delivers end-to-end slice |
-| 2026-06-17 | Success = arch review + E2E + keychain | Measurable done criteria |
-
-## Blockers
-
-None.
-
----
-*State initialized: 2026-06-17*
+| audit | Missing formal `v1.9-MILESTONE-AUDIT.md` | deferred — phase VERIFICATION+UAT used instead |
+| uat_gaps | `01-UAT.md` flagged by audit-open despite status=passed | deferred — no open scenarios |
+| product | DeferredEmbedder + deferred initial_scan (startup hang fix) | shipped in tree; ensure included in next app release |
+| product | Wiki compile layer | deferred to v1.10 |
 
 ## Session
 
-**Last session:** 2026-06-30T11:22:43.463Z
-**Stopped at:** Phase 6 UI-SPEC approved
-**Resume file:** .planning/phases/06-settings-architecture-review/06-UI-SPEC.md
+**Last session:** 2026-07-17  
+**Stopped at:** v1.9 milestone archived  
+**Resume:** `/gsd-new-milestone` with Wiki Compile plan
