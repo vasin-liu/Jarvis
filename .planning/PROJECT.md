@@ -29,10 +29,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 ## Next Milestone Goals
 
-- Optional **Wiki compile layer** (entity/concept/source Markdown beside RAG chunks; default off)
-- Obsidian-compatible zip export
-- Keep RAG + citations authoritative; wiki pages are additive `SourceKind::WikiPage`
-- Plan: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 
 ## Requirements
 
@@ -60,7 +57,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10 candidate)
+- [ ] Wiki compile layer + Obsidian export (v1.10)
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
@@ -70,6 +67,8 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - Full plugin sandbox / DAG orchestration — per design spec non-goals
 - Big-bang rewrite — incremental slices only
 - Replacing SQLite, Tauri, or React stack
+- Wiki graph UI / Louvain / LanceDB / Chrome clipper / Deep Research (v1.10 exclusions)
+- Bidirectional Obsidian sync (export-only in v1.10)
 
 <details>
 <summary>v1.9 planning context (archived narrative)</summary>
@@ -106,4 +105,4 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-17 after `/gsd-complete-milestone` v1.9*
+*Last updated: 2026-07-17 after `/gsd-new-milestone` v1.10 Wiki Compile Layer*
