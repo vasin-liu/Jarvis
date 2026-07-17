@@ -1,111 +1,100 @@
-# Stack Research — Jarvis v1.9 Incremental Refactor
+# Stack Research
 
-**Analysis Date:** 2026-06-17  
-**Scope:** Refactor-specific additions to existing v1.8.0 stack (not greenfield)  
-**Confidence:** HIGH (existing codebase + established ecosystem)
+**Domain:** Local-first knowledge hub — Wiki Compile Layer (v1.10)
+**Researched:** 2026-07-17
+**Confidence:** HIGH
 
----
+## Recommended Stack
 
-## Standard Stack (Preserved)
+### Core Technologies (preserved — do not replace)
 
-No changes to core stack — refactor is structural only.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Rust stable | MSRV 1.85 | Domain logic | Existing workspace |
+| Tauri 2 | workspace pin | Desktop shell / IPC | Existing shell |
+| React 19 + Vite 7 | package.json | Library/Settings UI | Existing FE |
+| SQLite + FTS5 + sqlite-vec | rusqlite 0.32 | Index wiki pages as sources | Single DB owner via `store` |
+| `ChatModel` / Mock | crates/llm | Wiki analysis LLM | Trait injection + E2E mocks |
 
-| Layer | Technology | Location |
-|-------|------------|----------|
-| Desktop | Tauri 2 | `src-tauri/` |
-| Backend | Rust stable, edition 2021, MSRV 1.85 | `crates/*`, `rust-toolchain.toml` |
-| Frontend | React 19 + TypeScript + Vite 7 | `src/` |
-| Styling | Tailwind CSS v4 + Motion | `src/index.css`, `package.json` |
-| Storage | rusqlite (bundled FTS5) + sqlite-vec | `crates/store/` |
-| Testing | cargo test, Vitest 3, WebdriverIO 9 + tauri-driver | `e2e/` |
+### Supporting Libraries (NEW for v1.10)
 
----
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `zip` | **2.4.2** (stable; avoid `9.0.0-pre2`) | Write Obsidian vault zip | Export only; prefer `deflate` feature subset if size matters |
+| `walkdir` | **2.5.0** | Walk `wiki/` tree for zip | Export; or `std::fs` recurse if tree stays shallow |
+| `tempfile` | **3.27.0** (or workspace pin) | Temp dirs in export/unit tests | Tests only — already common in workspace |
+| Hand-rolled slugify | — | `entities/{slug}` paths | Prefer over `slug` crate (CJK → empty slug; plan uses hash fallback) |
+| Hand-rolled YAML frontmatter | — | `title` / `type` / `sources` / `content_hash` | Avoid `serde_yaml` (deprecated on crates.io) |
 
-## Refactor-Specific Additions
+### Development Tools
 
-### OS Keychain for secrets
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `cargo test -p insights` | Renderer + analyze unit tests | MockChatModel |
+| Vitest | `sourceDisplay` wiki_page label | Existing |
+| WebdriverIO + `JARVIS_E2E=1` | `e2e/specs/wiki.spec.ts` | Deterministic mocks |
 
-| Crate | Version | Purpose |
-|-------|---------|---------|
-| `keyring` | latest stable (~3.x) | Cross-platform credential store for `cloud_api_key` |
+## Installation
 
-**Implementation:** `crates/config/src/secrets.rs` — read/write API key via keyring; `config.json` stores key reference or omits secret field. Migrate on load: if plaintext key exists, write to keyring and strip from JSON.
+```toml
+# workspace Cargo.toml [workspace.dependencies]
+zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
+walkdir = "2.5"
 
-**Files:** `crates/config/src/file.rs`, `crates/config/src/types.rs`, Settings UI in `src/views/SettingsView.tsx`
+# crates/insights (or src-tauri if export lives in shell):
+# zip = { workspace = true }
+# walkdir = { workspace = true }
+```
 
-### React view extraction (no new deps)
+No new npm packages required for v1.10 wiki UI (existing React + Tabler).
 
-Use existing React 19 patterns — no router library required for v1.9 (view state stays in `App.tsx` shell).
+## Alternatives Considered
 
-| Pattern | Where |
-|---------|-------|
-| View components | `src/views/{Chat,Library,Tasks,Memory,Settings}View.tsx` |
-| IPC hooks | `src/hooks/use{Chat,Library,Tasks,Memory,Config}.ts` |
-| Typed invoke wrappers | `src/lib/tauri.ts` |
-
-### Tauri command modules (no new deps)
-
-Rust module split only — `tauri::generate_handler!` unchanged at registration site.
-
-| Module | Commands |
-|--------|----------|
-| `src-tauri/src/commands/chat.rs` | Session CRUD, ask, stream |
-| `src-tauri/src/commands/index.rs` | Rebuild, sync, progress |
-| `src-tauri/src/commands/lark.rs` | Lark auth, fetch |
-| `src-tauri/src/commands/memory.rs` | Memory CRUD, learn |
-| `src-tauri/src/commands/agent.rs` | Agent profiles, orchestration |
-| `src-tauri/src/commands/config.rs` | get/set config, providers |
-| `src-tauri/src/state.rs` | `AppState` struct |
-
-### Structured agent tool calls
-
-| Approach | When |
-|----------|------|
-| OpenAI `response_format: json_object` / tool_calls API | Cloud providers (`crates/llm/`) |
-| Strict JSON line protocol | Mock + E2E (`JARVIS_E2E=1`) |
-| XML parser fallback | Legacy path during migration (`crates/agent/src/tools.rs`) |
-
-**No new crate** — extend `ChatModel` trait with optional structured completion; `ToolCallParser` trait in `crates/agent/`.
-
-### Memory URI scheme
-
-No new dependencies — use existing `store` sources table with `uri = memory://{uuid}` convention.
-
----
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `zip` 2.4.2 | `zip` 9.x pre | Never in product until stable release |
+| Hand YAML strings | `serde_yaml` 0.9 | Avoid — marked deprecated; frontmatter is tiny |
+| Hand YAML strings | `yaml_serde` / `serde_yml` | Only if round-trip parse becomes required |
+| Hand slugify | `slug` 0.1.6 | OK if tests cover CJK empty-slug → hash fallback |
+| `walkdir` | Manual `read_dir` recurse | Fine for shallow `wiki/{entities,concepts,sources}` |
+| Store wiki as files + `SourceKind::WikiPage` | Separate LanceDB / graph DB | Out of scope — breaks single-store rule |
 
 ## What NOT to Use
 
-| Avoid | Why |
-|-------|-----|
-| React Router / TanStack Router | Overkill for 5-view tab nav; adds migration risk |
-| Redux / Zustand (new) | App already uses local state; introduce only if hook extraction proves insufficient |
-| New workspace crate for "commands" | Tauri commands belong in `src-tauri`, not a separate crate |
-| Diesel / SQLx | `store` owns rusqlite; no ORM migration |
-| Electron migration | Out of scope |
-| Full rewrite to Tauri plugins architecture | Incremental only |
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| LanceDB / vector DB swap | Dual index, ops cost | Existing sqlite-vec pipeline |
+| Graph UI / Louvain crates | Scope creep | Obsidian viewer after zip export |
+| `serde_yaml` | Deprecated upstream | Format frontmatter with `format!` / small helper |
+| Bidirectional Obsidian sync crates | Conflict / merge complexity | Export-only zip |
+| Native Obsidian plugin host | Not a desktop embedding target | Zip vault for external Obsidian |
+| Live LLM in CI | Flaky / cost | MockChatModel + `JARVIS_E2E=1` |
+
+## Stack Patterns by Variant
+
+**If export stays in `insights` crate:**
+- Depend on `zip` + `walkdir` there; Tauri command stays thin.
+
+**If export stays in `src-tauri`:**
+- Keep pure Markdown compile in `insights`; shell owns zip I/O + dialog path — still no SQLite outside `store`.
+
+**If CJK entity names dominate:**
+- Slug = `e-{sha256_6(name)}` when ASCII slug empty; title stays in frontmatter/body.
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `zip` 2.4.2 | MSRV 1.73+ | Fine under workspace 1.85 |
+| `walkdir` 2.5 | any recent Rust | Stable API |
+| Existing `sha2` / `hex` | slug hash fallback | Already in workspace |
+
+## Sources
+
+- crates.io `cargo search` / `cargo info zip` — stable **2.4.2**, latest pre **9.0.0-pre2** (2026-07-17)
+- Plan: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+- Workspace: root `Cargo.toml`, `crates/insights`
 
 ---
-
-## Version Verification
-
-| Package | Verify before adding |
-|---------|---------------------|
-| `keyring` | crates.io latest stable; test Windows Credential Manager |
-| `tauri` | Stay on 2.x line already pinned in workspace |
-
----
-
-## Confidence Levels
-
-| Recommendation | Confidence | Notes |
-|----------------|------------|-------|
-| Preserve existing stack | HIGH | Brownfield; no stack debate needed |
-| `keyring` for API secrets | HIGH | Standard pattern for desktop apps |
-| View/hook extraction without router | HIGH | Matches current tab-based UI |
-| `commands/*` module split | HIGH | Standard Rust module pattern |
-| Structured tool calls via provider JSON mode | MEDIUM | Provider-specific quirks need per-provider tests |
-| `memory://` URI without new table | MEDIUM | May need dedicated table in v2 if collisions persist |
-
----
-
-*Stack research: 2026-06-17*
+*Stack research for: Wiki Compile Layer (Jarvis v1.10)*
+*Researched: 2026-07-17*

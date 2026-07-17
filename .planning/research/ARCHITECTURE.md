@@ -1,587 +1,278 @@
-# Architecture Research — v1.9.x Incremental Refactor
+# Architecture Research
 
-> **Date:** 2026-06-17  
-> **Scope:** Structural refactor of Jarvis v1.8.0 brownfield  
-> **Inputs:** `.planning/PROJECT.md`, `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/STRUCTURE.md`, `.planning/codebase/CONCERNS.md`  
-> **Question:** How should refactored Jarvis be structured? Component boundaries, migration order, data flow preservation, balanced phasing.
+**Domain:** Local-first knowledge hub — optional Wiki Compile Layer (v1.10)
+**Researched:** 2026-07-17
+**Confidence:** HIGH
 
----
+## Standard Architecture
 
-## Executive Summary
+### System Overview
 
-Jarvis already has a sound **layered architecture**: React presentation → Tauri IPC shell → domain crates → `store` (sole SQLite owner). The v1.9.x refactor does **not** change the stack or the core data flows (index → store, retrieve → RAG, agent tool loop). It **decomposes two monoliths** (`src/App.tsx` ~2,800 lines, `src-tauri/src/lib.rs` ~1,300 lines + 52 commands) and hardens three cross-cutting concerns (config/secrets, agent protocol, memory identity).
-
-**Strategy:** Vertical migration slices that touch frontend + shell + (when needed) domain crate in the same phase, with E2E green after every merge. **Balanced phasing** interleaves layers so no single area is frozen for long.
-
-**Non-goals:** New workspace crates unless a boundary is proven insufficient; big-bang rewrite; v2.0 breaking changes; replacing SQLite/Tauri/React.
-
----
-
-## Preserved Invariants (Do Not Break)
-
-These constraints survive every phase. Violating them is a refactor failure, not a style preference.
-
-| Invariant | Rationale |
-|-----------|-----------|
-| **Single DB owner** (`crates/store` only opens SQLite) | Lock/schema authority; no connection races |
-| **Normalize-to-Document** | All sources → `ingest::Document` + `SourceKind` → `indexer::index_document` |
-| **Trait-based providers** | `Embedder`, `ChatModel`, `CommandRunner` — mocks in unit/E2E |
-| **Thin shell, fat crates** | Tauri commands validate + delegate; business logic stays testable without Tauri |
-| **IPC name stability** | `snake_case` command names unchanged unless explicit migration + E2E update |
-| **E2E gate** | `npm run test:e2e:local` green after every phase |
-| **Existing user data** | `config.json` and `jarvis.db` migrate without data loss |
-| **Composition root** | `src-tauri` wires providers, watcher, scheduler; crates do not depend on Tauri |
-
----
-
-## Target Architecture
-
-### Layer Model (unchanged semantics, clearer file boundaries)
+Wiki compile is an **optional side path** off the existing insights → Document → indexer pipeline. It does not replace hybrid retrieval or citation authority.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Presentation   src/                                        │
-│  App shell + views + hooks + lib/tauri.ts                   │
+│  Presentation — React (Library / Settings)                   │
+│  wiki-enabled toggle · 生成笔记 · 导出 Wiki · wiki_page list │
 ├─────────────────────────────────────────────────────────────┤
-│  IPC / Shell    src-tauri/                                  │
-│  state.rs + commands/* + index_ops + sync_scheduler + e2e   │
+│  IPC / Shell — src-tauri                                     │
+│  commands/wiki.rs (or library) · insights_ops glue · e2e    │
 ├─────────────────────────────────────────────────────────────┤
-│  Application    index_ops, insights_ops, sync_scheduler     │
-│  (orchestration glue — may absorb thin command logic)       │
-├─────────────────────────────────────────────────────────────┤
-│  Domain         crates: rag, agent, indexer, retriever, …   │
-├─────────────────────────────────────────────────────────────┤
-│  Infrastructure config (+ secrets), embedder, llm, lark, …    │
-├─────────────────────────────────────────────────────────────┤
-│  Persistence    crates/store                                │
+│  Domain crates                                               │
+│  ┌──────────────┐  ┌────────────┐  ┌─────────────────────┐ │
+│  │ insights     │  │ indexer    │  │ config (WikiConfig) │ │
+│  │ wiki.rs      │→ │ index_doc  │  └─────────────────────┘ │
+│  │ wiki_export  │  └─────┬──────┘                          │
+│  └──────┬───────┘        │                                   │
+│         │ LLM analyze    │ Document + SourceKind::WikiPage   │
+├─────────┴────────────────┴───────────────────────────────────┤
+│  store (sole SQLite) · {app_data}/wiki/*.md on disk          │
+│  RAG/retriever unchanged — WikiPage = additional sources     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Dependency rule (unchanged):** Domain → `store` + traits. Domain ↛ Tauri/React. `src-tauri` is the only upward dependency from crates to the desktop shell.
+### Component Responsibilities
 
----
+| Component | Responsibility | Typical Implementation |
+|-----------|----------------|------------------------|
+| `insights::wiki` | Analyze source → `WikiAnalysis`; render Markdown drafts; write `{app_data}/wiki/`; build Documents | New `wiki.rs` (+ optional `wiki_export.rs`); reuse `truncate_chars`, `ChatModel` |
+| `insights_ops` | Optional auto-compile after summarize when `wiki.auto_on_insights` | Extend `maybe_run_insights_for_source` |
+| `store` | Persist `SourceKind::WikiPage`; list/upsert like any source | Enum + `as_str`/`parse`; no new tables required |
+| `indexer` | Chunk + embed wiki Markdown via existing `index_document` | **Unchanged API** — called with `SourceKind::WikiPage` |
+| `config::WikiConfig` | Feature flag + auto-on-insights | Nested in `AppConfig`, `#[serde(default)]`, both default `false` |
+| Tauri wiki commands | Thin IPC: compile / export zip / list pages | `commands/wiki.rs` or extend `commands/library.rs` |
+| Library / Settings UI | Enable flag; per-source compile; export; kind label | `LibraryView`, Settings accordion, `sourceDisplay.ts` |
+| RAG / retriever | Retrieve wiki chunks as normal hits | **No code change** — citations still prefer original sources in product policy |
 
-## Target Directory Layout
-
-### Frontend (`src/`)
-
-Current: single `App.tsx` owns types, layout, five views, ~30 `useState`, IPC, event listeners.
-
-**Target:**
-
-```
-src/
-├── main.tsx
-├── index.css
-├── App.tsx                      # Shell only: layout, nav, view router, global banners
-├── types/
-│   └── ipc.ts                   # ChatSession, Source, AppConfig, … (mirror Rust serde shapes)
-├── lib/
-│   ├── tauri.ts                 # Typed invoke wrappers (one fn per command group)
-│   ├── citations.ts
-│   ├── sourceDisplay.ts
-│   └── events.ts                # listen("index-progress", …) setup helpers
-├── hooks/
-│   ├── useJarvisConfig.ts       # get/set config, refresh, save side effects
-│   ├── useChat.ts               # sessions, messages, ask/stream, agent mode
-│   ├── useLibrary.ts            # sources, index status, lark/cursor sync
-│   ├── useTasks.ts
-│   ├── useMemory.ts
-│   └── useIndexProgress.ts      # shared progress banner state
-├── components/
-│   ├── layout/
-│   │   ├── Sidebar.tsx
-│   │   ├── IndexProgressBanner.tsx
-│   │   └── ErrorBanner.tsx
-│   └── ui/
-│       ├── StatusBadge.tsx
-│       └── SourceKindIcon.tsx
-└── views/
-    ├── ChatView.tsx
-    ├── LibraryView.tsx
-    ├── TasksView.tsx
-    ├── MemoryView.tsx
-    └── SettingsView.tsx
-```
-
-**Boundary rules:**
-
-| Module | Owns | Must not own |
-|--------|------|--------------|
-| `views/*` | View-local UI state, render, `data-testid` | Cross-view global state |
-| `hooks/*` | IPC calls, refresh logic, derived state for one domain | JSX layout |
-| `lib/tauri.ts` | `invoke` typing, error mapping | React hooks |
-| `App.tsx` | `view` route, mount hooks, compose layout | Feature-specific forms |
-
-**Size targets:** `App.tsx` < 200 lines; each view < 400 lines; hooks < 250 lines.
-
----
-
-### Tauri shell (`src-tauri/src/`)
-
-Current: `lib.rs` = `AppState` + 52 `#[tauri::command]` + `run()` + seeds + agent/RAG/Lark/memory glue.
-
-**Target:**
+## Recommended Project Structure
 
 ```
+crates/
+├── store/src/types.rs          # + SourceKind::WikiPage ("wiki_page")
+├── config/src/types.rs         # + WikiConfig { enabled, auto_on_insights }
+├── insights/
+│   ├── src/lib.rs              # mod wiki; re-export compile_wiki_for_source
+│   ├── src/wiki.rs             # analyze, render, write, index wiring
+│   ├── src/wiki_export.rs      # export_wiki_zip (Obsidian stub)
+│   └── tests/wiki_compile.rs   # tempfile + MockChatModel + MockEmbedder
 src-tauri/src/
-├── main.rs
-├── lib.rs                       # mod declarations, run(), command registration only
-├── state.rs                     # AppState, impl helpers (config, reload_providers, watcher)
-├── commands/
-│   mod.rs                       # re-exports all command fns for generate_handler!
-│   config.rs                    # get_config, set_config, get_index_status
-│   index.rs                     # rebuild, retry, watch folders, cursor sync
-│   library.rs                   # list_sources, remove_source, source_count
-│   chat.rs                      # sessions, ask_in_session(_stream), persist_assistant
-│   agent.rs                     # profiles, skills/hooks/plugins, ask_agent_*
-│   lark.rs                      # check_lark, index_lark, sync_lark_*
-│   insights.rs                  # summarize, extract_tasks, run_insights_all
-│   tasks.rs                     # list/update/delete tasks
-│   memory.rs                    # list/add/update/forget memory
-│   sync.rs                      # get_sync_status, run_scheduled_sync_cmd
-│   e2e.rs                       # (existing) is_e2e_mode_cmd, fixtures
-├── index_ops.rs                 # (existing) rebuild/sync orchestration
-├── insights_ops.rs              # (existing)
-├── sync_scheduler.rs            # (existing)
-└── e2e.rs                       # (existing module file — keep or fold into commands/e2e)
+├── commands/wiki.rs            # compile_wiki, export_wiki_zip, list_wiki_pages
+├── insights_ops.rs             # optional auto_on_insights hook
+└── e2e.rs                      # Mock chat JSON sequence for wiki compile
+src/
+├── views/LibraryView.tsx       # 生成笔记 / 导出 Wiki (gated)
+├── lib/sourceDisplay.ts        # wiki_page → Wiki / 笔记页
+└── (Settings)                  # wiki.enabled toggle
+e2e/specs/wiki.spec.ts          # enable → compile → list → export
+{app_data}/wiki/                # runtime tree: index.md, entities/, concepts/, …
 ```
 
-**Boundary rules:**
+### Structure Rationale
 
-| Module | Owns | Delegates to |
-|--------|------|--------------|
-| `commands/*` | Input validation, `State<AppState>`, spawn async, emit events | `index_ops`, domain crates |
-| `state.rs` | `AppState` struct, watcher/scheduler lifecycle, provider reload | `config::build_*` |
-| `lib.rs` | `tauri::Builder`, `setup`, `generate_handler![…]` | — |
-| `index_ops.rs` | Multi-step index/rebuild/sync + progress events | `indexer`, `lark`, `cursor` |
+- **`crates/insights` (not a new crate):** Wiki is LLM-derived structured output from indexed sources — same concern as summarize/tasks. Avoids a workspace crate for one feature.
+- **Disk tree under `wiki/` + DB as `WikiPage`:** Dual representation matches the product (Obsidian export + RAG). Stable `wiki://{slug}` URIs make recompile idempotent via `content_hash`.
+- **Thin Tauri commands:** Mirror `summarize_source_cmd` / memory list patterns; all I/O and LLM logic stay in crates for `cargo test`.
+- **Feature flag in config:** Default-off preserves v1.8 UX; E2E can toggle without schema migrations beyond kind string.
 
-**Command grouping map (from current `lib.rs`):**
+## Architectural Patterns
 
-| `commands/` module | Commands (representative) |
-|--------------------|---------------------------|
-| `config` | `get_config`, `set_config`, `get_index_status` |
-| `index` | `rebuild_index`, `reinit_and_rebuild_index`, `retry_source`, `add_watch_folder`, `remove_watch_folder`, `list_cursor_transcripts`, `sync_cursor_transcripts_cmd` |
-| `library` | `source_count`, `list_sources`, `remove_source` |
-| `chat` | `list_chat_sessions`, `create_chat_session`, `delete_chat_session`, `list_chat_messages`, `ask_in_session`, `ask_in_session_stream`, `run_ask_in_session`, `start_ask_e2e` |
-| `agent` | `list_agent_profiles`, `upsert_agent_profile`, `set_active_agent`, `remove_agent_profile`, `list_skills`, `list_hooks`, `list_plugins`, `ask_agent_in_session`, `ask_agent_in_session_stream` |
-| `lark` | `check_lark_connection`, `detect_lark_cli`, `index_lark`, `sync_lark_doc`, `sync_lark_url` |
-| `insights` | `summarize_source_cmd`, `extract_tasks_cmd`, `run_insights_all_cmd` |
-| `tasks` | `list_tasks`, `update_task_status`, `delete_task` |
-| `memory` | `list_memories_cmd`, `get_memory_content_cmd`, `add_memory_cmd`, `update_memory_cmd`, `forget_memory_cmd` |
-| `sync` | `get_sync_status`, `run_scheduled_sync_cmd` |
+### Pattern 1: Normalize-to-Document (existing)
 
-**Size targets:** `lib.rs` < 150 lines; each `commands/*.rs` < 200 lines; shared helpers (`build_agent_context`, `agent_response_to_ask`) → `commands/agent.rs` or `state.rs`.
+**What:** Every ingest path builds `ingest::Document` + `SourceKind` and calls `indexer::index_document`.
+**When to use:** Wiki pages after Markdown write — same as Memory, Lark, Cursor.
+**Trade-offs:** Wiki pages appear in Library and RRF like any source (desired); risk of citation noise if UI does not distinguish kinds (mitigate with labels + product rule: prefer original chunks).
 
----
-
-### Domain crates (`crates/`)
-
-**No new crates required for v1.9.x** unless a refactor slice proves a boundary leak. Target changes are **internal** to existing crates:
-
-| Crate | Refactor touch | Notes |
-|-------|----------------|-------|
-| `config` | Nested `AppConfig`, secrets split | `EmbeddingConfig`, `ChatConfig`, `SyncConfig`, `AgentConfig`; `SecretsStore` trait |
-| `agent` | Structured tool protocol | Replace XML+JSON parse; keep `execute_tool` registry |
-| `memory` | Strict URI identity | `memory://{uuid}`; deprecate fuzzy title `resolve_memory_id` |
-| `store` | Optional `memories` meta or table | Only if memory slice needs dedicated storage; still sole DB owner |
-| Others | **Stable** | `ingest`, `indexer`, `retriever`, `rag`, `lark`, `cursor`, `watcher`, `insights` — no structural moves |
-
----
-
-## Module Boundaries (Refactor-Specific)
-
-### What moves out of monoliths
-
-```
-App.tsx                          lib.rs
-────────                         ──────
-types/*           ←──────────→   (serde types stay in Rust; TS mirrors in types/ipc.ts)
-view JSX            → views/*
-refresh/invoke      → hooks/* + lib/tauri.ts
-shared widgets      → components/*
-AppState            → state.rs
-#[tauri::command]   → commands/*
-agent/RAG glue      → commands/chat.rs + commands/agent.rs
-Lark IPC            → commands/lark.rs
-seed_skills_*       → state.rs or commands/agent.rs (startup only)
+**Example:**
+```rust
+// After writing wiki_root/{slug}.md
+let doc = Document { uri: format!("wiki://{slug}"), title, text: body, content_hash: sha256(body) };
+index_document(store, embedder, chunker, doc, SourceKind::WikiPage).await?;
 ```
 
-### What stays centralized
+### Pattern 2: Insights-style LLM → structured parse
 
-| Concern | Location | Why |
-|---------|----------|-----|
-| SQLite schema/migrations | `crates/store` | Single owner |
-| Index pipeline | `indexer` + `index_ops` | Already extracted |
-| Hybrid retrieval | `retriever` | Pure domain |
-| RAG prompt assembly | `rag` | No Tauri dependency |
-| Agent tool execution | `agent::tools` | Testable without IPC |
-| E2E mocks | `e2e.rs` + `JARVIS_E2E=1` | One switch for CI |
+**What:** `ChatModel::complete` with bare-JSON system prompt; parse into `WikiAnalysis`; fail closed on parse error (no partial disk write).
+**When to use:** `analyze_source_for_wiki` — parallel to `summarize_source` / `extract_tasks_from_source`.
+**Trade-offs:** Text-protocol JSON is Mock-friendly and provider-agnostic; brittle if model wraps fences (strip fences / first `{...}`).
 
-### Forbidden splits
+### Pattern 3: Pure render then impure persist
 
-- Do **not** open SQLite outside `store` to “fix” memory — extend `Store` API instead.
-- Do **not** duplicate RAG/retrieval logic in React hooks — hooks call `invoke`, crates compute.
-- Do **not** create `crates/tauri-commands` — shell stays in `src-tauri`.
-- Do **not** rename IPC commands without a compatibility shim and E2E pass.
+**What:** `render_wiki_pages(analysis, …) -> WikiCompileResult` is pure (unit-tested); `compile_wiki_for_source` owns FS + index.
+**When to use:** Always for wiki Markdown generation.
+**Trade-offs:** Slightly more types (`WikiPageDraft`); much easier TDD and slug/wikilink contracts.
 
----
+### Pattern 4: Generated-page overwrite guard
 
-## Data Flow Preservation
+**What:** Overwrite on-disk pages only when frontmatter has `generated: true`; skip re-embed when `content_hash` unchanged.
+**When to use:** Recompile / auto_on_insights loops.
+**Trade-offs:** Protects light user edits in v1.10 without full sync; does not support deep Obsidian bidirectional merge (out of scope).
 
-Every migration slice must preserve these end-to-end paths. Use as phase exit checklist.
+## Data Flow
 
-### 1. Index pipeline (unchanged path)
+### Request Flow — Manual compile
 
 ```
-Source → ingest/lark/cursor/memory → Document
-  → indexer::index_document(store, embedder, chunker, doc, SourceKind)
-  → store (sources, chunks, vec_chunks, chunks_fts)
-  → optional insights_ops → insights → store.tasks / source.summary
+Library "生成笔记" (wiki.enabled)
+    ↓ invoke compile_wiki({ sourceId })
+Tauri command → gate on WikiConfig.enabled
+    ↓
+insights::compile_wiki_for_source
+    ├─ store: load Indexed source + chunk text
+    ├─ ChatModel: analyze → WikiAnalysis (JSON)
+    ├─ render_wiki_pages → drafts + index.md body
+    ├─ FS: write {app_data}/wiki/{slug}.md (generated: true)
+    └─ indexer::index_document × N (SourceKind::WikiPage, uri wiki://…)
+    ↓
+{ pageCount } → Library refresh (list_sources / list_wiki_pages)
 ```
 
-**Triggers preserved:** file pick, watch events, startup scan, rebuild, Lark/Cursor sync, scheduled sync, memory add/update.
-
-**Refactor risk:** Moving commands must not drop `Emitter` progress events (`IndexProgressEvent`). `useIndexProgress` hook must still `listen` to the same event name.
-
-### 2. Q&A / RAG (unchanged path)
+### Request Flow — Auto after insights
 
 ```
-ChatView → invoke("ask_in_session" | "ask_in_session_stream")
-  → commands/chat.rs → rag::ask(_stream)
-  → retriever::retrieve → store.search_vector + search_fts → RRF
-  → llm::complete(_stream) → store.append_chat_message
-  → optional memory::learn_from_exchange
+index_ops success → insights_ops::maybe_run_insights_for_source
+    ↓ (existing) summarize / extract_tasks if sync flags
+    ↓ (new) if wiki.enabled && wiki.auto_on_insights
+compile_wiki_for_source(…)  // same path as manual
 ```
 
-**Refactor risk:** `Channel<TokenEvent>` streaming contract and `persist_assistant` timing must remain identical for E2E `streaming-answer` / `ask-busy` testids.
-
-### 3. Agent mode (unchanged path, protocol may harden)
+### Request Flow — Export
 
 ```
-ChatView (agent mode) → invoke("ask_agent_in_session" | "_stream")
-  → commands/agent.rs → agent::run_agent | run_orchestrated | run_routed
-  → tool loop → execute_tool → hooks
-  → AgentResponse → agent_response_to_ask → UI citations/tool_calls/orchestration_steps
+"导出 Wiki" → dialog destPath → export_wiki_zip(wiki_root, dest)
+    ↓ zip wiki_root/** + .obsidian/app.json stub
+{ path } success
 ```
 
-**Refactor risk:** Agent protocol change is a **separate sub-slice** with Mock LLM fixtures; do not mix with pure file moves in the same PR.
+### Key Data Flows
 
-### 4. Config / providers (evolving path)
+1. **Compile:** Indexed source chunks → LLM JSON → Markdown files → Documents → vectors/FTS as `WikiPage`.
+2. **RAG:** Retriever hybrid search may hit `wiki_page` chunks; product policy keeps original-source citations authoritative when both exist (no retriever fork required in v1.10).
+3. **Idempotent recompile:** Same mock/LLM output → same body hash → indexer skip; same `wiki://{slug}` upsert.
+4. **List:** `list_wiki_pages` filters `SourceKind::WikiPage` (or reads disk index.md); Library uses existing `list_sources` + kind label.
 
-```
-SettingsView → get_config / set_config
-  → state.save_config → config file (+ future keychain for secrets)
-  → reload_providers → build_embedder / build_chat_model
-  → may trigger reinit_and_rebuild_index on dim change
-```
-
-**Refactor risk:** Nested config structs must use `#[serde(flatten)]` or custom migrate for backward-compatible `config.json` load.
-
-### 5. Memory (evolving path)
+### State Management
 
 ```
-MemoryView → memory commands → memory crate → index_document(Memory)
-  → list_memories filters SourceKind::Memory
+AppConfig.wiki (persisted config.json)
+    ↓ load at startup / Settings save
+UI gates buttons + IPC rejects when disabled
+    ↓
+{app_data}/wiki/ + Store sources (WikiPage) — rebuildable from originals
 ```
 
-**Refactor risk:** URI scheme change requires migration: existing memories get `memory://{id}` URIs; `resolve_memory_id` keeps title fallback one release, then remove.
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Personal desktop (Jarvis default) | Per-source compile on demand; sequential LLM; fine |
+| Large libraries (1k+ sources) | Batch compile with progress events (reuse index-progress pattern); rate-limit auto_on_insights |
+| Multi-device / sync | Out of scope — zip export is the sync unit; no cloud wiki store |
+
+### Scaling Priorities
+
+1. **First bottleneck:** LLM calls per source on auto_on_insights — keep default `false`; batch UI later.
+2. **Second bottleneck:** Embed cost on many entity pages — rely on `content_hash` skip; avoid deleting/recreating URIs.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: New SQLite owner or wiki tables outside store
+
+**What people do:** Open a second DB for wiki graph, or write wiki rows from `insights` via raw SQL.
+**Why it's wrong:** Breaks single-DB-owner invariant; schema drift.
+**Do this instead:** `SourceKind::WikiPage` + existing sources/chunks/FTS/vec; only `store` opens connections.
+
+### Anti-Pattern 2: Replace RAG citations with wiki pages
+
+**What people do:** Point Q&A only at compiled summaries.
+**Why it's wrong:** Violates core value — answers must cite user originals when available.
+**Do this instead:** Index wiki as *additional* sources; keep retriever/RAG contracts; E2E qa journeys must stay green.
+
+### Anti-Pattern 3: Fat Tauri command with LLM + FS + zip
+
+**What people do:** Implement compile/export inside `#[tauri::command]`.
+**Why it's wrong:** Untestable without WebView; duplicates insights patterns.
+**Do this instead:** Logic in `crates/insights`; commands map `Result` → `String` like `summarize_source_cmd`.
+
+### Anti-Pattern 4: New workspace crate for wiki alone
+
+**What people do:** Add `crates/wiki` prematurely.
+**Why it's wrong:** Extra deps/boundaries for one optional feature; insights already owns LLM-over-source.
+**Do this instead:** `insights::wiki` module; extract a crate only if a later milestone adds graph sync / MCP surface that outgrows insights.
+
+### Anti-Pattern 5: Dual-write without hash / overwrite user edits
+
+**What people do:** Always rewrite every `.md` and force re-embed.
+**Why it's wrong:** Wastes embeds; clobbers Obsidian edits.
+**Do this instead:** `generated: true` guard + `content_hash` indexer skip; stable `wiki://` URIs.
+
+### Anti-Pattern 6: Live LLM in unit/E2E
+
+**What people do:** Call Ollama/cloud in CI for wiki JSON.
+**Why it's wrong:** Flaky, slow, non-deterministic.
+**Do this instead:** `MockChatModel` fixed JSON; extend `e2e.rs` mock sequences for compile command.
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| ChatModel (Mock / Ollama / Cloud) | Trait injection via AppState | Same resolver as summarize; Mock returns wiki JSON in E2E |
+| Embedder | Passed into `compile_wiki_for_source` | Reuse per-agent / global embedder; MockEmbedder in tests |
+| Filesystem `{app_data}/wiki` | Path from Tauri app data dir | Created on first compile; zip reads this tree only |
+| Obsidian (export only) | Zip + `.obsidian/app.json` stub | No live Obsidian API; unidirectional export |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| UI ↔ Tauri | `invoke` camelCase payloads | Gate on `wiki.enabled`; clear error if disabled |
+| Tauri ↔ insights | Direct async fn calls | Pass `&Store`, `&dyn ChatModel`, `&dyn Embedder`, `wiki_root` |
+| insights ↔ indexer | `index_document` | Do not reimplement chunk/embed |
+| insights ↔ store | Read source/chunks; list WikiPage | No Connection outside store |
+| insights_ops ↔ wiki | Optional post-summarize hook | Only if `auto_on_insights` |
+| RAG ↔ wiki sources | Indirect via Store search | No special retriever mode in v1.10 |
+| Frontend display ↔ kinds | `sourceDisplay.ts` | Exhaustive kind labels include `wiki_page` |
+
+### New vs Modified (explicit)
+
+| Status | Artifact |
+|--------|----------|
+| **New** | `crates/insights/src/wiki.rs`, optional `wiki_export.rs`, insights wiki tests |
+| **New** | `src-tauri/src/commands/wiki.rs` (or equivalent), `e2e/specs/wiki.spec.ts` |
+| **New** | Runtime `{app_data}/wiki/` tree |
+| **Modified** | `store` `SourceKind` (+ exhaustive matches / frontend labels) |
+| **Modified** | `config` `AppConfig` + `WikiConfig` |
+| **Modified** | `insights/src/lib.rs` exports |
+| **Modified** | `insights_ops.rs` for auto_on_insights |
+| **Modified** | Library / Settings UI + IPC registration + `e2e.rs` mocks |
+| **Unchanged** | Retriever RRF algorithm, RAG ask prompt core, SQLite open policy, Document→index contract |
+
+## Suggested Build Order (Phases 07+)
+
+Dependency-aware order aligned with plan Tasks 1–7; treat as GSD phases after v1.9 gate:
+
+| Phase | Focus | Depends on | Verify |
+|-------|--------|------------|--------|
+| **07** | `SourceKind::WikiPage` + `WikiConfig` + `sourceDisplay` | v1.9 E2E green | `cargo test -p store -p config`; Vitest labels |
+| **08** | Pure `render_wiki_pages` (no LLM/IO) | 07 kinds optional but useful for later | `cargo test -p insights` render tests |
+| **09** | `analyze_source_for_wiki` + JSON parse | 08 types; `ChatModel` | MockChatModel unit tests |
+| **10** | `compile_wiki_for_source` write + `index_document` | 07–09; indexer; app_data path | Integration test tempfile; hash idempotency |
+| **11** | Tauri IPC + Library/Settings UI (flagged) | 10 | Vitest gate; manual/IPC smoke |
+| **12** | `export_wiki_zip` + UI export | 10 disk tree | Zip unit test; dialog path |
+| **13** | E2E `wiki.spec.ts` + full-ui “hidden when off” | 11–12; e2e mocks | `npm run test:e2e:local` |
+
+**Do not** start UI (11) before compile indexes (10). **Do not** wire `auto_on_insights` until 10 is green. Export (12) can stub in 11 then complete.
+
+## Sources
+
+- Implementation plan: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+- Existing insights: `crates/insights/src/{lib,summarize,tasks}.rs`
+- Insights glue: `src-tauri/src/insights_ops.rs`, `src-tauri/src/commands/library.rs`
+- Source kinds: `crates/store/src/types.rs`
+- Analogous normalize path: `crates/memory` → `index_document(..., SourceKind::Memory)`
+- Project invariants: `AGENTS.md`, `.cursor/rules/e2e-required.mdc`, CLAUDE.md architecture notes
 
 ---
-
-## Migration Slices
-
-Each slice is a **vertical MVP**: shippable, E2E-green, architecture-reviewable. Slices are ordered by dependency and risk.
-
-### Slice dependency graph
-
-```
-                    ┌─────────────┐
-                    │  S0: Harness │  (typed tauri.ts, state.rs extract — no behavior change)
-                    └──────┬──────┘
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌────────────┐  ┌────────────┐  ┌────────────┐
-    │ S1: Config │  │ S2: Shell  │  │ S3: FE nav │
-    │  hardening │  │  commands  │  │  + layout  │
-    └─────┬──────┘  └─────┬──────┘  └─────┬──────┘
-          │               │               │
-          └───────┬───────┴───────┬───────┘
-                  ▼               ▼
-           ┌────────────┐  ┌────────────┐
-           │ S4: Chat   │  │ S5: Library│
-           │  view      │  │  + tasks   │
-           └─────┬──────┘  └─────┬──────┘
-                 │               │
-                 ▼               ▼
-           ┌────────────┐  ┌────────────┐
-           │ S6: Memory │  │ S7: Agent  │
-           │  model     │  │  protocol  │
-           └────────────┘  └────────────┘
-                 │               │
-                 └───────┬───────┘
-                         ▼
-                  ┌────────────┐
-                  │ S8: Settings│
-                  │  + secrets  │
-                  └────────────┘
-```
-
-**Legend:** Arrows = “should complete or start in parallel after”. S0 is prerequisite for all. S1 and S2 can interleave. S4–S6 depend on S3 (views exist). S7 is independent of FE splits but touches chat commands. S8 absorbs config UI + keychain.
-
----
-
-### S0 — Scaffold (no user-visible change)
-
-**Goal:** Create target folders and extraction points without moving behavior.
-
-| Layer | Work |
-|-------|------|
-| Frontend | Add `src/types/ipc.ts`, `src/lib/tauri.ts` (thin wrappers calling existing `invoke` names), empty `views/` stubs re-exporting from `App.tsx` |
-| Shell | Extract `AppState` + impl to `state.rs`; `commands/mod.rs` re-exports from `lib.rs` |
-| Tests | E2E smoke + navigation green |
-
-**Exit:** File structure exists; line counts unchanged; zero regression.
-
----
-
-### S1 — Config hardening (domain-first)
-
-**Goal:** Nested `AppConfig` + secrets abstraction; plaintext key deprecated.
-
-| Layer | Work |
-|-------|------|
-| `config` | Split `AppConfig` → `EmbeddingConfig`, `ChatConfig`, `LarkConfig`, `SyncConfig`, `AgentSettings`; `#[serde(flatten)]` for backward compat |
-| `config` | `SecretsStore` trait; `KeyringSecrets` impl; migrate `cloud_api_key` on load |
-| Shell | `set_config` reads/writes secrets via store, strips from JSON save |
-| Frontend | Settings cloud key field → save triggers secret store; display “configured” not value |
-| Tests | Unit: roundtrip old JSON; integration: keychain mock; E2E: settings spec (no key in file assertion) |
-
-**Exit:** `config.json` has no `cloud_api_key`; E2E green; arch review pass.
-
-**Blocks:** Nothing. **Enables:** safer Settings refactor (S8).
-
----
-
-### S2 — Tauri command modules (shell)
-
-**Goal:** `lib.rs` is registration + setup only.
-
-| Order | Module | Commands moved |
-|-------|--------|----------------|
-| 2a | `commands/config.rs` + `library.rs` | Low coupling, read-heavy |
-| 2b | `commands/tasks.rs` + `memory.rs` | Isolated domains |
-| 2c | `commands/lark.rs` + `insights.rs` + `sync.rs` | Share `lark_opts` via `state.rs` |
-| 2d | `commands/chat.rs` | RAG streaming |
-| 2e | `commands/agent.rs` | Largest; move `build_agent_context`, `execute_agent_question` |
-| 2f | `commands/index.rs` | Delegates to `index_ops` |
-
-**Per step:** Move fns, update `generate_handler!`, `cargo test`, targeted E2E spec.
-
-**Exit:** `lib.rs` < 150 lines; no command logic in `lib.rs`.
-
----
-
-### S3 — Frontend shell + layout
-
-**Goal:** `App.tsx` becomes router + global chrome.
-
-| Layer | Work |
-|-------|------|
-| Extract | `IndexProgressBanner`, `StatusBadge`, `SourceKindIcon`, `Sidebar`, `ErrorBanner` |
-| Hook | `useIndexProgress` — `listen("index-progress")` |
-| Hook | `useJarvisConfig` — initial `get_config`, shared refresh |
-| `App.tsx` | `view` state + `{view === "chat" && <ChatView />}` (views still inline or stubbed) |
-
-**Exit:** Navigation E2E green; `data-testid` unchanged.
-
----
-
-### S4 — Chat view extraction
-
-**Goal:** Chat/agent UI out of `App.tsx`.
-
-| Layer | Work |
-|-------|------|
-| `views/ChatView.tsx` | Messages, streaming, agent toggles, orchestration UI |
-| `hooks/useChat.ts` | Sessions, messages, ask/stream, tool calls state |
-| `lib/tauri.ts` | `askInSession`, `askInSessionStream`, session CRUD |
-
-**Preserves:** `Channel` callback behavior, `ask-handle-count` E2E hook, `agent-mode-toggle`, `orchestration-steps`.
-
-**Exit:** `qa.spec.ts`, `agent.spec.ts`, `full-ui.spec.ts` green.
-
----
-
-### S5 — Library + Tasks views
-
-**Goal:** Index management and task list isolated.
-
-| Layer | Work |
-|-------|------|
-| `views/LibraryView.tsx` | Sources, Lark/Cursor sync, per-source actions |
-| `views/TasksView.tsx` | Task list, toggle, delete |
-| `hooks/useLibrary.ts`, `useTasks.ts` | Refresh on view focus |
-
-**Exit:** `lark.spec.ts`, navigation tasks visible, full-ui green. (Tasks CRUD E2E may be added here per CONCERNS.md gap.)
-
----
-
-### S6 — Memory model improvement
-
-**Goal:** Stable memory identity; reduce fuzzy title collisions.
-
-| Layer | Work |
-|-------|------|
-| `memory` | New memories: `uri = memory://{uuid}`; strict `resolve_memory_id` (id + exact uri only) |
-| `store` | Optional: `list_sources_by_kind(Memory)` helper; migration script sets URI on existing rows |
-| `commands/memory.rs` | Thin wrappers unchanged names |
-| `views/MemoryView.tsx` + `useMemory.ts` | Extract from App |
-
-**Compatibility:** One release with title fallback + deprecation log; then remove fuzzy `contains` match.
-
-**Exit:** `memory.spec.ts` green; arch review for URI scheme.
-
----
-
-### S7 — Agent protocol improvement
-
-**Goal:** Structured tool calls; surface parse errors to UI.
-
-| Layer | Work |
-|-------|------|
-| `agent` | `ToolCallParser` trait; JSON-mode / structured output path for cloud; keep XML parser as fallback |
-| `llm` | Optional `complete_json` or response_format for OpenAI-compatible |
-| `commands/agent.rs` | Return parse errors in `AskResponse` metadata |
-| `ChatView` | Show tool parse failures (non-silent `None`) |
-
-**Exit:** Agent unit tests for parse edge cases; `agent.spec.ts` green with Mock emitting structured JSON.
-
-**Note:** Can run parallel to S4–S5 if Mock protocol updated first.
-
----
-
-### S8 — Settings view + sync surfacing
-
-**Goal:** Complete settings extraction; scheduled sync errors visible.
-
-| Layer | Work |
-|-------|------|
-| `views/SettingsView.tsx` | Providers, watch folders, agents, hooks/plugins, rebuild |
-| `sync_scheduler` | Persist `last_scheduled_sync_error` in `store.meta` |
-| Shell | `get_sync_status` includes error field |
-| E2E | Extend `settings.spec.ts` for scheduled sync + reinit |
-
-**Exit:** Settings E2E expanded; S1 keychain UI fully wired.
-
----
-
-## Balanced Build Order (Recommended Phase Sequence)
-
-Interleave layers so each milestone delivers user-visible stability and avoids “all backend, no UI” or vice versa.
-
-| Phase | Slices | Primary layer | E2E focus |
-|-------|--------|---------------|-----------|
-| **1.9.0** | S0 + S2a–b + S3 | Shell + FE scaffold | smoke, navigation |
-| **1.9.1** | S2c–f | Shell completion | lark, memory, settings (read paths) |
-| **1.9.2** | S4 + S1 (start) | Chat FE + config types | qa, agent |
-| **1.9.3** | S5 + S1 (finish) | Library/tasks + keychain | lark, full-ui |
-| **1.9.4** | S6 | Memory model | memory |
-| **1.9.5** | S7 | Agent protocol | agent |
-| **1.9.6** | S8 | Settings + sync UX | settings |
-
-**Parallelism within a phase:**
-
-- While **S2** moves commands, **S3** can extract layout (different files).
-- **S1** config nesting can start in 1.9.2 while chat view splits; keychain write lands in 1.9.3 with Settings.
-- **S7** should not ship in the same release as large **S2e** agent command moves — split to reduce debug surface.
-
----
-
-## Dependencies Between Refactor Areas
-
-| Area | Depends on | Blocks | Can parallel with |
-|------|------------|--------|-------------------|
-| FE scaffold (S3) | S0 | S4–S6, S8 | S2 |
-| Command split (S2) | S0 | Cleaner agent/chat work | S3, S1 types |
-| Config hardening (S1) | — | S8 secrets UI | S2, S3 |
-| Chat view (S4) | S3, S2d | — | S5 |
-| Library/tasks (S5) | S3, S2b/c | — | S4 |
-| Memory model (S6) | S2b, S5 or S3 | — | S7 |
-| Agent protocol (S7) | S2e | — | S5, S6 |
-| Settings (S8) | S1, S3, S2a | — | S6 |
-
-**Critical path:** S0 → S2 + S3 → S4/S5 → S8. S1 and S7 are important but can slip one phase without blocking file structure.
-
----
-
-## Cross-Cutting Concerns
-
-### Error handling at IPC boundary
-
-**Current:** `Result<T, String>` everywhere.
-
-**Refactor stance (v1.9.x):** Keep `String` errors for compatibility; optionally add `error_code` in JSON body later. Hooks/`lib/tauri.ts` centralize `invoke` catch → `setErr`.
-
-### Types duplication (Rust ↔ TypeScript)
-
-**Approach:** Manual `src/types/ipc.ts` mirroring serde `camelCase` exports. Do not introduce codegen in v1.9.x unless maintenance proves painful.
-
-### E2E stability
-
-- Preserve all existing `data-testid` values during moves.
-- `e2e/helpers.ts` unchanged unless selectors move — update once per view extraction.
-- Run `npm run test:e2e:local` per slice, not only at phase end.
-
-### Architecture review gate (per PROJECT.md)
-
-Each phase exit checklist:
-
-1. Module boundaries match this document’s target layout.
-2. No new SQLite open sites.
-3. Data flow checklist (above) manually verified for touched paths.
-4. E2E green.
-5. No secrets in `config.json` (after S1 complete).
-
----
-
-## What We Are Not Refactoring (v1.9.x)
-
-| Area | Reason |
-|------|--------|
-| `index_ops.rs` / `sync_scheduler.rs` merge | Separate concerns; optional dedup in v2 |
-| Store WAL / connection pooling | Performance; not structural |
-| New ingest formats (PDF) | Feature, not refactor |
-| `sqlite-vec` unsafe registration | Pin versions; upstream watch |
-| Plugin/hook sandbox | Design non-goal |
-| IPC `Result<T, String>` → typed errors | v2 consideration |
-
----
-
-## Success Metrics
-
-| Metric | Current (v1.8.0) | Target (v1.9.6) |
-|--------|------------------|-----------------|
-| `App.tsx` lines | ~2,800 | < 200 |
-| `lib.rs` lines | ~1,300 | < 150 |
-| Largest `commands/*.rs` | — | < 200 |
-| Tauri commands in `lib.rs` | 52 | 0 |
-| `cloud_api_key` in JSON | plaintext | keychain only |
-| Agent tool parse | silent fail | structured + fallback |
-| Memory ID resolution | fuzzy title | `memory://` UUID |
-| E2E specs green | yes | yes (expanded gaps optional) |
-
----
-
-## References
-
-- Project goals: `.planning/PROJECT.md`
-- Current architecture: `.planning/codebase/ARCHITECTURE.md`
-- Directory map: `.planning/codebase/STRUCTURE.md`
-- Debt catalog: `.planning/codebase/CONCERNS.md`
-- Engineer policy: `AGENTS.md`
-- E2E policy: `.cursor/rules/e2e-required.mdc`
-
----
-
-*Research complete. Use this document as the architecture dimension input for GSD phase planning and `/gsd-plan-phase`.*
+*Architecture research for: Wiki Compile Layer (Jarvis v1.10)*
+*Researched: 2026-07-17*
