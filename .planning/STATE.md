@@ -44,5 +44,5 @@ Items acknowledged at milestone close on 2026-07-17:
 
 Phase: 07 (next) — Wiki kind + config
 Plan: —
-Status: Roadmap draft — awaiting approval
-Last activity: 2026-07-17 — REQUIREMENTS + ROADMAP drafted
+Status: Ready to plan
+Last activity: 2026-07-17 — Roadmap approved (7 phases, WIKI-01…09)
