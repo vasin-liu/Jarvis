@@ -56,21 +56,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIKI-01 | — | Pending |
-| WIKI-02 | — | Pending |
-| WIKI-03 | — | Pending |
-| WIKI-04 | — | Pending |
-| WIKI-05 | — | Pending |
-| WIKI-06 | — | Pending |
-| WIKI-07 | — | Pending |
-| WIKI-08 | — | Pending |
-| WIKI-09 | — | Pending |
+| WIKI-01 | 07 | Pending |
+| WIKI-02 | 07 | Pending |
+| WIKI-03 | 08 + 09 | Pending |
+| WIKI-04 | 10 | Pending |
+| WIKI-05 | 09 | Pending |
+| WIKI-06 | 11 | Pending |
+| WIKI-07 | 12 | Pending |
+| WIKI-08 | 13 | Pending |
+| WIKI-09 | 13 | Pending |
 
 **Coverage:**
 - v1 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-17*
-*Last updated: 2026-07-17 after research + full scope confirm*
+*Last updated: 2026-07-17 after roadmap draft*

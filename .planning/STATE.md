@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Wiki Compile Layer
 status: planning
-last_updated: "2026-07-17T05:47:32.978Z"
+last_updated: "2026-07-17T15:02:00.000Z"
 last_activity: 2026-07-17
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,7 +21,7 @@ progress:
 
 ## Current focus
 
-Ready for `/gsd-new-milestone` — recommended **v1.10 Wiki Compile Layer**.
+**v1.10 Wiki Compile Layer** — requirements defined; roadmap draft pending approval.
 
 ## Deferred Items
 
@@ -42,7 +42,7 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 07 (next) — Wiki kind + config
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-17 — Milestone v1.10 started
+Status: Roadmap draft — awaiting approval
+Last activity: 2026-07-17 — REQUIREMENTS + ROADMAP drafted

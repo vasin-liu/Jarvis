@@ -1,6 +1,7 @@
 # Roadmap: Jarvis
 
-**Updated:** 2026-07-17
+**Updated:** 2026-07-17  
+**Current milestone:** v1.10 Wiki Compile Layer
 
 ## Shipped
 
@@ -8,18 +9,157 @@
 |-----------|---------|---------|
 | **v1.9** Structural Refactor | 6 phases / 22 plans — FE extraction, shell split, keychain, memory://, JSON agent protocol, Settings + arch review | [v1.9-ROADMAP.md](./milestones/v1.9-ROADMAP.md) |
 
-## Next
+## v1.10 Wiki Compile Layer
 
-Define via `/gsd-new-milestone` — recommended: **v1.10 Wiki Compile Layer**  
-Plan draft: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+**Goal:** Add an optional, rebuildable Markdown wiki layer beside RAG — with Obsidian zip export — without replacing hybrid retrieval or citations.
 
-## Backlog
+**Research:** `.planning/research/SUMMARY.md`  
+**Plan draft:** `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
 
-- Wiki compile layer + Obsidian zip export (optional, default off)
-- Related-docs panel / read-only MCP
-- PDF enhancements; optional Deep Research skill
-- Formal milestone audit process for future closes
+| # | Phase | Goal | Requirements | Success criteria |
+|---|-------|------|--------------|------------------|
+| 07 | Wiki kind + config | Opt-in foundation; zero change when disabled | WIKI-01, WIKI-02 | 3 |
+| 08 | Markdown renderer | Deterministic pages from structured analysis | WIKI-03 (render) | 3 |
+| 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
+| 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
+| 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
+| 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
+| 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
 
 ---
 
-*Prior detailed phase text archived under `.planning/milestones/v1.9-ROADMAP.md`.*
+### Phase 07: Wiki kind + config
+
+**Goal:** Users can turn wiki on/off in config with no surprise behavior on upgrade; wiki pages have a first-class source kind and Library label.
+
+**Requirements:** WIKI-01, WIKI-02
+
+**Success criteria:**
+1. Loading a pre-v1.10 `config.json` yields `wiki.enabled == false` and `wiki.auto_on_insights == false`
+2. `SourceKind::WikiPage` round-trips as `"wiki_page"` in store tests
+3. Frontend `sourceDisplay` maps `wiki_page` to a visible Wiki / 笔记页 label (Vitest)
+
+**Plans:** TBD via `/gsd-plan-phase 07`
+
+---
+
+### Phase 08: Deterministic Markdown renderer
+
+**Goal:** Given a `WikiAnalysis`, the system produces stable Markdown pages (frontmatter, wikilinks, index) without LLM or disk I/O.
+
+**Requirements:** WIKI-03 (render half)
+
+**Success criteria:**
+1. Empty entities/concepts still yields a source-summary page with `sources:` frontmatter
+2. Non-empty entities emit `entities/` pages and `[[wikilink]]` from the summary page
+3. CJK / unsafe names produce filesystem-safe slugs (ASCII or `e-{hash6}` fallback) in unit tests
+
+**Plans:** TBD via `/gsd-plan-phase 08`
+
+---
+
+### Phase 09: LLM wiki analysis
+
+**Goal:** User's indexed source can be analyzed into `WikiAnalysis` via ChatModel; bad model output never starts a write.
+
+**Requirements:** WIKI-03 (analyze half), WIKI-05
+
+**Success criteria:**
+1. MockChatModel returning valid JSON yields populated summary/entities/concepts
+2. Invalid / non-JSON model output returns a typed parse error
+3. Parse failure path writes **zero** files under a tempfile wiki root in tests
+
+**Plans:** TBD via `/gsd-plan-phase 09`
+
+---
+
+### Phase 10: Persist + index
+
+**Goal:** Compiled pages exist on disk under `{app_data}/wiki/` and appear as indexed `WikiPage` sources without duplicates on re-compile.
+
+**Requirements:** WIKI-04
+
+**Success criteria:**
+1. Successful compile creates Markdown files and `index.md` under the wiki root
+2. Pages are indexed with `wiki://{slug}` URIs and `SourceKind::WikiPage`
+3. Compiling twice with identical content does not duplicate sources (hash skip)
+4. `WikiPage` sources are not accepted as compile inputs (no compile loop)
+
+**Plans:** TBD via `/gsd-plan-phase 10`
+
+---
+
+### Phase 11: Library / Settings UI
+
+**Goal:** When enabled, user can compile from Library and toggle wiki in Settings; when disabled, those controls are absent.
+
+**Requirements:** WIKI-06
+
+**Success criteria:**
+1. Settings exposes wiki enabled toggle with stable `data-testid`
+2. With wiki enabled, Library shows “生成笔记” (or equivalent) for an indexed source
+3. With wiki disabled, compile/export controls are not shown (default E2E config)
+
+**Plans:** TBD via `/gsd-plan-phase 11`
+
+---
+
+### Phase 12: Obsidian zip export
+
+**Goal:** User can download/export a zip that opens as an Obsidian vault (wiki tree + minimal `.obsidian` stub).
+
+**Requirements:** WIKI-07
+
+**Success criteria:**
+1. Export produces a `.zip` containing wiki Markdown paths and `.obsidian/` stub
+2. Zip entries are relative and path-safe (no `..` / absolute paths) in unit tests
+3. Export is gated on `wiki.enabled` (errors or no-ops when disabled)
+
+**Plans:** TBD via `/gsd-plan-phase 12`
+
+---
+
+### Phase 13: E2E + citation trust
+
+**Goal:** Full mocked journey proves wiki works; RAG still cites original fixture sources when relevant.
+
+**Requirements:** WIKI-08, WIKI-09
+
+**Success criteria:**
+1. `e2e/specs/wiki.spec.ts` passes: enable → compile → see wiki page → export
+2. Default-off `full-ui` (or equivalent) does not show wiki compile controls
+3. QA / citation assertions still resolve to original fixture sources when wiki is off
+4. With wiki on, answers remain usable and wiki does not solely replace original citations in the asserted journey
+
+**Plans:** TBD via `/gsd-plan-phase 13`
+
+---
+
+## Coverage
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| WIKI-01 | 07 | Pending |
+| WIKI-02 | 07 | Pending |
+| WIKI-03 | 08 + 09 | Pending |
+| WIKI-04 | 10 | Pending |
+| WIKI-05 | 09 | Pending |
+| WIKI-06 | 11 | Pending |
+| WIKI-07 | 12 | Pending |
+| WIKI-08 | 13 | Pending |
+| WIKI-09 | 13 | Pending |
+
+**v1 requirements:** 9 · **Mapped:** 9 · **Unmapped:** 0 ✓
+
+*Note:* WIKI-03 spans Phases 08 (render) and 09 (analyze) by design — one requirement, two delivery boundaries.
+
+## Backlog (post-v1.10)
+
+- Related-docs / MCP read-only
+- Bulk compile + `auto_on_insights` UX
+- Cross-corpus entity merge
+
+---
+
+*Prior detailed v1.9 phase text:* `.planning/milestones/v1.9-ROADMAP.md`  
+*v1.9 phase artifacts:* `.planning/milestones/v1.9-phases/`
