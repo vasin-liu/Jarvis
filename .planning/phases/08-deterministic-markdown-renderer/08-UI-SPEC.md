@@ -1,10 +1,11 @@
 ---
 phase: 8
 slug: deterministic-markdown-renderer
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-18
+reviewed_at: 2026-07-18
 ---
 
 # Phase 08 — UI Design Contract
