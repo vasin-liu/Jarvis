@@ -10,10 +10,14 @@ export function sourceKindLabel(kind: string): string {
       return "邮件";
     case "lark_msg":
       return "会话";
+    case "lark_file":
+      return "云文件";
     case "cursor_transcript":
       return "Cursor 会话";
     case "memory":
       return "记忆";
+    case "wiki_page":
+      return "笔记页";
     default:
       return kind;
   }
