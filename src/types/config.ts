@@ -54,12 +54,18 @@ export interface AgentConfig {
   granted_plugin_permissions: string[];
 }
 
+export interface WikiConfig {
+  enabled: boolean;
+  auto_on_insights: boolean;
+}
+
 export interface NestedAppConfig {
   embedding: EmbeddingConfig;
   chat: ChatConfig;
   lark: LarkConfig;
   sync: SyncConfig;
   agent: AgentConfig;
+  wiki?: WikiConfig;
 }
 
 export function flatToNested(flat: AppConfig): NestedAppConfig {
@@ -108,6 +114,7 @@ export function flatToNested(flat: AppConfig): NestedAppConfig {
       pipeline_agent_ids: [...flat.pipeline_agent_ids],
       granted_plugin_permissions: [...flat.granted_plugin_permissions],
     },
+    ...(flat.wiki ? { wiki: { ...flat.wiki } } : {}),
   };
 }
 
@@ -125,5 +132,6 @@ export function nestedToFlat(nested: NestedAppConfig): AppConfig {
     enabled_plugin_ids: [...nested.agent.enabled_plugin_ids],
     pipeline_agent_ids: [...nested.agent.pipeline_agent_ids],
     granted_plugin_permissions: [...nested.agent.granted_plugin_permissions],
+    ...(nested.wiki ? { wiki: { ...nested.wiki } } : {}),
   };
 }

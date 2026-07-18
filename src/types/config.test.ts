@@ -118,4 +118,17 @@ describe("config types", () => {
     expect(nested.lark.lark_identity).toBe("user");
     expect(nested.chat.chat).toBe("mock");
   });
+
+  it("preserves nested wiki flags through flat↔nested round-trip", () => {
+    const withWiki: AppConfig = {
+      ...sampleFlat,
+      wiki: { enabled: true, auto_on_insights: false },
+    };
+    const nested = flatToNested(withWiki);
+    const roundtrip = nestedToFlat(nested);
+
+    expect(nested.wiki).toEqual({ enabled: true, auto_on_insights: false });
+    expect(roundtrip.wiki).toEqual({ enabled: true, auto_on_insights: false });
+    expect(roundtrip).toEqual(withWiki);
+  });
 });

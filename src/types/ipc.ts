@@ -87,6 +87,7 @@ export interface AppConfig {
   agent_orchestration_mode: "single" | "pipeline" | "router";
   pipeline_agent_ids: string[];
   granted_plugin_permissions: string[];
+  wiki?: { enabled: boolean; auto_on_insights: boolean };
 }
 
 export interface ToolCallInfo {
