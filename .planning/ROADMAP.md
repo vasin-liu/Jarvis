@@ -18,7 +18,7 @@
 
 | # | Phase | Goal | Requirements | Success criteria |
 |---|-------|------|--------------|------------------|
-| 07 | Wiki kind + config | Opt-in foundation; zero change when disabled | WIKI-01, WIKI-02 | 3 |
+| 07 | Wiki kind + config | 1/3 | In Progress|  |
 | 08 | Markdown renderer | Deterministic pages from structured analysis | WIKI-03 (render) | 3 |
 | 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
@@ -35,14 +35,16 @@
 **Requirements:** WIKI-01, WIKI-02
 
 **Success criteria:**
+
 1. Loading a pre-v1.10 `config.json` yields `wiki.enabled == false` and `wiki.auto_on_insights == false`
 2. `SourceKind::WikiPage` round-trips as `"wiki_page"` in store tests
 3. Frontend `sourceDisplay` maps `wiki_page` to a visible Wiki / 笔记页 label (Vitest)
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 07-01-PLAN.md — SourceKind::WikiPage + fail-closed reindex stub
+
+- [x] 07-01-PLAN.md — SourceKind::WikiPage + fail-closed reindex stub
 - [ ] 07-02-PLAN.md — Nested WikiConfig default-off + config round-trip tests
 - [ ] 07-03-PLAN.md — Library label「笔记页」+ FE wiki config pass-through
 
@@ -55,6 +57,7 @@ Plans:
 **Requirements:** WIKI-03 (render half)
 
 **Success criteria:**
+
 1. Empty entities/concepts still yields a source-summary page with `sources:` frontmatter
 2. Non-empty entities emit `entities/` pages and `[[wikilink]]` from the summary page
 3. CJK / unsafe names produce filesystem-safe slugs (ASCII or `e-{hash6}` fallback) in unit tests
@@ -70,6 +73,7 @@ Plans:
 **Requirements:** WIKI-03 (analyze half), WIKI-05
 
 **Success criteria:**
+
 1. MockChatModel returning valid JSON yields populated summary/entities/concepts
 2. Invalid / non-JSON model output returns a typed parse error
 3. Parse failure path writes **zero** files under a tempfile wiki root in tests
@@ -85,6 +89,7 @@ Plans:
 **Requirements:** WIKI-04
 
 **Success criteria:**
+
 1. Successful compile creates Markdown files and `index.md` under the wiki root
 2. Pages are indexed with `wiki://{slug}` URIs and `SourceKind::WikiPage`
 3. Compiling twice with identical content does not duplicate sources (hash skip)
@@ -101,6 +106,7 @@ Plans:
 **Requirements:** WIKI-06
 
 **Success criteria:**
+
 1. Settings exposes wiki enabled toggle with stable `data-testid`
 2. With wiki enabled, Library shows “生成笔记” (or equivalent) for an indexed source
 3. With wiki disabled, compile/export controls are not shown (default E2E config)
@@ -116,6 +122,7 @@ Plans:
 **Requirements:** WIKI-07
 
 **Success criteria:**
+
 1. Export produces a `.zip` containing wiki Markdown paths and `.obsidian/` stub
 2. Zip entries are relative and path-safe (no `..` / absolute paths) in unit tests
 3. Export is gated on `wiki.enabled` (errors or no-ops when disabled)
@@ -131,6 +138,7 @@ Plans:
 **Requirements:** WIKI-08, WIKI-09
 
 **Success criteria:**
+
 1. `e2e/specs/wiki.spec.ts` passes: enable → compile → see wiki page → export
 2. Default-off `full-ui` (or equivalent) does not show wiki compile controls
 3. QA / citation assertions still resolve to original fixture sources when wiki is off
