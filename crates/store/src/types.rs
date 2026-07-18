@@ -7,8 +7,10 @@ pub enum SourceKind {
     LarkMsg,
     LarkSheet,
     LarkMail,
+    LarkFile,
     CursorTranscript,
     Memory,
+    WikiPage,
 }
 
 impl SourceKind {
@@ -19,8 +21,10 @@ impl SourceKind {
             SourceKind::LarkMsg => "lark_msg",
             SourceKind::LarkSheet => "lark_sheet",
             SourceKind::LarkMail => "lark_mail",
+            SourceKind::LarkFile => "lark_file",
             SourceKind::CursorTranscript => "cursor_transcript",
             SourceKind::Memory => "memory",
+            SourceKind::WikiPage => "wiki_page",
         }
     }
 
@@ -31,8 +35,10 @@ impl SourceKind {
             "lark_msg" => SourceKind::LarkMsg,
             "lark_sheet" => SourceKind::LarkSheet,
             "lark_mail" => SourceKind::LarkMail,
+            "lark_file" => SourceKind::LarkFile,
             "cursor_transcript" => SourceKind::CursorTranscript,
             "memory" => SourceKind::Memory,
+            "wiki_page" => SourceKind::WikiPage,
             _ => return None,
         })
     }
@@ -123,6 +129,7 @@ pub struct ChatSession {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ChatRole {
     User,
     Assistant,
@@ -181,6 +188,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn wiki_page_kind_roundtrips() {
+        assert_eq!(SourceKind::WikiPage.as_str(), "wiki_page");
+        assert_eq!(SourceKind::parse("wiki_page"), Some(SourceKind::WikiPage));
+    }
+
+    #[test]
     fn source_kind_roundtrips() {
         for k in [
             SourceKind::LocalFile,
@@ -188,8 +201,10 @@ mod tests {
             SourceKind::LarkMsg,
             SourceKind::LarkSheet,
             SourceKind::LarkMail,
+            SourceKind::LarkFile,
             SourceKind::CursorTranscript,
             SourceKind::Memory,
+            SourceKind::WikiPage,
         ] {
             assert_eq!(SourceKind::parse(k.as_str()), Some(k));
         }
