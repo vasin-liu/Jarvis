@@ -18,7 +18,7 @@
 
 | # | Phase | Goal | Requirements | Success criteria |
 |---|-------|------|--------------|------------------|
-| 07 | Wiki kind + config | 1/3 | In Progress|  |
+| 07 | Wiki kind + config | 2/3 | In Progress|  |
 | 08 | Markdown renderer | Deterministic pages from structured analysis | WIKI-03 (render) | 3 |
 | 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
@@ -40,12 +40,12 @@
 2. `SourceKind::WikiPage` round-trips as `"wiki_page"` in store tests
 3. Frontend `sourceDisplay` maps `wiki_page` to a visible Wiki / 笔记页 label (Vitest)
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 
 - [x] 07-01-PLAN.md — SourceKind::WikiPage + fail-closed reindex stub
-- [ ] 07-02-PLAN.md — Nested WikiConfig default-off + config round-trip tests
+- [x] 07-02-PLAN.md — Nested WikiConfig default-off + config round-trip tests
 - [ ] 07-03-PLAN.md — Library label「笔记页」+ FE wiki config pass-through
 
 ---
