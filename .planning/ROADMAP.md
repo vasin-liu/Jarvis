@@ -39,7 +39,12 @@
 2. `SourceKind::WikiPage` round-trips as `"wiki_page"` in store tests
 3. Frontend `sourceDisplay` maps `wiki_page` to a visible Wiki / 笔记页 label (Vitest)
 
-**Plans:** TBD via `/gsd-plan-phase 07`
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — SourceKind::WikiPage + fail-closed reindex stub
+- [ ] 07-02-PLAN.md — Nested WikiConfig default-off + config round-trip tests
+- [ ] 07-03-PLAN.md — Library label「笔记页」+ FE wiki config pass-through
 
 ---
 

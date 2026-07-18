@@ -38,9 +38,12 @@ created: 2026-07-17
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 07-01-01 | 01 | 1 | WIKI-02 | — | N/A | unit | `cargo test -p store` | ❌ W0 | ⬜ pending |
-| 07-02-01 | 02 | 1 | WIKI-01 | — | Defaults off; no Settings | unit | `cargo test -p config` | ❌ W0 | ⬜ pending |
-| 07-02-02 | 02 | 1 | WIKI-02 | — | Label only | unit | `npm test -- --run src/lib/sourceDisplay.test.ts` | ✅ | ⬜ pending |
+| 07-01-01 | 01 | 1 | WIKI-02 | T-07-03 | Kind round-trip | unit | `cargo test -p store wiki_page_kind_roundtrips` | ❌ W0 | ⬜ pending |
+| 07-01-02 | 01 | 1 | WIKI-02 | T-07-01 | Fail-closed reindex | compile | `cargo check -p tauri-app` | ✅ | ⬜ pending |
+| 07-02-01 | 02 | 1 | WIKI-01 | T-07-05 | Defaults off | unit | `cargo test -p config pre_v110_config_defaults_wiki_off` | ❌ W0 | ⬜ pending |
+| 07-02-02 | 02 | 1 | WIKI-01 | T-07-04 | Nested not flatten | unit | `cargo test -p config` | ❌ W0 | ⬜ pending |
+| 07-03-01 | 03 | 1 | WIKI-02 | T-07-09 | Label only | unit | `npm test -- --run src/lib/sourceDisplay.test.ts` | ✅ | ⬜ pending |
+| 07-03-02 | 03 | 1 | WIKI-01 | T-07-08 | FE pass-through | unit | `npm test -- --run src/types/config.test.ts` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
