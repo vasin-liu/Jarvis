@@ -650,6 +650,10 @@ async fn reindex_source(
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
+        SourceKind::WikiPage => {
+            mark_failed(store, source, "wiki page reindex not implemented")?;
+            Ok(false)
+        }
     }
 }
 
