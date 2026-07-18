@@ -9,8 +9,8 @@ Requirements for milestone v1.10. Each maps to roadmap phases 07+.
 
 ### Config & Source Kind
 
-- [ ] **WIKI-01**: User can enable/disable wiki via `WikiConfig` (`enabled`, `auto_on_insights`); both default **false** so existing installs see no behavior change
-- [ ] **WIKI-02**: System persists wiki pages as `SourceKind::WikiPage` (`wiki_page`) with Library label (e.g. Wiki / 笔记页)
+- [x] **WIKI-01**: User can enable/disable wiki via `WikiConfig` (`enabled`, `auto_on_insights`); both default **false** so existing installs see no behavior change
+- [x] **WIKI-02**: System persists wiki pages as `SourceKind::WikiPage` (`wiki_page`) with Library label (e.g. Wiki / 笔记页)
 
 ### Compile
 
@@ -56,8 +56,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIKI-01 | 07 | Pending |
-| WIKI-02 | 07 | Pending |
+| WIKI-01 | 07 | Complete |
+| WIKI-02 | 07 | Complete |
 | WIKI-03 | 08 + 09 | Pending |
 | WIKI-04 | 10 | Pending |
 | WIKI-05 | 09 | Pending |
@@ -67,6 +67,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIKI-09 | 13 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 9 total
 - Mapped to phases: 9
 - Unmapped: 0 ✓

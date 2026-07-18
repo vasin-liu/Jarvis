@@ -8,6 +8,8 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
+**In progress:** **v1.10** Wiki Compile Layer — Phase 07 complete (WikiPage kind + nested WikiConfig default-off + Library label「笔记页」). Next: Phase 08 deterministic Markdown renderer.
+
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
 ## Current Milestone: v1.10 Wiki Compile Layer
@@ -54,10 +56,11 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ `memory://{uuid}` strict identity + migration — v1.9
 - ✓ JSON-first agent tool protocol + parse warnings UI — v1.9
 - ✓ Architecture review + sync error surfacing — v1.9
+- ✓ WikiConfig nested default-off + SourceKind::WikiPage + Library label「笔记页」— Validated in Phase 07: wiki-kind-config
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10)
+- [ ] Wiki compile layer + Obsidian export (v1.10) — Phase 07 foundation done; Phases 08–13 remain
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
@@ -105,4 +108,4 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-17 after `/gsd-new-milestone` v1.10 Wiki Compile Layer*
+*Last updated: 2026-07-18 after Phase 07 wiki-kind-config complete*
