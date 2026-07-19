@@ -19,7 +19,7 @@
 | # | Phase | Goal | Requirements | Success criteria |
 |---|-------|------|--------------|------------------|
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
-| 08 | Markdown renderer | 2/2 | Complete   | 2026-07-19 |
+| 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
 | 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
