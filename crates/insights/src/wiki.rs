@@ -65,6 +65,18 @@ pub fn render_wiki_pages(
     }
 }
 
+fn hash6(_name: &str) -> String {
+    unimplemented!("hash6")
+}
+
+fn slugify(_name: &str) -> String {
+    unimplemented!("slugify")
+}
+
+fn uniquify_slug(_base: &str, _seen: &mut std::collections::HashMap<String, usize>) -> String {
+    unimplemented!("uniquify_slug")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,5 +110,46 @@ mod tests {
         let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
         assert!(out.pages.is_empty());
         assert!(out.index_markdown.is_empty());
+    }
+
+    #[test]
+    fn slugify_ascii_name() {
+        assert_eq!(slugify("Acme Corp"), "acme-corp");
+        assert_eq!(slugify("Acme__Corp--Inc"), "acme-corp-inc");
+        assert_eq!(slugify("  Hello World  "), "hello-world");
+    }
+
+    #[test]
+    fn cjk_name_uses_hash_slug() {
+        let s = slugify("张三");
+        assert!(s.starts_with("e-"), "expected e- prefix, got {s}");
+        let hex = &s[2..];
+        assert_eq!(hex.len(), 6, "expected 6 hex chars, got {s}");
+        assert!(
+            hex.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')),
+            "expected lowercase hex, got {s}"
+        );
+        assert_eq!(slugify("张三"), s, "slugify must be deterministic");
+    }
+
+    #[test]
+    fn slug_collision_suffix() {
+        let mut entities = std::collections::HashMap::new();
+        let a = uniquify_slug(&slugify("Acme"), &mut entities);
+        let b = uniquify_slug(&slugify("Acme"), &mut entities);
+        assert_eq!(a, "acme");
+        assert_eq!(b, "acme-2");
+
+        let mut concepts = std::collections::HashMap::new();
+        let c = uniquify_slug(&slugify("Acme"), &mut concepts);
+        assert_eq!(c, "acme", "cross-directory names must not collide");
+    }
+
+    #[test]
+    fn unsafe_path_chars_stripped() {
+        let s = slugify("Acme/Corp\\Division");
+        assert!(!s.contains('/'), "slash must not appear in slug: {s}");
+        assert!(!s.contains('\\'), "backslash must not appear in slug: {s}");
+        assert_eq!(s, "acmecorpdivision");
     }
 }
