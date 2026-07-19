@@ -65,16 +65,44 @@ pub fn render_wiki_pages(
     }
 }
 
-fn hash6(_name: &str) -> String {
-    unimplemented!("hash6")
+// Called by render_wiki_pages in Plan 08-02; unit-tested now.
+#[allow(dead_code)]
+fn hash6(name: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(name.as_bytes());
+    let full = hex::encode(digest);
+    full[..6].to_string()
 }
 
-fn slugify(_name: &str) -> String {
-    unimplemented!("slugify")
+fn slugify(name: &str) -> String {
+    let mut out = String::new();
+    for ch in name.to_lowercase().chars() {
+        match ch {
+            'a'..='z' | '0'..='9' => out.push(ch),
+            _ if ch.is_whitespace() || ch == '-' || ch == '_' => {
+                if !out.ends_with('-') && !out.is_empty() {
+                    out.push('-');
+                }
+            }
+            _ => {}
+        }
+    }
+    let trimmed = out.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        format!("e-{}", hash6(name))
+    } else {
+        trimmed
+    }
 }
 
-fn uniquify_slug(_base: &str, _seen: &mut std::collections::HashMap<String, usize>) -> String {
-    unimplemented!("uniquify_slug")
+fn uniquify_slug(base: &str, seen: &mut std::collections::HashMap<String, usize>) -> String {
+    let count = seen.entry(base.to_string()).or_insert(0);
+    *count += 1;
+    if *count == 1 {
+        base.to_string()
+    } else {
+        format!("{base}-{count}")
+    }
 }
 
 #[cfg(test)]
