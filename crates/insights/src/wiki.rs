@@ -1,4 +1,95 @@
+use llm::{ChatModel, Message, Role};
 use serde::{Deserialize, Serialize};
+use store::{IndexStatus, Store};
+
+use crate::error::{InsightsError, Result};
+
+const MAX_SOURCE_CHARS: usize = 12_000;
+
+const WIKI_SYSTEM_PROMPT: &str = "\
+你是笔记编译助手。根据来源正文提取结构化知识，仅输出裸 JSON（不要 markdown 代码块）。\
+字段名使用英文：summary（字符串）、entities（数组，每项 name/blurb）、concepts（数组，每项 name/blurb）。\
+质量优先、宁缺毋滥：entities 与 concepts 各自建议不超过 5–8 项；无把握则输出空数组。";
+
+/// Load an indexed source, ask ChatModel for wiki JSON, parse into WikiAnalysis.
+/// Does not read or write `sources.summary`.
+pub async fn analyze_source_for_wiki(
+    store: &Store,
+    chat: &dyn ChatModel,
+    source_id: &str,
+) -> Result<WikiAnalysis> {
+    let source = store.get_source(source_id)?;
+    if source.status != IndexStatus::Indexed {
+        return Err(InsightsError::NotIndexed(source_id.to_string()));
+    }
+
+    let text = store.source_chunk_text(source_id)?;
+    if text.trim().is_empty() {
+        return Err(InsightsError::EmptySource(source_id.to_string()));
+    }
+
+    let excerpt = crate::truncate_chars(&text, MAX_SOURCE_CHARS);
+    let messages = vec![
+        Message {
+            role: Role::System,
+            content: WIKI_SYSTEM_PROMPT.into(),
+        },
+        Message {
+            role: Role::User,
+            content: format!("标题：{}\n\n正文：\n{}", source.title, excerpt),
+        },
+    ];
+
+    let raw = chat.complete(&messages).await?;
+    parse_wiki_analysis(&raw)
+}
+
+fn parse_wiki_analysis(raw: &str) -> Result<WikiAnalysis> {
+    let trimmed = raw.trim();
+    let after_fence = trimmed
+        .strip_prefix("```json")
+        .or_else(|| trimmed.strip_prefix("```"))
+        .and_then(|s| s.strip_suffix("```"))
+        .map(str::trim)
+        .unwrap_or(trimmed);
+
+    let json = extract_first_json_object(after_fence).ok_or_else(|| {
+        InsightsError::InvalidWikiJson("no JSON object found in model reply".into())
+    })?;
+
+    serde_json::from_str(json).map_err(|e| InsightsError::InvalidWikiJson(e.to_string()))
+}
+
+fn extract_first_json_object(s: &str) -> Option<&str> {
+    let start = s.find('{')?;
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut escape = false;
+    for (i, ch) in s[start..].char_indices() {
+        if in_string {
+            if escape {
+                escape = false;
+            } else if ch == '\\' {
+                escape = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match ch {
+            '"' => in_string = true,
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(&s[start..start + i + 1]);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WikiAnalysis {
@@ -267,6 +358,68 @@ fn wikilink(path: &str, display: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use llm::MockChatModel;
+    use store::{NewChunk, SourceKind};
+
+    fn sample_indexed(store: &Store, id: &str) {
+        store
+            .upsert_source(&store::Source {
+                id: id.to_string(),
+                kind: SourceKind::LocalFile,
+                uri: format!("/tmp/{id}.md"),
+                title: format!("Title {id}"),
+                content_hash: "h".into(),
+                indexed_at: Some(1),
+                status: IndexStatus::Indexed,
+                error: None,
+                summary: None,
+            })
+            .unwrap();
+        store
+            .insert_chunks(
+                id,
+                &[NewChunk {
+                    ord: 0,
+                    text: "Jarvis wiki compile notes about local knowledge".into(),
+                    loc: "L0".into(),
+                    token_count: 5,
+                    embedding: vec![0.1; 4],
+                }],
+            )
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn analyze_parses_mock_json() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "wiki-a");
+
+        let analysis = analyze_source_for_wiki(&store, &MockChatModel, "wiki-a")
+            .await
+            .expect("mock wiki analyze");
+        assert!(!analysis.summary.is_empty(), "summary must be non-empty");
+        assert!(
+            analysis.entities.len() >= 1,
+            "expected at least one entity"
+        );
+    }
+
+    #[tokio::test]
+    async fn analyze_does_not_touch_source_summary() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "wiki-b");
+
+        let before = store.get_source("wiki-b").unwrap().summary.clone();
+        assert!(before.is_none());
+
+        analyze_source_for_wiki(&store, &MockChatModel, "wiki-b")
+            .await
+            .expect("analyze");
+
+        let after = store.get_source("wiki-b").unwrap().summary.clone();
+        assert_eq!(after, before, "sources.summary must remain untouched");
+        assert!(after.is_none());
+    }
 
     #[test]
     fn wiki_page_type_serializes_snake_case() {
