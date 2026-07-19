@@ -20,7 +20,7 @@
 |---|-------|------|--------------|------------------|
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
-| 09 | LLM wiki analysis | 2/2 | Complete   | 2026-07-19 |
+| 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
