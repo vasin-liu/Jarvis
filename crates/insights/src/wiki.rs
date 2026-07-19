@@ -53,16 +53,145 @@ impl WikiPageType {
 }
 
 /// Deterministic: structured analysis → markdown drafts. No I/O.
-/// Stub until Plan 08-02 implements page assembly.
 pub fn render_wiki_pages(
-    _analysis: &WikiAnalysis,
-    _source_uri: &str,
-    _source_title: &str,
+    analysis: &WikiAnalysis,
+    source_uri: &str,
+    source_title: &str,
 ) -> WikiCompileResult {
-    WikiCompileResult {
-        pages: Vec::new(),
-        index_markdown: String::new(),
+    let mut sources_seen = std::collections::HashMap::new();
+    let mut entities_seen = std::collections::HashMap::new();
+    let mut concepts_seen = std::collections::HashMap::new();
+
+    let source_base = slugify(source_title);
+    let source_slug_seg = uniquify_slug(&source_base, &mut sources_seen);
+    let source_slug = format!("sources/{source_slug_seg}");
+
+    // Precompute entity/concept paths so the summary can forward-link.
+    let mut entity_pages = Vec::with_capacity(analysis.entities.len());
+    for entity in &analysis.entities {
+        let seg = uniquify_slug(&slugify(&entity.name), &mut entities_seen);
+        let slug = format!("entities/{seg}");
+        entity_pages.push((slug, entity));
     }
+    let mut concept_pages = Vec::with_capacity(analysis.concepts.len());
+    for concept in &analysis.concepts {
+        let seg = uniquify_slug(&slugify(&concept.name), &mut concepts_seen);
+        let slug = format!("concepts/{seg}");
+        concept_pages.push((slug, concept));
+    }
+
+    let mut summary_body = String::new();
+    summary_body.push_str(&build_frontmatter(
+        source_title,
+        WikiPageType::SourceSummary.as_str(),
+        source_uri,
+    ));
+    summary_body.push_str(&format!("# {source_title}\n\n"));
+    summary_body.push_str(&analysis.summary);
+    summary_body.push('\n');
+    for (slug, entity) in &entity_pages {
+        summary_body.push('\n');
+        summary_body.push_str(&wikilink(slug, &entity.name));
+        summary_body.push('\n');
+    }
+    for (slug, concept) in &concept_pages {
+        summary_body.push('\n');
+        summary_body.push_str(&wikilink(slug, &concept.name));
+        summary_body.push('\n');
+    }
+
+    let mut pages = Vec::with_capacity(1 + entity_pages.len() + concept_pages.len());
+    pages.push(WikiPageDraft {
+        slug: source_slug.clone(),
+        title: source_title.to_string(),
+        page_type: WikiPageType::SourceSummary,
+        body_markdown: summary_body,
+        source_uris: vec![source_uri.to_string()],
+    });
+
+    let backlink = wikilink(&source_slug, source_title);
+    for (slug, entity) in &entity_pages {
+        let mut body = String::new();
+        body.push_str(&build_frontmatter(
+            &entity.name,
+            WikiPageType::Entity.as_str(),
+            source_uri,
+        ));
+        body.push_str(&format!("# {}\n\n", entity.name));
+        body.push_str(&entity.blurb);
+        body.push_str("\n\n");
+        body.push_str(&backlink);
+        body.push('\n');
+        pages.push(WikiPageDraft {
+            slug: slug.clone(),
+            title: entity.name.clone(),
+            page_type: WikiPageType::Entity,
+            body_markdown: body,
+            source_uris: vec![source_uri.to_string()],
+        });
+    }
+    for (slug, concept) in &concept_pages {
+        let mut body = String::new();
+        body.push_str(&build_frontmatter(
+            &concept.name,
+            WikiPageType::Concept.as_str(),
+            source_uri,
+        ));
+        body.push_str(&format!("# {}\n\n", concept.name));
+        body.push_str(&concept.blurb);
+        body.push_str("\n\n");
+        body.push_str(&backlink);
+        body.push('\n');
+        pages.push(WikiPageDraft {
+            slug: slug.clone(),
+            title: concept.name.clone(),
+            page_type: WikiPageType::Concept,
+            body_markdown: body,
+            source_uris: vec![source_uri.to_string()],
+        });
+    }
+
+    let index_markdown = build_index_markdown(&pages);
+    WikiCompileResult {
+        pages,
+        index_markdown,
+    }
+}
+
+fn build_index_markdown(pages: &[WikiPageDraft]) -> String {
+    let mut out = String::from("# Wiki\n");
+    let sources: Vec<_> = pages
+        .iter()
+        .filter(|p| p.page_type == WikiPageType::SourceSummary)
+        .collect();
+    let entities: Vec<_> = pages
+        .iter()
+        .filter(|p| p.page_type == WikiPageType::Entity)
+        .collect();
+    let concepts: Vec<_> = pages
+        .iter()
+        .filter(|p| p.page_type == WikiPageType::Concept)
+        .collect();
+
+    if !sources.is_empty() {
+        out.push_str("\n## Sources\n");
+        for page in sources {
+            out.push_str(&format!("- {}\n", wikilink(&page.slug, &page.title)));
+        }
+    }
+    if !entities.is_empty() {
+        out.push_str("\n## Entities\n");
+        for page in entities {
+            out.push_str(&format!("- {}\n", wikilink(&page.slug, &page.title)));
+        }
+    }
+    if !concepts.is_empty() {
+        out.push_str("\n## Concepts\n");
+        for page in concepts {
+            out.push_str(&format!("- {}\n", wikilink(&page.slug, &page.title)));
+        }
+    }
+    out
 }
 
 // Called by render_wiki_pages in Plan 08-02; unit-tested now.
@@ -276,6 +405,138 @@ mod tests {
         assert!(
             !display.contains(']'),
             "closing bracket in display must be sanitized: {link}"
+        );
+    }
+
+    #[test]
+    fn render_always_emits_source_summary() {
+        let analysis = WikiAnalysis {
+            summary: "要点摘要".into(),
+            entities: vec![],
+            concepts: vec![],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        assert_eq!(out.pages.len(), 1, "expected exactly one source-summary page");
+        let page = &out.pages[0];
+        assert!(
+            page.slug.starts_with("sources/"),
+            "slug must be under sources/: {}",
+            page.slug
+        );
+        assert_eq!(page.page_type, WikiPageType::SourceSummary);
+        assert!(
+            page.body_markdown.contains("sources: [\"file:///a.md\"]"),
+            "missing sources frontmatter: {}",
+            page.body_markdown
+        );
+        assert!(
+            page.body_markdown.contains("generated: true"),
+            "missing generated: {}",
+            page.body_markdown
+        );
+        assert!(
+            !page.body_markdown.contains("content_hash"),
+            "content_hash must be omitted: {}",
+            page.body_markdown
+        );
+        assert!(
+            out.index_markdown.contains("# Wiki"),
+            "index missing # Wiki: {}",
+            out.index_markdown
+        );
+        assert!(
+            out.index_markdown.contains("## Sources"),
+            "index missing ## Sources: {}",
+            out.index_markdown
+        );
+        assert!(
+            !out.index_markdown.contains("## Entities"),
+            "empty entities must omit ## Entities: {}",
+            out.index_markdown
+        );
+    }
+
+    #[test]
+    fn render_links_entities_bidirectional() {
+        let analysis = WikiAnalysis {
+            summary: "About Acme".into(),
+            entities: vec![WikiEntity {
+                name: "Acme".into(),
+                blurb: "A company".into(),
+            }],
+            concepts: vec![],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        let summary = out
+            .pages
+            .iter()
+            .find(|p| p.page_type == WikiPageType::SourceSummary)
+            .expect("source summary");
+        let entity = out
+            .pages
+            .iter()
+            .find(|p| p.page_type == WikiPageType::Entity)
+            .expect("entity page");
+        assert!(
+            summary.body_markdown.contains("[[entities/acme|Acme]]"),
+            "summary must forward-link entity: {}",
+            summary.body_markdown
+        );
+        assert!(
+            entity.slug == "entities/acme",
+            "entity slug: {}",
+            entity.slug
+        );
+        assert!(
+            entity.body_markdown.contains(&format!(
+                "[[{}|Doc A]]",
+                summary.slug
+            )),
+            "entity must backlink source: {}",
+            entity.body_markdown
+        );
+        for page in &out.pages {
+            assert!(
+                !page.body_markdown.contains("content_hash"),
+                "content_hash omitted: {}",
+                page.body_markdown
+            );
+        }
+    }
+
+    #[test]
+    fn render_links_concepts_bidirectional() {
+        let analysis = WikiAnalysis {
+            summary: "About Foo".into(),
+            entities: vec![],
+            concepts: vec![WikiConcept {
+                name: "Foo".into(),
+                blurb: "A concept".into(),
+            }],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        let summary = out
+            .pages
+            .iter()
+            .find(|p| p.page_type == WikiPageType::SourceSummary)
+            .expect("source summary");
+        let concept = out
+            .pages
+            .iter()
+            .find(|p| p.page_type == WikiPageType::Concept)
+            .expect("concept page");
+        assert!(
+            summary.body_markdown.contains("[[concepts/foo|Foo]]"),
+            "summary must forward-link concept: {}",
+            summary.body_markdown
+        );
+        assert_eq!(concept.slug, "concepts/foo");
+        assert!(
+            concept
+                .body_markdown
+                .contains(&format!("[[{}|Doc A]]", summary.slug)),
+            "concept must backlink source: {}",
+            concept.body_markdown
         );
     }
 }
