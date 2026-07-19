@@ -422,6 +422,45 @@ mod tests {
     }
 
     #[test]
+    fn parse_wiki_allows_empty_struct() {
+        let raw = r#"{"summary":"","entities":[],"concepts":[]}"#;
+        let analysis = parse_wiki_analysis(raw).expect("empty structural Ok");
+        assert_eq!(analysis.summary, "");
+        assert!(analysis.entities.is_empty());
+        assert!(analysis.concepts.is_empty());
+    }
+
+    #[test]
+    fn parse_wiki_accepts_fenced_or_chatter() {
+        let fenced = "```json\n{\"summary\":\"s\",\"entities\":[],\"concepts\":[]}\n```";
+        let a = parse_wiki_analysis(fenced).expect("fenced");
+        assert_eq!(a.summary, "s");
+
+        let chatter = "Here you go:\n{\"summary\":\"t\",\"entities\":[],\"concepts\":[]}\nThanks!";
+        let b = parse_wiki_analysis(chatter).expect("chatter-prefixed");
+        assert_eq!(b.summary, "t");
+    }
+
+    #[test]
+    fn parse_wiki_rejects_truncated_object() {
+        let err = parse_wiki_analysis(r#"{"summary":"partial""#).unwrap_err();
+        assert!(
+            matches!(err, InsightsError::InvalidWikiJson(_)),
+            "expected InvalidWikiJson, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn parse_wiki_rejects_schema() {
+        let missing = parse_wiki_analysis(r#"{"summary":"x","entities":[]}"#).unwrap_err();
+        assert!(matches!(missing, InsightsError::InvalidWikiJson(_)));
+
+        let wrong_type =
+            parse_wiki_analysis(r#"{"summary":1,"entities":[],"concepts":[]}"#).unwrap_err();
+        assert!(matches!(wrong_type, InsightsError::InvalidWikiJson(_)));
+    }
+
+    #[test]
     fn wiki_page_type_serializes_snake_case() {
         assert_eq!(
             serde_json::to_string(&WikiPageType::SourceSummary).unwrap(),
