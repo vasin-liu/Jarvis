@@ -19,7 +19,7 @@
 | # | Phase | Goal | Requirements | Success criteria |
 |---|-------|------|--------------|------------------|
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
-| 08 | Markdown renderer | Deterministic pages from structured analysis | WIKI-03 (render) | 3 |
+| 08 | Markdown renderer | 1/2 | In Progress|  |
 | 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
@@ -62,12 +62,12 @@ Plans:
 2. Non-empty entities emit `entities/` pages and `[[wikilink]]` from the summary page
 3. CJK / unsafe names produce filesystem-safe slugs (ASCII or `e-{hash6}` fallback) in unit tests
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — Wiki types, slugify/collision, frontmatter/wikilink helpers (Wave 1)
+- [x] 08-01-PLAN.md — Wiki types, slugify/collision, frontmatter/wikilink helpers (Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
