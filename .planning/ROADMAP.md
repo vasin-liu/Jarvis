@@ -20,7 +20,7 @@
 |---|-------|------|--------------|------------------|
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
-| 09 | LLM wiki analysis | Mock-friendly JSON → `WikiAnalysis`; fail closed | WIKI-03 (analyze), WIKI-05 | 3 |
+| 09 | LLM wiki analysis | 1/2 | In Progress|  |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
@@ -87,13 +87,13 @@ Plans:
 2. Invalid / non-JSON model output returns a typed parse error
 3. Parse failure path writes **zero** files under a tempfile wiki root in tests
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — InvalidWikiJson + Mock 「笔记编译」 + analyze_source_for_wiki happy path (WIKI-03)
+- [x] 09-01-PLAN.md — InvalidWikiJson + Mock 「笔记编译」 + analyze_source_for_wiki happy path (WIKI-03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
