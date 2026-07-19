@@ -194,8 +194,6 @@ fn build_index_markdown(pages: &[WikiPageDraft]) -> String {
     out
 }
 
-// Called by render_wiki_pages in Plan 08-02; unit-tested now.
-#[allow(dead_code)]
 fn hash6(name: &str) -> String {
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(name.as_bytes());
@@ -203,7 +201,6 @@ fn hash6(name: &str) -> String {
     full[..6].to_string()
 }
 
-#[allow(dead_code)]
 fn slugify(name: &str) -> String {
     let mut out = String::new();
     for ch in name.to_lowercase().chars() {
@@ -225,7 +222,6 @@ fn slugify(name: &str) -> String {
     }
 }
 
-#[allow(dead_code)]
 fn uniquify_slug(base: &str, seen: &mut std::collections::HashMap<String, usize>) -> String {
     let count = seen.entry(base.to_string()).or_insert(0);
     *count += 1;
@@ -236,7 +232,6 @@ fn uniquify_slug(base: &str, seen: &mut std::collections::HashMap<String, usize>
     }
 }
 
-#[allow(dead_code)]
 fn build_frontmatter(title: &str, page_type_str: &str, source_uri: &str) -> String {
     let escaped_title = title.replace('\\', "\\\\").replace('"', "\\\"");
     let escaped_uri = source_uri.replace('\\', "\\\\").replace('"', "\\\"");
@@ -245,12 +240,10 @@ fn build_frontmatter(title: &str, page_type_str: &str, source_uri: &str) -> Stri
     )
 }
 
-#[allow(dead_code)]
 fn sanitize_display(display: &str) -> String {
     display.replace('|', "").replace(']', "")
 }
 
-#[allow(dead_code)]
 fn wikilink(path: &str, display: &str) -> String {
     format!("[[{path}|{}]]", sanitize_display(display))
 }
@@ -279,15 +272,35 @@ mod tests {
     }
 
     #[test]
-    fn render_wiki_pages_stub_returns_empty() {
+    fn render_cjk_entity_uses_hash_slug_path() {
         let analysis = WikiAnalysis {
-            summary: "要点".into(),
-            entities: vec![],
+            summary: "人物".into(),
+            entities: vec![WikiEntity {
+                name: "张三".into(),
+                blurb: "某人".into(),
+            }],
             concepts: vec![],
         };
         let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
-        assert!(out.pages.is_empty());
-        assert!(out.index_markdown.is_empty());
+        let entity = out
+            .pages
+            .iter()
+            .find(|p| p.page_type == WikiPageType::Entity)
+            .expect("entity");
+        assert!(
+            entity.slug.starts_with("entities/e-"),
+            "CJK entity slug: {}",
+            entity.slug
+        );
+        let hex = entity.slug.trim_start_matches("entities/e-");
+        assert_eq!(hex.len(), 6);
+        assert!(
+            out.pages[0]
+                .body_markdown
+                .contains(&format!("[[{}|张三]]", entity.slug)),
+            "summary must wikilink CJK entity by path|display: {}",
+            out.pages[0].body_markdown
+        );
     }
 
     #[test]
@@ -537,6 +550,69 @@ mod tests {
                 .contains(&format!("[[{}|Doc A]]", summary.slug)),
             "concept must backlink source: {}",
             concept.body_markdown
+        );
+    }
+
+    #[test]
+    fn index_omits_empty_sections() {
+        let analysis = WikiAnalysis {
+            summary: "only source".into(),
+            entities: vec![],
+            concepts: vec![],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        assert!(out.index_markdown.contains("# Wiki"));
+        assert!(out.index_markdown.contains("## Sources"));
+        assert!(!out.index_markdown.contains("## Entities"));
+        assert!(!out.index_markdown.contains("## Concepts"));
+    }
+
+    #[test]
+    fn index_with_all_sections() {
+        let analysis = WikiAnalysis {
+            summary: "full".into(),
+            entities: vec![WikiEntity {
+                name: "Acme".into(),
+                blurb: "co".into(),
+            }],
+            concepts: vec![WikiConcept {
+                name: "Foo".into(),
+                blurb: "idea".into(),
+            }],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        assert!(out.index_markdown.contains("## Sources"));
+        assert!(out.index_markdown.contains("## Entities"));
+        assert!(out.index_markdown.contains("## Concepts"));
+        assert!(
+            out.index_markdown.contains("[[sources/doc-a|Doc A]]"),
+            "sources bullet: {}",
+            out.index_markdown
+        );
+        assert!(
+            out.index_markdown.contains("[[entities/acme|Acme]]"),
+            "entities bullet: {}",
+            out.index_markdown
+        );
+        assert!(
+            out.index_markdown.contains("[[concepts/foo|Foo]]"),
+            "concepts bullet: {}",
+            out.index_markdown
+        );
+    }
+
+    #[test]
+    fn index_has_no_yaml_frontmatter() {
+        let analysis = WikiAnalysis {
+            summary: "x".into(),
+            entities: vec![],
+            concepts: vec![],
+        };
+        let out = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        assert!(
+            !out.index_markdown.starts_with("---"),
+            "index must not start with YAML frontmatter: {}",
+            out.index_markdown
         );
     }
 }
