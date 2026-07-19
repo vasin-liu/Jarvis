@@ -38,12 +38,11 @@ created: 2026-07-19
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 09-01-01 | 01 | 1 | WIKI-03 | T-09-01 | InvalidWikiJson + Mock 「笔记编译」 wired | unit / build | `cargo test -p insights -p llm --no-run` | ❌ W0 | ⬜ pending |
-| 09-01-02 | 01 | 1 | WIKI-03 | T-09-01 | Mock + analyze → populated analysis | unit / tokio | `cargo test -p insights analyze_parses_mock_json -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
-| 09-02-01 | 02 | 2 | WIKI-05 | T-09-02 | Prose → InvalidWikiJson; zero files | unit / tokio | `cargo test -p insights wiki_parse_fail_prose_writes_zero_files -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
-| 09-02-02 | 02 | 2 | WIKI-05 | T-09-02 | Truncated → InvalidWikiJson; zero files | unit / tokio | `cargo test -p insights wiki_parse_fail_truncated_writes_zero_files -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
-| 09-02-03 | 02 | 2 | WIKI-05 | T-09-02 | Schema → InvalidWikiJson; zero files | unit / tokio | `cargo test -p insights wiki_parse_fail_schema_writes_zero_files -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
-| 09-02-04 | 02 | 2 | WIKI-03 | T-09-01 | Empty structural JSON → Ok; write helper tree | unit / tokio | `cargo test -p insights parse_wiki_allows_empty_struct write_wiki_pages_to_dir_writes_tree -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
+| 09-01-01 | 01 | 1 | WIKI-03 | T-09-03 | InvalidWikiJson + Mock 「笔记编译」 → valid wiki JSON | unit / tokio | `cargo test -p llm mock_wiki_compile_json -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
+| 09-01-02 | 01 | 1 | WIKI-03 | T-09-01 | Mock + analyze → populated analysis; summary untouched | unit / tokio | `cargo test -p insights analyze_parses_mock_json analyze_does_not_touch_source_summary -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
+| 09-02-01 | 02 | 2 | WIKI-03 | T-09-07 | Empty Ok; fence/chatter extract; truncated/schema → InvalidWikiJson | unit | `cargo test -p insights parse_wiki_allows_empty_struct parse_wiki_accepts_fenced_or_chatter parse_wiki_rejects_truncated_object parse_wiki_rejects_schema -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
+| 09-02-02 | 02 | 2 | WIKI-05 | T-09-05 | write helper creates index.md + sources tree under tempfile | unit | `cargo test -p insights write_wiki_pages_to_dir_writes_tree -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
+| 09-02-03 | 02 | 2 | WIKI-05 | T-09-06 | Three garbage fixtures → InvalidWikiJson; zero files | unit / tokio | `cargo test -p insights wiki_parse_fail_prose_writes_zero_files wiki_parse_fail_truncated_writes_zero_files wiki_parse_fail_schema_writes_zero_files -- --exact --test-threads=1` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

@@ -468,20 +468,23 @@ Map `std::io::Error` via `InsightsError::Io` (recommended) or `.map_err(|e| …)
 
 **If this table is empty:** N/A — assumptions listed above are low-risk discretion under CONTEXT.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should Phase 09 export a combined `analyze_then_write` helper?**
+1. **Should Phase 09 export a combined `analyze_then_write` helper?** — **RESOLVED**
    - What we know: D-13 requires analyze-first gate; write helper is public; Phase 10 will orchestrate full compile.
    - What's unclear: Whether a thin combined helper reduces test duplication.
    - Recommendation: **No public combined helper** in Phase 09 — keep gate explicit in tests; Phase 10 owns `compile_wiki_for_source`.
+   - **Plan answer (09-02):** No public combined helper; interfaces/context and Task 2 action forbid `analyze_then_write`.
 
-2. **IO error variant vs `io::Result` on writer**
+2. **IO error variant vs `io::Result` on writer** — **RESOLVED**
    - What we know: Current `InsightsError` has no IO arm [VERIFIED: `error.rs`].
    - Recommendation: Add `Io(#[from] std::io::Error)` for consistency with `Llm`/`Store` froms — discretionary, not a discuss blocker.
+   - **Plan answer (09-02):** Prefer `InsightsError::Io(#[from] std::io::Error)` for the writer (Task 2 GREEN; optional artifact in must_haves).
 
-3. **Happy-path write test in Phase 09?**
+3. **Happy-path write test in Phase 09?** — **RESOLVED**
    - What we know: ROADMAP success criteria emphasize Mock parse + fail-closed zero files; happy write is Phase 10's main job.
    - Recommendation: Include **one** small happy-path test that analyze → render → write creates `index.md` under tempfile (proves helper works) without indexing — strengthens D-13 without stealing Phase 10 scope.
+   - **Plan answer (09-02 Task 2):** One happy write-tree test — `write_wiki_pages_to_dir_writes_tree` — asserts `index.md` + at least one `sources/*.md` under tempfile.
 
 ## Environment Availability
 
