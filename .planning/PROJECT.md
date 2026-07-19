@@ -8,7 +8,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phase 07 complete (WikiPage kind + nested WikiConfig default-off + Library label「笔记页」). Next: Phase 08 deterministic Markdown renderer.
+**In progress:** **v1.10** Wiki Compile Layer — Phase 08 complete (`insights::wiki` pure `render_wiki_pages` + index catalog). Next: Phase 09 LLM wiki analysis.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
@@ -108,4 +108,4 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-18 after Phase 07 wiki-kind-config complete*
+*Last updated: 2026-07-19 after Phase 08 deterministic Markdown renderer complete*
