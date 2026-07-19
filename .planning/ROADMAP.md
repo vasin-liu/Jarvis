@@ -20,7 +20,7 @@
 |---|-------|------|--------------|------------------|
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
-| 09 | LLM wiki analysis | 1/2 | In Progress|  |
+| 09 | LLM wiki analysis | 2/2 | Complete   | 2026-07-19 |
 | 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
@@ -87,7 +87,7 @@ Plans:
 2. Invalid / non-JSON model output returns a typed parse error
 3. Parse failure path writes **zero** files under a tempfile wiki root in tests
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 
@@ -97,7 +97,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02-PLAN.md — Parse strictness + write_wiki_pages_to_dir + D-14 fail-closed zero-file tests (WIKI-05)
+- [x] 09-02-PLAN.md — Parse strictness + write_wiki_pages_to_dir + D-14 fail-closed zero-file tests (WIKI-05)
 
 ---
 
