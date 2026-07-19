@@ -8,7 +8,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phase 08 complete (`insights::wiki` pure `render_wiki_pages` + index catalog). Next: Phase 09 LLM wiki analysis.
+**In progress:** **v1.10** Wiki Compile Layer — Phase 09 complete (`analyze_source_for_wiki` + fail-closed write proof). Next: Phase 10 persist + index wiki pages.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
@@ -57,10 +57,12 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ JSON-first agent tool protocol + parse warnings UI — v1.9
 - ✓ Architecture review + sync error surfacing — v1.9
 - ✓ WikiConfig nested default-off + SourceKind::WikiPage + Library label「笔记页」— Validated in Phase 07: wiki-kind-config
+- ✓ Deterministic `render_wiki_pages` (frontmatter, wikilinks, index) — Validated in Phase 08: deterministic-markdown-renderer
+- ✓ LLM wiki analysis (`analyze_source_for_wiki`) + fail-closed parse (WIKI-05) — Validated in Phase 09: llm-wiki-analysis
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10) — Phase 07 foundation done; Phases 08–13 remain
+- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–09 done; Phases 10–13 remain
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
