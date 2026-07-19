@@ -58,24 +58,24 @@ pub fn render_wiki_pages(
     source_uri: &str,
     source_title: &str,
 ) -> WikiCompileResult {
-    let mut sources_seen = std::collections::HashMap::new();
-    let mut entities_seen = std::collections::HashMap::new();
-    let mut concepts_seen = std::collections::HashMap::new();
+    let mut sources_used = std::collections::HashSet::new();
+    let mut entities_used = std::collections::HashSet::new();
+    let mut concepts_used = std::collections::HashSet::new();
 
     let source_base = slugify(source_title);
-    let source_slug_seg = uniquify_slug(&source_base, &mut sources_seen);
+    let source_slug_seg = uniquify_slug(&source_base, &mut sources_used);
     let source_slug = format!("sources/{source_slug_seg}");
 
     // Precompute entity/concept paths so the summary can forward-link.
     let mut entity_pages = Vec::with_capacity(analysis.entities.len());
     for entity in &analysis.entities {
-        let seg = uniquify_slug(&slugify(&entity.name), &mut entities_seen);
+        let seg = uniquify_slug(&slugify(&entity.name), &mut entities_used);
         let slug = format!("entities/{seg}");
         entity_pages.push((slug, entity));
     }
     let mut concept_pages = Vec::with_capacity(analysis.concepts.len());
     for concept in &analysis.concepts {
-        let seg = uniquify_slug(&slugify(&concept.name), &mut concepts_seen);
+        let seg = uniquify_slug(&slugify(&concept.name), &mut concepts_used);
         let slug = format!("concepts/{seg}");
         concept_pages.push((slug, concept));
     }
@@ -222,26 +222,42 @@ fn slugify(name: &str) -> String {
     }
 }
 
-fn uniquify_slug(base: &str, seen: &mut std::collections::HashMap<String, usize>) -> String {
-    let count = seen.entry(base.to_string()).or_insert(0);
-    *count += 1;
-    if *count == 1 {
-        base.to_string()
-    } else {
-        format!("{base}-{count}")
+fn uniquify_slug(base: &str, used: &mut std::collections::HashSet<String>) -> String {
+    if used.insert(base.to_string()) {
+        return base.to_string();
+    }
+    let mut n = 2usize;
+    loop {
+        let candidate = format!("{base}-{n}");
+        if used.insert(candidate.clone()) {
+            return candidate;
+        }
+        n += 1;
     }
 }
 
+fn yaml_escape_double_quoted(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+}
+
 fn build_frontmatter(title: &str, page_type_str: &str, source_uri: &str) -> String {
-    let escaped_title = title.replace('\\', "\\\\").replace('"', "\\\"");
-    let escaped_uri = source_uri.replace('\\', "\\\\").replace('"', "\\\"");
+    let escaped_title = yaml_escape_double_quoted(title);
+    let escaped_uri = yaml_escape_double_quoted(source_uri);
     format!(
         "---\ntitle: \"{escaped_title}\"\ntype: {page_type_str}\nsources: [\"{escaped_uri}\"]\ngenerated: true\n---\n"
     )
 }
 
 fn sanitize_display(display: &str) -> String {
-    display.replace('|', "").replace(']', "")
+    display
+        .replace('|', "")
+        .replace(']', "")
+        .replace('\n', " ")
+        .replace('\r', " ")
 }
 
 fn wikilink(path: &str, display: &str) -> String {
@@ -325,15 +341,25 @@ mod tests {
 
     #[test]
     fn slug_collision_suffix() {
-        let mut entities = std::collections::HashMap::new();
+        let mut entities = std::collections::HashSet::new();
         let a = uniquify_slug(&slugify("Acme"), &mut entities);
         let b = uniquify_slug(&slugify("Acme"), &mut entities);
         assert_eq!(a, "acme");
         assert_eq!(b, "acme-2");
 
-        let mut concepts = std::collections::HashMap::new();
+        let mut concepts = std::collections::HashSet::new();
         let c = uniquify_slug(&slugify("Acme"), &mut concepts);
         assert_eq!(c, "acme", "cross-directory names must not collide");
+    }
+
+    #[test]
+    fn uniquify_reserves_emitted_suffix_slugs() {
+        // Natural slug "foo-2" must not collide with the -2 suffix of a prior "foo".
+        let mut used = std::collections::HashSet::new();
+        assert_eq!(uniquify_slug("foo", &mut used), "foo");
+        assert_eq!(uniquify_slug("foo", &mut used), "foo-2");
+        assert_eq!(uniquify_slug("foo-2", &mut used), "foo-2-2");
+        assert_eq!(used.len(), 3);
     }
 
     #[test]
