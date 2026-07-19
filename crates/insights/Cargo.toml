@@ -15,3 +15,5 @@ hex = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+tempfile = "3"
+async-trait = { workspace = true }

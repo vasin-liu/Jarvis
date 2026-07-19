@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use llm::{ChatModel, Message, Role};
 use serde::{Deserialize, Serialize};
 use store::{IndexStatus, Store};
@@ -42,6 +44,20 @@ pub async fn analyze_source_for_wiki(
 
     let raw = chat.complete(&messages).await?;
     parse_wiki_analysis(&raw)
+}
+
+/// Write `render_wiki_pages` output under `wiki_root` using draft.slug paths + `index.md`.
+pub fn write_wiki_pages_to_dir(compiled: &WikiCompileResult, wiki_root: &Path) -> Result<()> {
+    std::fs::create_dir_all(wiki_root)?;
+    for page in &compiled.pages {
+        let path = wiki_root.join(format!("{}.md", page.slug));
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&path, &page.body_markdown)?;
+    }
+    std::fs::write(wiki_root.join("index.md"), &compiled.index_markdown)?;
+    Ok(())
 }
 
 fn parse_wiki_analysis(raw: &str) -> Result<WikiAnalysis> {
@@ -458,6 +474,119 @@ mod tests {
         let wrong_type =
             parse_wiki_analysis(r#"{"summary":1,"entities":[],"concepts":[]}"#).unwrap_err();
         assert!(matches!(wrong_type, InsightsError::InvalidWikiJson(_)));
+    }
+
+    #[test]
+    fn write_wiki_pages_to_dir_writes_tree() {
+        let analysis = WikiAnalysis {
+            summary: "要点".into(),
+            entities: vec![WikiEntity {
+                name: "Acme".into(),
+                blurb: "公司".into(),
+            }],
+            concepts: vec![],
+        };
+        let compiled = render_wiki_pages(&analysis, "file:///a.md", "Doc A");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_wiki_pages_to_dir(&compiled, &wiki_root).expect("write tree");
+
+        assert!(wiki_root.join("index.md").is_file(), "index.md required");
+        let sources = wiki_root.join("sources");
+        assert!(sources.is_dir(), "sources/ dir required");
+        let source_pages: Vec<_> = std::fs::read_dir(&sources)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().is_some_and(|x| x == "md"))
+            .collect();
+        assert!(!source_pages.is_empty(), "at least one sources/*.md");
+    }
+
+    /// Test-only ChatModel that always returns a fixed reply (D-04 garbage fixtures).
+    struct FixedReplyChat {
+        reply: &'static str,
+    }
+
+    #[async_trait::async_trait]
+    impl ChatModel for FixedReplyChat {
+        fn id(&self) -> &str {
+            "fixed-reply-test"
+        }
+
+        async fn complete(
+            &self,
+            _messages: &[llm::Message],
+        ) -> std::result::Result<String, llm::LlmError> {
+            Ok(self.reply.into())
+        }
+
+        async fn complete_stream(
+            &self,
+            messages: &[llm::Message],
+            on_token: &mut (dyn FnMut(String) + Send),
+        ) -> std::result::Result<String, llm::LlmError> {
+            let answer = self.complete(messages).await?;
+            on_token(answer.clone());
+            Ok(answer)
+        }
+    }
+
+    fn count_files_recursive(root: &Path) -> usize {
+        if !root.exists() {
+            return 0;
+        }
+        let mut n = 0usize;
+        let mut stack = vec![root.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else {
+                    n += 1;
+                }
+            }
+        }
+        n
+    }
+
+    async fn assert_fail_closed(reply: &'static str) {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "fail-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+
+        let err = analyze_source_for_wiki(&store, &FixedReplyChat { reply }, "fail-a")
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, InsightsError::InvalidWikiJson(_)),
+            "expected InvalidWikiJson, got {err:?}"
+        );
+        // Fail-closed gate: never call write on Err.
+        assert_eq!(
+            count_files_recursive(&wiki_root),
+            0,
+            "parse failure must leave zero files under wiki root"
+        );
+    }
+
+    #[tokio::test]
+    async fn wiki_parse_fail_prose_writes_zero_files() {
+        assert_fail_closed("这不是 JSON，只是散文。").await;
+    }
+
+    #[tokio::test]
+    async fn wiki_parse_fail_truncated_writes_zero_files() {
+        assert_fail_closed(r#"{"summary":"partial","entities":[{"name":"A""#).await;
+    }
+
+    #[tokio::test]
+    async fn wiki_parse_fail_schema_writes_zero_files() {
+        assert_fail_closed(r#"{"summary":"x","entities":"not-array","concepts":[]}"#).await;
     }
 
     #[test]

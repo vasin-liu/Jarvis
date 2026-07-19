@@ -10,6 +10,8 @@ pub enum InsightsError {
     InvalidTasksJson(String),
     #[error("failed to parse wiki json: {0}")]
     InvalidWikiJson(String),
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
     #[error("llm: {0}")]
     Llm(#[from] llm::LlmError),
     #[error("store: {0}")]
