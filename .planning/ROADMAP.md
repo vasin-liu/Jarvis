@@ -87,7 +87,17 @@ Plans:
 2. Invalid / non-JSON model output returns a typed parse error
 3. Parse failure path writes **zero** files under a tempfile wiki root in tests
 
-**Plans:** TBD via `/gsd-plan-phase 09`
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — InvalidWikiJson + Mock 「笔记编译」 + analyze_source_for_wiki happy path (WIKI-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md — Parse strictness + write_wiki_pages_to_dir + D-14 fail-closed zero-file tests (WIKI-05)
 
 ---
 
