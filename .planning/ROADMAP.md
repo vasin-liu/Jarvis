@@ -62,7 +62,16 @@ Plans:
 2. Non-empty entities emit `entities/` pages and `[[wikilink]]` from the summary page
 3. CJK / unsafe names produce filesystem-safe slugs (ASCII or `e-{hash6}` fallback) in unit tests
 
-**Plans:** TBD via `/gsd-plan-phase 08`
+**Plans:** 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Wiki types, slugify/collision, frontmatter/wikilink helpers (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md — render_wiki_pages + index_markdown + ROADMAP render tests (Wave 2)
 
 ---
 

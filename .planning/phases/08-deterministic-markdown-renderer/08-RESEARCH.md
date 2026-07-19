@@ -429,19 +429,19 @@ fn cjk_name_uses_hash_slug() {
 
 **If wrong:** Prefer discuss-phase follow-up only for A4/A5 if implementer wants a different escape policy; A1–A3 are implementer discretion under CONTEXT.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact body headings under frontmatter**
+1. **Exact body headings under frontmatter** — RESOLVED
    - What we know: Discretion allows any layout if links + frontmatter hold.
-   - Recommendation: `# {title}` then summary/blurb paragraph, then `## Links` (or inline list) for wikilinks — keep minimal.
+   - Adopted: Minimal body layout — `# {title}` then summary/blurb paragraph, then link lines (or a short `## Links` list) for wikilinks. Locked in Plan 08-02 page assembly.
 
-2. **Source title collision with entity slug**
+2. **Source title collision with entity slug** — RESOLVED
    - What we know: Cross-directory not a collision (D-07).
-   - Recommendation: No special case.
+   - Adopted: No special case — entity `acme` and source slug `acme` may coexist under different directories (`entities/` vs `sources/`).
 
-3. **Multiple `source_uris` on draft**
+3. **Multiple `source_uris` on draft** — RESOLVED
    - What we know: Plan type has `Vec<String>`; Phase 08 single-source compile → one URI.
-   - Recommendation: `source_uris: vec![source_uri.to_string()]`; frontmatter array length 1.
+   - Adopted: `source_uris: vec![source_uri.to_string()]`; frontmatter `sources` array length 1.
 
 ## Environment Availability
 
