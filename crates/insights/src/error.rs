@@ -8,6 +8,8 @@ pub enum InsightsError {
     EmptySource(String),
     #[error("failed to parse tasks json: {0}")]
     InvalidTasksJson(String),
+    #[error("failed to parse wiki json: {0}")]
+    InvalidWikiJson(String),
     #[error("llm: {0}")]
     Llm(#[from] llm::LlmError),
     #[error("store: {0}")]

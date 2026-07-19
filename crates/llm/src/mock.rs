@@ -47,9 +47,13 @@ fn build_answer(messages: &[Message]) -> Result<String> {
         if has_tool_result {
             return Ok("（Mock Agent 回答）已结合工具检索结果作答。".to_string());
         }
+        return Ok(r#"{"name":"search_knowledge","arguments":{"query":"agent"}}"#.to_string());
+    }
+
+    // Wiki compile (笔记编译) before 记忆/任务/摘要 so wiki prompts do not fall through.
+    if system.contains("笔记编译") {
         return Ok(
-            r#"<tool_call>{"name":"search_knowledge","arguments":{"query":"agent"}}</tool_call>"#
-                .to_string(),
+            r#"{"summary":"该来源讨论相关主题与要点。","entities":[{"name":"Jarvis","blurb":"本地知识库助手"}],"concepts":[]}"#.to_string(),
         );
     }
 
@@ -114,6 +118,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn mock_agent_tool_emits_json_line() {
+        let model = MockChatModel;
+        let out = model
+            .complete(&[
+                Message {
+                    role: Role::System,
+                    content: "可用工具".into(),
+                },
+                Message {
+                    role: Role::User,
+                    content: "test".into(),
+                },
+            ])
+            .await
+            .unwrap();
+        assert!(out.contains(r#"{"name""#));
+        assert!(!out.contains("tool_call"));
+    }
+
+    #[tokio::test]
     async fn mock_stream_emits_tokens() {
         let model = MockChatModel;
         let mut tokens = String::new();
@@ -129,5 +153,34 @@ mod tests {
             .unwrap();
         assert!(!tokens.is_empty());
         assert_eq!(tokens, out);
+    }
+
+    #[tokio::test]
+    async fn mock_wiki_compile_json() {
+        let model = MockChatModel;
+        let out = model
+            .complete(&[
+                Message {
+                    role: Role::System,
+                    content: "你是笔记编译助手。仅输出裸 JSON。".into(),
+                },
+                Message {
+                    role: Role::User,
+                    content: "标题：示例\n\n正文：\n相关内容".into(),
+                },
+            ])
+            .await
+            .unwrap();
+
+        assert!(out.contains("summary"), "reply must include summary key: {out}");
+        assert!(out.contains("entities"), "reply must include entities key: {out}");
+
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let summary = value["summary"].as_str().unwrap_or("");
+        assert!(!summary.is_empty(), "summary must be non-empty");
+        let entities = value["entities"].as_array().expect("entities array");
+        assert_eq!(entities.len(), 1, "exactly one entity");
+        let concepts = value["concepts"].as_array().expect("concepts array");
+        assert!(concepts.is_empty(), "concepts must be empty array");
     }
 }
