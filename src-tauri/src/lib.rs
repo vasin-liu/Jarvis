@@ -36,12 +36,23 @@ pub fn run() {
             let handle = app.handle().clone();
             if is_e2e_mode() {
                 seed_e2e_fixture(&state)?;
+                state.restart_watcher()?;
+                state.restart_scheduler(&handle);
+                app.manage(state);
             } else {
-                state.initial_scan_with_progress(&handle)?;
+                // Watcher/scheduler first; heavy folder scan off the setup thread so the
+                // window can paint while FastEmbed finishes loading in the background.
+                state.restart_watcher()?;
+                state.restart_scheduler(&handle);
+                app.manage(state);
+                let scan_handle = handle.clone();
+                std::thread::spawn(move || {
+                    let state = scan_handle.state::<AppState>();
+                    if let Err(e) = state.initial_scan_with_progress(&scan_handle) {
+                        eprintln!("initial scan failed: {e}");
+                    }
+                });
             }
-            state.restart_watcher()?;
-            state.restart_scheduler(&handle);
-            app.manage(state);
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())

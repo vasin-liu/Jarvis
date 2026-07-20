@@ -153,8 +153,11 @@ describe("Jarvis full UI journey", () => {
     await expandSettingsSection("settings-section-lark");
     await clickViaDom('[data-testid="lark-check-connection"]');
     await waitForDomText('[data-testid="lark-status-panel"]', "E2E User");
-    const panel = await $('[data-testid="lark-status-panel"]');
-    expect(await panel.getText()).toContain("E2E User");
+    const larkText = await browser.execute(() => {
+      const el = document.querySelector('[data-testid="lark-status-panel"]');
+      return el?.textContent ?? "";
+    });
+    expect(larkText).toContain("E2E User");
 
     await expandSettingsSection("settings-section-advanced");
     const input = await $('[data-testid="lark-sync-url-input"]');

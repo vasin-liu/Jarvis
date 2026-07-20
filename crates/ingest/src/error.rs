@@ -10,6 +10,8 @@ pub enum IngestError {
     UnsupportedType(String),
     #[error("empty document: {0}")]
     Empty(String),
+    #[error("spreadsheet parse error: {0}")]
+    Spreadsheet(String),
 }
 
 pub type Result<T> = std::result::Result<T, IngestError>;

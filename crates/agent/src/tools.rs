@@ -14,17 +14,18 @@ use crate::plugins::{
 use crate::types::ToolCallRecord;
 use rag::Citation;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub(crate) struct ToolCallPayload {
     pub name: String,
     pub arguments: serde_json::Value,
 }
 
 pub fn parse_tool_call(text: &str) -> Option<ToolCallPayload> {
-    let start = text.find("<tool_call>")?;
-    let end = text.find("</tool_call>")?;
-    let json = text[start + 11..end].trim();
-    serde_json::from_str(json).ok()
+    use crate::tool_parse::{CompositeToolCallParser, ToolCallParseOutcome, ToolCallParser};
+    match CompositeToolCallParser::new().parse(text) {
+        ToolCallParseOutcome::Found(payload) => Some(payload),
+        _ => None,
+    }
 }
 
 pub async fn execute_tool(
@@ -65,8 +66,9 @@ pub async fn execute_tool(
             let mut lines = Vec::new();
             for hit in hits {
                 let source = store.get_source(&hit.source_id)?;
-                let excerpt = if hit.text.len() > 200 {
-                    format!("{}…", &hit.text[..200])
+                let excerpt = if hit.text.chars().count() > 200 {
+                    let truncated: String = hit.text.chars().take(200).collect();
+                    format!("{truncated}…")
                 } else {
                     hit.text.clone()
                 };
@@ -198,22 +200,22 @@ pub fn build_tools_prompt(
     granted_plugin_permissions: &[String],
 ) -> String {
     let mut lines = vec![
-        "可用工具（需要时仅回复一行 tool_call，不要其他文字）：".to_string(),
-        r#"<tool_call>{"name":"search_knowledge","arguments":{"query":"关键词"}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"list_sources","arguments":{}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"list_tasks","arguments":{}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"list_memories","arguments":{}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"add_memory","arguments":{"content":"要记住的事实","title":"可选标题"}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"get_memory","arguments":{"id":"memory://..."}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"forget_memory","arguments":{"id":"memory://..."}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"update_memory","arguments":{"id":"memory://...","content":"新内容","title":"可选标题"}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"complete_task","arguments":{"id":"任务id"}}</tool_call>"#.into(),
-        r#"<tool_call>{"name":"complete_task","arguments":{"title":"任务标题关键词"}}</tool_call>"#.into(),
+        "可用工具（需要时仅回复一行裸 JSON，不要其他文字、不要 markdown 代码块、不要 XML）：".to_string(),
+        r#"{"name":"search_knowledge","arguments":{"query":"关键词"}}"#.into(),
+        r#"{"name":"list_sources","arguments":{}}"#.into(),
+        r#"{"name":"list_tasks","arguments":{}}"#.into(),
+        r#"{"name":"list_memories","arguments":{}}"#.into(),
+        r#"{"name":"add_memory","arguments":{"content":"要记住的事实","title":"可选标题"}}"#.into(),
+        r#"{"name":"get_memory","arguments":{"id":"memory://..."}}"#.into(),
+        r#"{"name":"forget_memory","arguments":{"id":"memory://..."}}"#.into(),
+        r#"{"name":"update_memory","arguments":{"id":"memory://...","content":"新内容","title":"可选标题"}}"#.into(),
+        r#"{"name":"complete_task","arguments":{"id":"任务id"}}"#.into(),
+        r#"{"name":"complete_task","arguments":{"title":"任务标题关键词"}}"#.into(),
     ];
 
     for (_, tool) in enabled_plugin_tools(plugins, enabled_plugin_ids, granted_plugin_permissions) {
         lines.push(format!(
-            r#"<tool_call>{{"name":"{}","arguments":{{}}}}</tool_call>"#,
+            r#"{{"name":"{}","arguments":{{}}}}"#,
             tool.name
         ));
     }

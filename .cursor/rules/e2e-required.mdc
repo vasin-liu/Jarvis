@@ -1,0 +1,43 @@
+---
+description: Every user-facing feature must ship with WebDriver E2E coverage
+alwaysApply: true
+---
+
+# E2E Required
+
+**All user-facing features must have automated E2E verification** before merge.
+
+## Definition of done (user-facing)
+
+1. Add or extend a spec under `e2e/specs/`.
+2. Add stable `data-testid` selectors on new/changed UI.
+3. Use **deterministic mocks** when external services are involved (`JARVIS_E2E=1`, `src-tauri/src/e2e.rs`).
+4. Run `npm run test:e2e:local` (or CI `e2e` job) green.
+
+## Patterns
+
+| Need | Approach |
+|------|----------|
+| LLM / embedder | `apply_e2e_config` → Mock providers |
+| Feishu / lark-cli | `e2e::lark_fixture_*` + `e2e::lark_auth_status` |
+| File index | `JARVIS_E2E_FIXTURE` seeded at startup |
+| React inputs | `setReactInputValue` / `clickViaDom` in `e2e/helpers.ts` |
+
+## Spec map
+
+| Area | Spec file |
+|------|-----------|
+| Full journey | `full-ui.spec.ts` |
+| Lark / Feishu | `lark.spec.ts` |
+| Memory | `memory.spec.ts` |
+| Agent | `agent.spec.ts` |
+| Q&A | `qa.spec.ts` |
+| Settings / index | `settings.spec.ts` |
+| Navigation | `navigation.spec.ts` |
+| Smoke | `smoke.spec.ts` |
+
+New feature → add test to the focused spec **and** extend `full-ui.spec.ts` if it is part of the primary journey.
+
+## CI
+
+Windows job `e2e` runs `npm run test:e2e` (all `e2e/specs/**/*.spec.ts`) on every push to `dev` / `master`.

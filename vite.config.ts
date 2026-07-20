@@ -10,7 +10,7 @@ export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
@@ -21,7 +21,9 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
+    // Bind IPv4 explicitly — on Windows, `localhost`→::1-only leaves
+    // WebView2 (often 127.0.0.1) with a black screen.
+    host: host || "127.0.0.1",
     hmr: host
       ? {
           protocol: "ws",
@@ -30,8 +32,12 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // Ignore Rust build outputs — watching locked DLLs on Windows crashes Vite (EBUSY).
+      ignored: [
+        "**/src-tauri/**",
+        "**/target/**",
+        "**/.fastembed_cache/**",
+      ],
     },
   },
 }));

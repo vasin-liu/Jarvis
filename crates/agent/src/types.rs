@@ -44,6 +44,8 @@ pub struct AgentResponse {
     pub tool_calls: Vec<ToolCallRecord>,
     #[serde(default)]
     pub orchestration_steps: Vec<OrchestrationStep>,
+    #[serde(default)]
+    pub tool_parse_warnings: Vec<String>,
 }
 
 pub fn default_profiles() -> Vec<AgentProfile> {

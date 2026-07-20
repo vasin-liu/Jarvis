@@ -5,6 +5,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+keyring = "3"
 agent = { path = "../agent" }
 embedder = { path = "../embedder" }
 llm = { path = "../llm" }

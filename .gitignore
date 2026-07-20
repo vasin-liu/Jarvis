@@ -32,3 +32,14 @@ debug/
 
 # FastEmbed local model cache
 src-tauri/.fastembed_cache/
+
+# Lark CLI download cache
+.jarvis-lark-cache/
+.lark-cache/
+
+# Local E2E / debug artifacts
+msedgedriver.exe
+.playwright-mcp/
+test-out*.txt
+trace.txt
+trace_out.txt

@@ -32,26 +32,27 @@ pub fn build_embedder_with_provider(
     provider: EmbedderProvider,
 ) -> Result<Arc<dyn Embedder>, EmbedError> {
     match provider {
-        EmbedderProvider::Mock => Ok(Arc::new(MockEmbedder::new(config.mock_embed_dim))),
+        EmbedderProvider::Mock => Ok(Arc::new(MockEmbedder::new(config.embedding.mock_embed_dim))),
         EmbedderProvider::Ollama => Ok(Arc::new(OllamaEmbedder::new(
-            config.ollama_base_url.clone(),
-            config.ollama_embed_model.clone(),
-            config.ollama_embed_dim,
+            config.embedding.ollama_base_url.clone(),
+            config.embedding.ollama_embed_model.clone(),
+            config.embedding.ollama_embed_dim,
         ))),
         EmbedderProvider::FastEmbed => Ok(Arc::new(FastEmbedder::try_new(
-            &config.fastembed_model,
+            &config.embedding.fastembed_model,
+            config.fastembed_cache_dir.clone(),
         )?)),
         EmbedderProvider::Cloud => Ok(Arc::new(OpenAiEmbedder::new(
-            config.cloud_base_url.clone(),
-            config.cloud_api_key.clone(),
-            config.cloud_embed_model.clone(),
-            config.cloud_embed_dim,
+            config.embedding.cloud_base_url.clone(),
+            config.embedding.cloud_api_key.clone(),
+            config.embedding.cloud_embed_model.clone(),
+            config.embedding.cloud_embed_dim,
         ))),
     }
 }
 
 pub fn build_embedder(config: &AppConfig) -> Result<Arc<dyn Embedder>, EmbedError> {
-    build_embedder_with_provider(config, config.embedder)
+    build_embedder_with_provider(config, config.embedding.embedder)
 }
 
 pub fn build_chat_model_with_provider(
@@ -61,19 +62,19 @@ pub fn build_chat_model_with_provider(
     match provider {
         ChatProvider::Mock => Arc::new(MockChatModel),
         ChatProvider::Ollama => Arc::new(OllamaChat::new(
-            config.ollama_base_url.clone(),
-            config.ollama_chat_model.clone(),
+            config.embedding.ollama_base_url.clone(),
+            config.chat_cfg.ollama_chat_model.clone(),
         )),
         ChatProvider::Cloud => Arc::new(OpenAiChat::new(
-            config.cloud_base_url.clone(),
-            config.cloud_api_key.clone(),
-            config.cloud_chat_model.clone(),
+            config.embedding.cloud_base_url.clone(),
+            config.embedding.cloud_api_key.clone(),
+            config.chat_cfg.cloud_chat_model.clone(),
         )),
     }
 }
 
 pub fn build_chat_model(config: &AppConfig) -> Arc<dyn ChatModel> {
-    build_chat_model_with_provider(config, config.chat)
+    build_chat_model_with_provider(config, config.chat_cfg.chat)
 }
 
 pub fn build_chat_model_for_profile(
@@ -84,7 +85,7 @@ pub fn build_chat_model_for_profile(
         .chat_provider
         .as_deref()
         .and_then(parse_chat_provider)
-        .unwrap_or(config.chat);
+        .unwrap_or(config.chat_cfg.chat);
     build_chat_model_with_provider(config, provider)
 }
 
@@ -96,6 +97,6 @@ pub fn build_embedder_for_profile(
         .embedder_provider
         .as_deref()
         .and_then(parse_embedder_provider)
-        .unwrap_or(config.embedder);
+        .unwrap_or(config.embedding.embedder);
     build_embedder_with_provider(config, provider)
 }

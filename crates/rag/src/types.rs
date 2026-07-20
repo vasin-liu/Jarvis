@@ -33,4 +33,18 @@ pub struct AskResponse {
     pub tool_calls: Vec<ToolCallInfo>,
     #[serde(default)]
     pub orchestration_steps: Vec<OrchestrationStepInfo>,
+    #[serde(default)]
+    pub tool_parse_warnings: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ask_response_deserializes_without_warnings() {
+        let json = r#"{"answer":"hi","citations":[]}"#;
+        let resp: AskResponse = serde_json::from_str(json).unwrap();
+        assert!(resp.tool_parse_warnings.is_empty());
+    }
 }

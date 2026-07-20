@@ -62,6 +62,7 @@ pub async fn run_orchestrated(
     let mut accumulated = String::new();
     let mut all_citations = Vec::new();
     let mut all_tool_calls = Vec::new();
+    let mut all_warnings = Vec::new();
 
     for (i, id) in ids.iter().enumerate() {
         let profile = profiles
@@ -103,6 +104,9 @@ pub async fn run_orchestrated(
         accumulated.push_str(&format!("\n\n## {}\n{}", profile.name, resp.answer));
         all_citations.extend(resp.citations);
         all_tool_calls.extend(resp.tool_calls);
+        for warning in resp.tool_parse_warnings {
+            all_warnings.push(format!("[{}]: {}", profile.name, warning));
+        }
     }
 
     let final_answer = steps
@@ -115,6 +119,7 @@ pub async fn run_orchestrated(
         citations: dedupe_citations(all_citations),
         tool_calls: all_tool_calls,
         orchestration_steps: steps,
+        tool_parse_warnings: all_warnings,
     })
 }
 
@@ -204,5 +209,105 @@ mod tests {
 
         assert_eq!(resp.orchestration_steps.len(), 2);
         assert!(!resp.answer.is_empty());
+    }
+
+    #[tokio::test]
+    async fn orchestrate_warnings_merge() {
+        use async_trait::async_trait;
+        use llm::{LlmError, Message, Role};
+
+        struct FenceOnTasksModel;
+
+        #[async_trait]
+        impl ChatModel for FenceOnTasksModel {
+            fn id(&self) -> &str {
+                "fence-on-tasks"
+            }
+
+            async fn complete(&self, messages: &[Message]) -> std::result::Result<String, LlmError> {
+                let system = messages
+                    .iter()
+                    .find(|m| m.role == Role::System)
+                    .map(|m| m.content.as_str())
+                    .unwrap_or("");
+                if system.contains("任务助手") {
+                    return Ok(r#"```json
+{"name":"search_knowledge","arguments":{"query":"x"}}
+```"#
+                        .into());
+                }
+                MockChatModel.complete(messages).await
+            }
+
+            async fn complete_stream(
+                &self,
+                messages: &[Message],
+                on_token: &mut (dyn FnMut(String) + Send),
+            ) -> std::result::Result<String, LlmError> {
+                let answer = self.complete(messages).await?;
+                on_token(answer.clone());
+                Ok(answer)
+            }
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let file = dir.path().join("note.md");
+        std::fs::write(&file, "Jarvis orchestration pipeline.").unwrap();
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        index_path(&store, &embedder, &ChunkerConfig::default(), &file)
+            .await
+            .unwrap();
+
+        let profiles = crate::types::default_profiles();
+        let retriever = RetrieverConfig::default();
+        let chunker = ChunkerConfig::default();
+        let chat = Arc::new(FenceOnTasksModel) as Arc<dyn ChatModel>;
+        let ctx = AgentRunContext {
+            store: &store,
+            chunker: &chunker,
+            retriever: &retriever,
+            hooks: &[],
+            enabled_hook_ids: &[],
+            plugins: &[],
+            enabled_plugin_ids: &[],
+            granted_plugin_permissions: &[],
+        };
+
+        struct TestResolver(Arc<dyn ChatModel>);
+        impl ChatResolver for TestResolver {
+            fn chat_for(&self, _: &AgentProfile) -> Arc<dyn ChatModel> {
+                self.0.clone()
+            }
+        }
+        struct TestEmbedResolver(Arc<dyn embedder::Embedder>);
+        impl EmbedResolver for TestEmbedResolver {
+            fn embed_for(&self, _: &AgentProfile) -> Arc<dyn embedder::Embedder> {
+                self.0.clone()
+            }
+        }
+
+        let resp = run_orchestrated(
+            &ctx,
+            &TestResolver(chat),
+            &TestEmbedResolver(Arc::new(embedder)),
+            &profiles,
+            &["default".into(), "tasks".into()],
+            &[],
+            &[],
+            "orchestration pipeline",
+        )
+        .await
+        .unwrap();
+
+        assert!(
+            resp.tool_parse_warnings
+                .iter()
+                .any(|w| w.starts_with("[任务助手]:")),
+            "expected prefixed warning, got {:?}",
+            resp.tool_parse_warnings
+        );
     }
 }

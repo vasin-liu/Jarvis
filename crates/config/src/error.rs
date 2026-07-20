@@ -6,6 +6,8 @@ pub enum ConfigError {
     Io(#[from] std::io::Error),
     #[error("json error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("keyring error: {0}")]
+    Keyring(#[from] keyring::Error),
 }
 
 pub type Result<T> = std::result::Result<T, ConfigError>;

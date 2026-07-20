@@ -10,6 +10,8 @@ pub enum EmbedError {
     BadResponse(String),
     #[error("fastembed error: {0}")]
     FastEmbed(String),
+    #[error("embedder init: {0}")]
+    Init(String),
 }
 
 pub type Result<T> = std::result::Result<T, EmbedError>;

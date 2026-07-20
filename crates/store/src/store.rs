@@ -109,6 +109,48 @@ impl Store {
         Ok(())
     }
 
+    /// Rekey a source row and update chunk/task foreign keys (used for memory URI migration).
+    pub fn rename_source_id(&self, old_id: &str, new_id: &str) -> Result<()> {
+        if old_id == new_id {
+            return Ok(());
+        }
+        let old = self.get_source(old_id)?;
+        if self.get_source(new_id).is_ok() {
+            return Err(StoreError::NotFound(format!(
+                "target id already exists: {new_id}"
+            )));
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let tx = conn.unchecked_transaction()?;
+        tx.execute(
+            "INSERT INTO sources(id, kind, uri, title, content_hash, indexed_at, status, error, summary)
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                new_id,
+                old.kind.as_str(),
+                new_id,
+                old.title,
+                old.content_hash,
+                old.indexed_at,
+                old.status.as_str(),
+                old.error,
+                old.summary,
+            ],
+        )?;
+        tx.execute(
+            "UPDATE chunks SET source_id = ?1 WHERE source_id = ?2",
+            rusqlite::params![new_id, old_id],
+        )?;
+        tx.execute(
+            "UPDATE tasks SET source_id = ?1 WHERE source_id = ?2",
+            rusqlite::params![new_id, old_id],
+        )?;
+        tx.execute("DELETE FROM sources WHERE id = ?1", [old_id])?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Write chunks into chunks, vec_chunks, and chunks_fts tables.
     pub fn insert_chunks(&self, source_id: &str, chunks: &[NewChunk]) -> Result<()> {
         let conn = self.conn.lock().unwrap();
@@ -204,20 +246,22 @@ impl Store {
     ) -> Result<Task> {
         let now = unix_now();
         let id = format!("task-{now}-{}", title.len());
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO tasks(id, source_id, title, description, status, created_at, updated_at)
-             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            rusqlite::params![
-                id,
-                source_id,
-                title,
-                description,
-                TaskStatus::Pending.as_str(),
-                now,
-                now,
-            ],
-        )?;
+        {
+            let conn = self.conn.lock().unwrap();
+            conn.execute(
+                "INSERT INTO tasks(id, source_id, title, description, status, created_at, updated_at)
+                 VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    id,
+                    source_id,
+                    title,
+                    description,
+                    TaskStatus::Pending.as_str(),
+                    now,
+                    now,
+                ],
+            )?;
+        }
         self.get_task(&id)
     }
 
@@ -701,6 +745,31 @@ mod tests {
             .unwrap();
         store.delete_chunks_for_source("a").unwrap();
         assert_eq!(store.count_chunks().unwrap(), 0);
+    }
+
+    #[test]
+    fn rename_source_id_preserves_chunks() {
+        let store = Store::open_in_memory(4).unwrap();
+        store.upsert_source(&sample_source("old-id")).unwrap();
+        store
+            .insert_chunks(
+                "old-id",
+                &[chunk(0, "memory body text", [1.0, 0.0, 0.0, 0.0])],
+            )
+            .unwrap();
+
+        store.rename_source_id("old-id", "new-id").unwrap();
+
+        let got = store.get_source("new-id").unwrap();
+        assert_eq!(got.uri, "new-id");
+        assert!(store
+            .source_chunk_text("new-id")
+            .unwrap()
+            .contains("memory body text"));
+        assert!(matches!(
+            store.get_source("old-id"),
+            Err(StoreError::NotFound(_))
+        ));
     }
 
     #[test]

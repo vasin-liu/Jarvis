@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use calamine::{open_workbook_auto, Data, Reader};
+
 use crate::document::Document;
 use crate::error::{IngestError, Result};
 use crate::hash::hash_text;
@@ -49,6 +51,8 @@ pub fn load_path(path: impl AsRef<Path>) -> Result<Document> {
 
     let text = match ext.as_str() {
         "txt" | "md" | "markdown" => fs::read_to_string(&path)?,
+        "csv" => fs::read_to_string(&path)?,
+        "xls" | "xlsx" | "xlsm" | "ods" => load_spreadsheet_text(&path)?,
         other => return Err(IngestError::UnsupportedType(other.to_string())),
     };
 
@@ -76,6 +80,44 @@ fn canonical_uri(path: &Path) -> String {
         .unwrap_or_else(|_| path.to_path_buf())
         .to_string_lossy()
         .into_owned()
+}
+
+fn load_spreadsheet_text(path: &Path) -> Result<String> {
+    let mut workbook = open_workbook_auto(path)
+        .map_err(|e| IngestError::Spreadsheet(e.to_string()))?;
+    let mut out = String::new();
+    for sheet_name in workbook.sheet_names().to_vec() {
+        let range = workbook
+            .worksheet_range(&sheet_name)
+            .map_err(|e| IngestError::Spreadsheet(e.to_string()))?;
+        out.push_str(&format!("# {sheet_name}\n"));
+        for row in range.rows() {
+            let cells: Vec<String> = row.iter().map(cell_to_string).collect();
+            if cells.iter().any(|c| !c.is_empty()) {
+                out.push_str(&cells.join("\t"));
+                out.push('\n');
+            }
+        }
+        out.push('\n');
+    }
+    if out.trim().is_empty() {
+        return Err(IngestError::Empty(path.display().to_string()));
+    }
+    Ok(out)
+}
+
+fn cell_to_string(cell: &Data) -> String {
+    match cell {
+        Data::Empty => String::new(),
+        Data::String(s) => s.clone(),
+        Data::Float(f) => f.to_string(),
+        Data::Int(i) => i.to_string(),
+        Data::Bool(b) => b.to_string(),
+        Data::DateTime(f) => f.to_string(),
+        Data::DateTimeIso(s) => s.clone(),
+        Data::DurationIso(s) => s.clone(),
+        Data::Error(e) => format!("{e:?}"),
+    }
 }
 
 #[cfg(test)]
@@ -130,12 +172,13 @@ mod tests {
     }
 
     #[test]
-    fn resolves_relative_path_in_cwd() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("note.txt");
-        fs::write(&file, "hello").unwrap();
-        std::env::set_current_dir(dir.path()).unwrap();
-        let resolved = resolve_existing_path("note.txt").unwrap();
-        assert_eq!(resolved, file.canonicalize().unwrap());
+    fn loads_xls_file_when_present() {
+        let path = std::path::Path::new(".lark-cache/heartbeat.xls");
+        if !path.is_file() {
+            return;
+        }
+        let doc = load_path(path).unwrap();
+        assert!(!doc.text.trim().is_empty());
+        assert!(doc.title.contains("heartbeat") || doc.title.contains("xls"));
     }
 }

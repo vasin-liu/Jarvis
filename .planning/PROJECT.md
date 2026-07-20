@@ -110,4 +110,4 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-19 after Phase 08 deterministic Markdown renderer complete*
+*Last updated: 2026-07-19 after Phase 09 LLM wiki analysis complete*

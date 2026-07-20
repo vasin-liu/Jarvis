@@ -23,6 +23,7 @@ pub async fn ask(
             citations: vec![],
             tool_calls: vec![],
             orchestration_steps: vec![],
+            tool_parse_warnings: vec![],
         });
     }
 
@@ -35,6 +36,7 @@ pub async fn ask(
         citations,
         tool_calls: vec![],
         orchestration_steps: vec![],
+        tool_parse_warnings: vec![],
     })
 }
 
@@ -56,6 +58,7 @@ pub async fn ask_stream(
             citations: vec![],
             tool_calls: vec![],
             orchestration_steps: vec![],
+            tool_parse_warnings: vec![],
         });
     }
 
@@ -67,6 +70,7 @@ pub async fn ask_stream(
         citations,
         tool_calls: vec![],
         orchestration_steps: vec![],
+        tool_parse_warnings: vec![],
     })
 }
 
@@ -74,8 +78,9 @@ fn hits_to_citations(store: &Store, hits: &[ChunkHit]) -> Result<Vec<Citation>> 
     let mut out = Vec::with_capacity(hits.len());
     for hit in hits {
         let source = store.get_source(&hit.source_id)?;
-        let excerpt = if hit.text.len() > 240 {
-            format!("{}…", &hit.text[..240])
+        let excerpt = if hit.text.chars().count() > 240 {
+            let truncated: String = hit.text.chars().take(240).collect();
+            format!("{truncated}…")
         } else {
             hit.text.clone()
         };

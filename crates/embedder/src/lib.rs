@@ -1,9 +1,11 @@
+mod deferred;
 mod error;
 mod fastembed;
 mod mock;
 mod ollama;
 mod openai;
 
+pub use deferred::DeferredEmbedder;
 pub use error::{EmbedError, Result};
 pub use fastembed::{fastembed_model_dim, FastEmbedder};
 pub use mock::MockEmbedder;

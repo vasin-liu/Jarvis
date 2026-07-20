@@ -527,6 +527,21 @@ export function useJarvisConfig({
     await patchConfig({ pipeline_agent_ids: config.pipeline_agent_ids });
   }, [config, patchConfig]);
 
+  const handleSetActiveAgent = useCallback(
+    async (id: string) => {
+      setBusy(true);
+      try {
+        await invoke("set_active_agent", { id });
+        await refreshConfig();
+      } catch (error) {
+        reportError(error);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refreshConfig, reportError, setBusy],
+  );
+
   return {
     config,
     nestedConfig,
@@ -591,6 +606,7 @@ export function useJarvisConfig({
     handleTogglePipelineAgent,
     handleMovePipelineAgent,
     savePipelineAgents,
+    handleSetActiveAgent,
     busy,
   };
 }

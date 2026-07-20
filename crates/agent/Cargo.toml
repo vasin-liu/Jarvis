@@ -17,7 +17,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "sync", "time"] }
 indexer = { path = "../indexer" }
 chunker = { path = "../chunker" }
 tempfile = "3"
+async-trait = { workspace = true }

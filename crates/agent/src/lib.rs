@@ -7,6 +7,7 @@ mod plugins;
 mod router;
 mod run;
 mod skills;
+mod tool_parse;
 mod tools;
 mod types;
 

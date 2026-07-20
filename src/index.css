@@ -1,4 +1,7 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./**/*.{ts,tsx,html}";
+@source not "../target";
+@source not "../src-tauri/.fastembed_cache";
 
 @layer base {
   :root {

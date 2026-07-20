@@ -54,7 +54,7 @@ Always prefer **latest stable** releases when scaffolding or adding dependencies
 |-------|------|
 | Rust unit/integration | `cargo test`, `tempfile` |
 | Frontend components | Vitest + Testing Library |
-| E2E | `tauri-driver` + WebdriverIO (Windows: Edge WebDriver) |
+| E2E | `tauri-driver` + WebdriverIO (Windows: Edge WebDriver) — **required for all user-facing features** |
 
 ---
 
@@ -103,7 +103,7 @@ crates/
 ### TDD — Required for All Features
 
 1. **Goal first** — state success criteria before coding.
-2. **Red** — write failing test (unit → integration → E2E as needed).
+2. **Red** — write failing test (unit → integration → **E2E for user-facing**).
 3. **Green** — minimal implementation.
 4. **Refactor** — with tests passing.
 
@@ -111,9 +111,9 @@ crates/
 |-----------|------|
 | Unit | Pure functions: chunking, RRF, parsers, types |
 | Integration | Store CRUD, full index→retrieve pipeline with mocks |
-| E2E | User journeys: add folder → index → ask → citations; Feishu sync (fake runner); provider switch |
+| **E2E (mandatory)** | **Every user-facing feature**: UI journey in packaged app via WebdriverIO |
 
-No feature merges without tests at the appropriate layer. Bug fixes include regression tests.
+No feature merges without tests at the appropriate layer. **User-facing work is not done without E2E.** Bug fixes include regression tests.
 
 ---
 
@@ -146,6 +146,7 @@ npm test
 - Use `thiserror` for domain errors; degrade gracefully per-source.
 - Keep Tauri commands thin — delegate to crates.
 - Run `cargo test` (and relevant npm tests) before finishing.
+- Run `npm run test:e2e:local` when changing user-facing behavior.
 
 ### ⚠️ Ask first
 
@@ -169,6 +170,7 @@ npm test
 
 | Rule | Scope |
 |------|-------|
+| `.cursor/rules/e2e-required.mdc` | E2E mandatory for user-facing features (always) |
 | `.cursor/rules/karpathy-guidelines.mdc` | Behavioral guidelines (always) |
 | `.cursor/rules/jarvis-stack.mdc` | Stack versions (always) |
 | `.cursor/rules/tdd-goal-driven.mdc` | TDD workflow (always) |

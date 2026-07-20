@@ -4,8 +4,9 @@ use std::sync::{Arc, Mutex};
 use chunker::ChunkerConfig;
 use config::{
     build_chat_model, build_embedder, load_config_with_migration, save_config, AppConfig,
+    EmbedderProvider,
 };
-use embedder::Embedder;
+use embedder::{DeferredEmbedder, Embedder, FastEmbedder};
 use lark::{LarkCliOptions, LarkIdentity};
 use memory::migrate_legacy_memory_uris;
 
@@ -64,7 +65,29 @@ pub(crate) fn init_state(app: &App) -> Result<AppState, String> {
         }
     }
 
-    let embedder = build_embedder(&config).map_err(|e| e.to_string())?;
+    let embedder = if !is_e2e_mode()
+        && matches!(config.embedding.embedder, EmbedderProvider::FastEmbed)
+    {
+        // Load FastEmbed off the Tauri setup thread so the window stays responsive
+        // while the ONNX model is downloaded or mapped from cache.
+        let deferred = Arc::new(DeferredEmbedder::new(
+            format!("fastembed:{}", config.embedding.fastembed_model),
+            config_dim,
+        ));
+        let pending = deferred.clone();
+        let model = config.embedding.fastembed_model.clone();
+        let cache = config.fastembed_cache_dir.clone();
+        std::thread::spawn(move || match FastEmbedder::try_new(&model, cache) {
+            Ok(fe) => pending.fulfill(Arc::new(fe)),
+            Err(e) => {
+                eprintln!("FastEmbed init failed: {e}");
+                pending.fail(e.to_string());
+            }
+        });
+        deferred as Arc<dyn Embedder>
+    } else {
+        build_embedder(&config).map_err(|e| e.to_string())?
+    };
     let chat = build_chat_model(&config);
 
     if store.get_meta("embedder_id").ok().flatten().is_none() {

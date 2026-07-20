@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
@@ -38,16 +39,22 @@ pub struct FastEmbedder {
 }
 
 impl FastEmbedder {
-    pub fn try_new(model_name: &str) -> Result<Self> {
+    /// Build a FastEmbed model. When `cache_dir` is `Some`, model weights are
+    /// downloaded to / loaded from that absolute directory; otherwise fastembed
+    /// falls back to its default cwd-relative `.fastembed_cache` (avoid in apps,
+    /// as it re-downloads whenever the process is launched from a new cwd).
+    pub fn try_new(model_name: &str, cache_dir: Option<PathBuf>) -> Result<Self> {
         let model = parse_model(model_name)?;
         let dim = fastembed_model_dim(model_name).ok_or_else(|| {
             EmbedError::FastEmbed(format!("unknown dimension for model: {model_name}"))
         })?;
 
-        let text_model = TextEmbedding::try_new(
-            InitOptions::new(model).with_show_download_progress(false),
-        )
-        .map_err(|e| EmbedError::FastEmbed(e.to_string()))?;
+        let mut opts = InitOptions::new(model).with_show_download_progress(false);
+        if let Some(dir) = cache_dir {
+            opts = opts.with_cache_dir(dir);
+        }
+        let text_model = TextEmbedding::try_new(opts)
+            .map_err(|e| EmbedError::FastEmbed(e.to_string()))?;
 
         Ok(Self {
             inner: Arc::new(Mutex::new(text_model)),
@@ -72,7 +79,7 @@ impl Embedder for FastEmbedder {
         let inner = self.inner.clone();
         let dim = self.dim;
 
-        tokio::task::spawn_blocking(move || {
+        let out = tokio::task::spawn_blocking(move || {
             let mut model = inner
                 .lock()
                 .map_err(|e| EmbedError::FastEmbed(format!("lock poisoned: {e}")))?;
@@ -97,7 +104,8 @@ impl Embedder for FastEmbedder {
             Ok(embeddings)
         })
         .await
-        .map_err(|e| EmbedError::FastEmbed(format!("task join: {e}")))?
+        .map_err(|e| EmbedError::FastEmbed(format!("task join: {e}")))?;
+        out
     }
 }
 
@@ -114,7 +122,7 @@ mod tests {
     #[tokio::test]
     #[ignore = "downloads ONNX model from network"]
     async fn embeds_text_with_fastembed() {
-        let embedder = FastEmbedder::try_new("bge-small-en-v1.5").unwrap();
+        let embedder = FastEmbedder::try_new("bge-small-en-v1.5", None).unwrap();
         let out = embedder.embed(&["hello world".into()]).await.unwrap();
         assert_eq!(out[0].len(), embedder.dim());
     }

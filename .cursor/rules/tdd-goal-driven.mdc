@@ -37,6 +37,7 @@ Goal: [what user can do]
 Verify:
   - [ ] unit tests pass
   - [ ] integration tests pass (if applicable)
-  - [ ] E2E covers journey (if user-facing)
+  - [ ] E2E spec added/updated (required if user-facing)
+  - [ ] npm run test:e2e:local passes (user-facing)
   - [ ] manual smoke (only if automation insufficient)
 ```

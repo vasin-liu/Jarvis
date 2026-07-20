@@ -38,3 +38,4 @@ notify = "7"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 futures-util = "0.3"
 fastembed = "5"
+calamine = "0.26"

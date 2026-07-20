@@ -5,6 +5,7 @@ use indexer::index_document;
 use llm::{ChatModel, Message, Role};
 use serde::Deserialize;
 use store::{Source, SourceKind, Store};
+use uuid::Uuid;
 
 use crate::error::{MemoryError, Result};
 
@@ -38,13 +39,17 @@ pub fn resolve_memory_id(store: &Store, id_or_title: &str) -> Result<String> {
         return Ok(key.to_string());
     }
     let memories = list_memories(store)?;
-    if let Some(m) = memories.iter().find(|m| m.title == key || m.uri == key) {
+    if let Some(m) = memories.iter().find(|m| m.uri == key) {
+        return Ok(m.id.clone());
+    }
+    if let Some(m) = memories.iter().find(|m| m.title == key) {
         return Ok(m.id.clone());
     }
     if let Some(m) = memories
         .iter()
         .find(|m| m.title.contains(key) || m.uri.contains(key))
     {
+        eprintln!("[jarvis] memory title fuzzy match deprecated; use id or memory:// uri");
         return Ok(m.id.clone());
     }
     Err(MemoryError::NotFound(id_or_title.to_string()))
@@ -102,8 +107,7 @@ pub async fn add_memory(
     if text.is_empty() {
         return Err(MemoryError::EmptyExchange);
     }
-    let now = unix_now();
-    let uri = format!("memory://{now}");
+    let uri = format!("memory://{}", Uuid::new_v4());
     let doc = Document {
         uri: uri.clone(),
         title: title
@@ -177,13 +181,6 @@ fn truncate_title(text: &str) -> String {
     }
 }
 
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,6 +191,52 @@ mod tests {
     fn parse_memory_json() {
         let drafts = parse_memory_drafts(r#"[{"content":"prefers Rust"}]"#).unwrap();
         assert_eq!(drafts.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn add_memory_uses_uuid_uri() {
+        let store = Store::open_in_memory(4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+
+        let uri = add_memory(&store, &embedder, &chunker, "prefers tea", None)
+            .await
+            .unwrap();
+        assert!(uri.starts_with("memory://"));
+        let suffix = uri.strip_prefix("memory://").unwrap();
+        assert!(Uuid::parse_str(suffix).is_ok());
+    }
+
+    #[tokio::test]
+    async fn resolve_memory_by_exact_uri() {
+        let store = Store::open_in_memory(4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+
+        let uri = add_memory(&store, &embedder, &chunker, "exact match body", None)
+            .await
+            .unwrap();
+        let resolved = resolve_memory_id(&store, &uri).unwrap();
+        assert_eq!(resolved, uri);
+    }
+
+    #[test]
+    fn resolve_memory_fuzzy_still_works() {
+        let store = Store::open_in_memory(4).unwrap();
+        let source = Source {
+            id: "memory://550e8400-e29b-41d4-a716-446655440000".to_string(),
+            kind: SourceKind::Memory,
+            uri: "memory://550e8400-e29b-41d4-a716-446655440000".to_string(),
+            title: "记忆: dark mode preference".to_string(),
+            content_hash: "h".to_string(),
+            indexed_at: None,
+            status: store::IndexStatus::Indexed,
+            error: None,
+            summary: None,
+        };
+        store.upsert_source(&source).unwrap();
+        let id = resolve_memory_id(&store, "dark mode").unwrap();
+        assert_eq!(id, source.id);
     }
 
     #[tokio::test]
