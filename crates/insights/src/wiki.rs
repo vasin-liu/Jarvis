@@ -847,6 +847,120 @@ mod tests {
         );
     }
 
+    fn seed_generated_page(wiki_root: &Path, slug: &str, title: &str, page_type: &str) {
+        let path = wiki_root.join(format!("{slug}.md"));
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        let body = format!(
+            "---\ntitle: \"{title}\"\ntype: {page_type}\nsources: [\"file:///seed.md\"]\ngenerated: true\n---\n# {title}\n\nbody\n"
+        );
+        std::fs::write(path, body).unwrap();
+    }
+
+    #[test]
+    fn rebuild_index_md_includes_multi_dir_pages() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        seed_generated_page(&wiki_root, "sources/a", "Source A", "source_summary");
+        seed_generated_page(&wiki_root, "entities/b", "Entity B", "entity");
+
+        rebuild_index_md_from_disk(&wiki_root).expect("rebuild");
+        let index = std::fs::read_to_string(wiki_root.join("index.md")).unwrap();
+
+        assert!(index.starts_with("# Wiki\n"), "expected # Wiki header: {index}");
+        assert!(
+            index.contains("## Sources"),
+            "multi-dir vault must list Sources: {index}"
+        );
+        assert!(
+            index.contains("## Entities"),
+            "multi-dir vault must list Entities: {index}"
+        );
+        assert!(
+            index.contains("[[sources/a|Source A]]"),
+            "sources page missing: {index}"
+        );
+        assert!(
+            index.contains("[[entities/b|Entity B]]"),
+            "entities page missing: {index}"
+        );
+    }
+
+    #[test]
+    fn rebuild_index_md_lex_sorts_and_uses_title() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        // Insert out of order — catalog must sort by slug path.
+        seed_generated_page(&wiki_root, "entities/zebra", "Zebra Co", "entity");
+        seed_generated_page(&wiki_root, "entities/alpha", "Alpha Corp", "entity");
+
+        rebuild_index_md_from_disk(&wiki_root).expect("rebuild");
+        let index = std::fs::read_to_string(wiki_root.join("index.md")).unwrap();
+
+        let alpha = index
+            .find("[[entities/alpha|Alpha Corp]]")
+            .expect("alpha link with title");
+        let zebra = index
+            .find("[[entities/zebra|Zebra Co]]")
+            .expect("zebra link with title");
+        assert!(
+            alpha < zebra,
+            "entities must be lexicographic by slug: {index}"
+        );
+    }
+
+    #[test]
+    fn rebuild_index_md_omits_empty_sections() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        seed_generated_page(&wiki_root, "sources/only", "Only Source", "source_summary");
+
+        rebuild_index_md_from_disk(&wiki_root).expect("rebuild");
+        let index = std::fs::read_to_string(wiki_root.join("index.md")).unwrap();
+
+        assert!(index.contains("## Sources"), "sources section required: {index}");
+        assert!(
+            !index.contains("## Entities"),
+            "empty Entities section must be omitted: {index}"
+        );
+        assert!(
+            !index.contains("## Concepts"),
+            "empty Concepts section must be omitted: {index}"
+        );
+    }
+
+    #[test]
+    fn rebuild_index_md_ignores_root_clutter() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        std::fs::create_dir_all(&wiki_root).unwrap();
+        std::fs::write(
+            wiki_root.join("note.md"),
+            "---\ntitle: \"Root Note\"\ntype: entity\nsources: [\"file:///x\"]\ngenerated: true\n---\n# Root\n",
+        )
+        .unwrap();
+        std::fs::write(wiki_root.join("index.md"), "# Old\n").unwrap();
+        seed_generated_page(&wiki_root, "sources/kept", "Kept", "source_summary");
+
+        rebuild_index_md_from_disk(&wiki_root).expect("rebuild");
+        let index = std::fs::read_to_string(wiki_root.join("index.md")).unwrap();
+
+        assert!(index.contains("# Wiki"), "rebuilt catalog header: {index}");
+        assert!(
+            index.contains("[[sources/kept|Kept]]"),
+            "content page must appear: {index}"
+        );
+        assert!(
+            !index.contains("[[note|") && !index.contains("Root Note"),
+            "root note.md must not be a catalog entry: {index}"
+        );
+        assert!(
+            !index.contains("index.md") && !index.contains("[[index|"),
+            "index.md must never be listed as an entry: {index}"
+        );
+    }
+
     #[tokio::test]
     async fn analyze_parses_mock_json() {
         let store = Store::open_in_memory(4).unwrap();
