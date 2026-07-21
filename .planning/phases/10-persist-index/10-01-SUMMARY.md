@@ -141,14 +141,22 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+### Auto-fixed Issues
+
+**1. [Rule 3 - Blocking] Commit Cargo.lock for new insights path deps**
+- **Found during:** Close-out (after Task 1)
+- **Issue:** Task 1 added chunker/embedder/indexer/ingest to insights but Cargo.lock was left unstaged
+- **Fix:** Committed lockfile dependency entries
+- **Files modified:** Cargo.lock
+- **Verification:** lockfile lists the four path deps under insights
+- **Committed in:** (chore commit after docs)
 
 **Note:** Plan `<verify>` used `cargo test … --exact` with short test names; Rust's `--exact` requires the full `wiki::tests::…` path, so verification used substring filters that actually run the tests. Behavior coverage unchanged.
 
 ---
 
-**Total deviations:** 0 auto-fixed
-**Impact on plan:** None
+**Total deviations:** 1 auto-fixed (1 blocking lockfile)
+**Impact on plan:** Lockfile hygiene only; no scope creep.
 
 ## Issues Encountered
 
