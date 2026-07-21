@@ -21,7 +21,7 @@
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
-| 10 | Persist + index | Write `wiki/` and index as `WikiPage` idempotently | WIKI-04 | 4 |
+| 10 | Persist + index | 1/2 | In Progress|  |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
@@ -114,13 +114,13 @@ Plans:
 3. Compiling twice with identical content does not duplicate sources (hash skip)
 4. `WikiPage` sources are not accepted as compile inputs (no compile loop)
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Wave 0 scaffolds + compile_wiki_for_source (gates/write/scan-rebuild/index/hash skip) + thin compile_wiki_cmd (WIKI-04)
+- [x] 10-01-PLAN.md — Wave 0 scaffolds + compile_wiki_for_source (gates/write/scan-rebuild/index/hash skip) + thin compile_wiki_cmd (WIKI-04)
 
 **Wave 2** *(blocked on Wave 1)*
 

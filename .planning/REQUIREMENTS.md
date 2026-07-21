@@ -15,7 +15,7 @@ Requirements for milestone v1.10. Each maps to roadmap phases 07+.
 ### Compile
 
 - [x] **WIKI-03**: User can compile an indexed source into Markdown wiki pages (source summary + entities + concepts) with YAML frontmatter, `[[wikilinks]]`, and `index.md`
-- [ ] **WIKI-04**: System writes pages under `{app_data}/wiki/` and indexes them through the existing ingest→index pipeline using stable `wiki://{slug}` URIs and `content_hash` skip (idempotent re-compile)
+- [x] **WIKI-04**: System writes pages under `{app_data}/wiki/` and indexes them through the existing ingest→index pipeline using stable `wiki://{slug}` URIs and `content_hash` skip (idempotent re-compile)
 - [x] **WIKI-05**: On LLM JSON parse failure, system does **not** write a partial wiki tree (fail closed)
 
 ### Library & Settings UX
@@ -59,7 +59,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIKI-01 | 07 | Complete |
 | WIKI-02 | 07 | Complete |
 | WIKI-03 | 08 + 09 | Complete |
-| WIKI-04 | 10 | Pending |
+| WIKI-04 | 10 | Complete |
 | WIKI-05 | 09 | Complete |
 | WIKI-06 | 11 | Pending |
 | WIKI-07 | 12 | Pending |

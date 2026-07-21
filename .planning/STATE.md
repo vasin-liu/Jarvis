@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Wiki Compile Layer
 current_phase: 10
-current_phase_name: Persist + index
+current_phase_name: persist-index
 status: executing
-stopped_at: Phase 10 context gathered
-last_updated: "2026-07-21T09:07:44.734Z"
-last_activity: 2026-07-19
-last_activity_desc: Phase 09 complete, transitioned to Phase 10
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-07-21T09:54:49.268Z"
+last_activity: 2026-07-21
+last_activity_desc: Phase 10 execution started
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
   percent: 43
 ---
 
@@ -40,16 +40,16 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Session
 
-**Last session:** 2026-07-21T07:42:35.653Z
-**Stopped at:** Phase 10 context gathered
-**Resume file:** .planning/phases/10-persist-index/10-CONTEXT.md
+**Last session:** 2026-07-21T09:54:49.255Z
+**Stopped at:** Completed 10-01-PLAN.md
+**Resume file:** None
 
 ## Current Position
 
-Phase: 10 — Persist + index
-Plan: Not started
+Phase: 10 (persist-index) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-07-19 — Phase 09 complete, transitioned to Phase 10
+Last activity: 2026-07-21 — Phase 10 execution started
 
 ## Performance Metrics
 
@@ -58,3 +58,9 @@ Last activity: 2026-07-19 — Phase 09 complete, transitioned to Phase 10
 | Phase 07 P07-01 | 12min | 2 tasks | - files |
 | Phase 07 P07-02 | 25min | 1 tasks | - files |
 | Phase 07 P07-03 | 10min | 2 tasks | - files |
+| Phase 10-persist-index P01 | 21 min | 3 tasks | 7 files |
+
+## Decisions
+
+- [Phase 10]: Stale cleanup deferred to Plan 02; cleaned=0 in 10-01 — Plan scope: D-06..D-08 intentionally out of 10-01
+- [Phase 10]: Compile path uses scan-rebuild index.md + policy write; keep blind write_wiki_pages_to_dir for Phase 09 tests — D-01 and RESEARCH dual-writer resolution
