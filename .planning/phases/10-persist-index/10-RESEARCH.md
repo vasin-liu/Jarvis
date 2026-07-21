@@ -447,18 +447,19 @@ Do **not** attempt rollback of successful embeds. Document in PLAN verification 
 
 **If empty beyond above:** Core integration claims are codebase-verified.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `write_wiki_pages_to_dir` remain as a naive helper?**  
+1. **Should `write_wiki_pages_to_dir` remain as a naive helper?** — **RESOLVED**  
    - What we know: Phase 09 tests call it.  
-   - Recommendation: Keep for unit tests of “blind write,” or update tests to policy writer; prefer evolving one public write path used by compile to avoid dual writers.
+   - Chosen answer: **Keep blind writer** for Phase 09 unit tests (`write_wiki_pages_to_dir_writes_tree`); compile path uses policy write + `rebuild_index_md_from_disk` and must not call the blind writer for the vault catalog. Dual writers accepted for v1.10.
 
-2. **Cross-source entity slug collisions** (`entities/acme` from two docs)  
+2. **Cross-source entity slug collisions** (`entities/acme` from two docs) — **RESOLVED**  
    - What we know: uniquify is per-compile only; WIKI-F03 deferred.  
-   - Recommendation: Out of scope; last writer with `generated: true` wins; note in PLAN risks.
+   - Chosen answer: **Out of scope (WIKI-F03)**; last writer with `generated: true` wins; documented in PLAN risks / deferred.
 
-3. **Citation crowding**  
-   - Flagged in SUMMARY for Phase 10/13 — **not in WIKI-04**. Defer filter work to Phase 13 unless E2E fails. [CITED: SUMMARY Research Flags]
+3. **Citation crowding** — **RESOLVED**  
+   - Flagged in SUMMARY for Phase 10/13 — **not in WIKI-04**.  
+   - Chosen answer: **Defer to Phase 13** (citation trust / E2E); no filter work in Phase 10. [CITED: SUMMARY Research Flags]
 
 ## Environment Availability
 
