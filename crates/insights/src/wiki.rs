@@ -1117,6 +1117,145 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn compile_cleanup_and_user_edit_preserves_note() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "user-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+        let source_uri = "/tmp/user-a.md";
+
+        // User-curated note at the slug Mock will try to write (entities/jarvis).
+        let user_slug = "entities/jarvis";
+        let user_path = wiki_root.join(format!("{user_slug}.md"));
+        std::fs::create_dir_all(user_path.parent().unwrap()).unwrap();
+        let user_body = format!(
+            "---\ntitle: \"My Jarvis Note\"\ntype: entity\nsources: [\"{source_uri}\"]\n---\n# My Jarvis Note\n\nUSER_CURATED_MARKER\n"
+        );
+        std::fs::write(&user_path, &user_body).unwrap();
+
+        // Stale generated page owned by this source — must be cleaned (D-06…D-08).
+        let stale_slug = "entities/stale-gone";
+        let stale_path = wiki_root.join(format!("{stale_slug}.md"));
+        let stale_body = format!(
+            "---\ntitle: \"Stale Gone\"\ntype: entity\nsources: [\"{source_uri}\"]\ngenerated: true\n---\n# Stale Gone\n\nold\n"
+        );
+        std::fs::write(&stale_path, &stale_body).unwrap();
+        let stale_uri = format!("wiki://{stale_slug}");
+        store
+            .upsert_source(&store::Source {
+                id: stale_uri.clone(),
+                kind: SourceKind::WikiPage,
+                uri: stale_uri.clone(),
+                title: "Stale Gone".into(),
+                content_hash: ingest::hash_text(&stale_body),
+                indexed_at: Some(1),
+                status: IndexStatus::Indexed,
+                error: None,
+                summary: None,
+            })
+            .unwrap();
+        store
+            .insert_chunks(
+                &stale_uri,
+                &[NewChunk {
+                    ord: 0,
+                    text: "stale".into(),
+                    loc: "L0".into(),
+                    token_count: 1,
+                    embedding: vec![0.1; 4],
+                }],
+            )
+            .unwrap();
+
+        let summary = compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &embedder,
+            &chunker,
+            "user-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("compile with user edit + stale");
+
+        let after = std::fs::read_to_string(&user_path).unwrap();
+        assert_eq!(after, user_body, "D-09: user-curated body must be unchanged");
+        assert!(
+            summary.skipped_user_edit >= 1,
+            "expected skipped_user_edit >= 1, got {}",
+            summary.skipped_user_edit
+        );
+        assert!(
+            summary.cleaned >= 1,
+            "expected cleaned >= 1, got {}",
+            summary.cleaned
+        );
+        assert!(!stale_path.exists(), "stale generated page must be removed");
+        assert!(store.get_source(&stale_uri).is_err());
+
+        let user_uri = format!("wiki://{user_slug}");
+        let indexed = store
+            .get_source(&user_uri)
+            .expect("D-12: user note must still be indexed");
+        assert_eq!(indexed.kind, SourceKind::WikiPage);
+        assert_eq!(indexed.status, IndexStatus::Indexed);
+        assert_eq!(
+            indexed.content_hash,
+            ingest::hash_text(&user_body),
+            "hash must be from on-disk user body, not draft"
+        );
+        let chunk_text = store.source_chunk_text(&user_uri).unwrap();
+        assert!(
+            chunk_text.contains("USER_CURATED_MARKER"),
+            "indexed chunks must reflect on-disk user note"
+        );
+    }
+
+    #[tokio::test]
+    async fn compile_output_frontmatter_has_no_digest_key() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "fm-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+
+        compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &MockEmbedder::new(4),
+            &ChunkerConfig::default(),
+            "fm-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("compile");
+
+        let page_path = wiki_root.join("sources").join("title-fm-a.md");
+        assert!(page_path.is_file(), "expected source summary at {page_path:?}");
+        let text = std::fs::read_to_string(&page_path).unwrap();
+        let front = peek_frontmatter(&text).expect("YAML frontmatter required");
+        for forbidden in [
+            "content_hash",
+            "contentHash",
+            "digest",
+            "hash:",
+        ] {
+            assert!(
+                !front.to_lowercase().contains(&forbidden.to_lowercase().replace(':', "")),
+                "D-10: frontmatter must not contain digest key '{forbidden}': {front}"
+            );
+        }
+        // Phase 08 keys only.
+        assert!(front.contains("title:"), "missing title: {front}");
+        assert!(front.contains("type:"), "missing type: {front}");
+        assert!(front.contains("sources:"), "missing sources: {front}");
+        assert!(front.contains("generated:"), "missing generated: {front}");
+    }
+
+    #[tokio::test]
     async fn analyze_parses_mock_json() {
         let store = Store::open_in_memory(4).unwrap();
         sample_indexed(&store, "wiki-a");
