@@ -114,7 +114,17 @@ Plans:
 3. Compiling twice with identical content does not duplicate sources (hash skip)
 4. `WikiPage` sources are not accepted as compile inputs (no compile loop)
 
-**Plans:** TBD via `/gsd-plan-phase 10`
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Wave 0 scaffolds + compile_wiki_for_source (gates/write/scan-rebuild/index/hash skip) + thin compile_wiki_cmd (WIKI-04)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 10-02-PLAN.md — rebuild_index_md unit coverage + stale cleanup D-06…D-08 + user-edit D-09/D-12 (WIKI-04)
 
 ---
 
