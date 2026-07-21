@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use chunker::ChunkerConfig;
@@ -104,6 +105,7 @@ pub async fn compile_wiki_for_source(
     let mut pages_written = 0usize;
     let mut skipped_user_edit = 0usize;
     let mut index_queue: Vec<(String, PathBuf)> = Vec::with_capacity(compiled.pages.len());
+    let mut current_slugs: HashSet<String> = HashSet::with_capacity(compiled.pages.len());
 
     for page in &compiled.pages {
         let path = resolve_wiki_page_path(wiki_root, &page.slug)?;
@@ -124,10 +126,12 @@ pub async fn compile_wiki_for_source(
             std::fs::write(&path, &page.body_markdown)?;
             pages_written += 1;
         }
+        current_slugs.insert(page.slug.clone());
         index_queue.push((page.slug.clone(), path));
     }
 
-    // Stale cleanup (D-06…D-08) deferred to Plan 02.
+    let cleaned =
+        cleanup_stale_wiki_pages_for_source(store, wiki_root, &source.uri, &current_slugs)?;
     rebuild_index_md_from_disk(wiki_root)?;
 
     let mut created = 0usize;
@@ -167,8 +171,62 @@ pub async fn compile_wiki_for_source(
         created,
         updated,
         skipped_user_edit,
-        cleaned: 0,
+        cleaned,
     })
+}
+
+/// Delete generated pages owned by `source_uri` that are absent from this compile (D-06…D-08).
+fn cleanup_stale_wiki_pages_for_source(
+    store: &Store,
+    wiki_root: &Path,
+    source_uri: &str,
+    current_slugs: &HashSet<String>,
+) -> Result<usize> {
+    let mut cleaned = 0usize;
+    for dir_name in ["sources", "entities", "concepts"] {
+        let dir = wiki_root.join(dir_name);
+        if !dir.is_dir() {
+            continue;
+        }
+        let mut stale_paths: Vec<(String, PathBuf)> = Vec::new();
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("page");
+            if stem.contains("..") || stem.contains('/') || stem.contains('\\') {
+                continue;
+            }
+            let slug = format!("{dir_name}/{stem}");
+            if current_slugs.contains(&slug) {
+                continue;
+            }
+            let text = std::fs::read_to_string(&path)?;
+            // D-08: never delete user-curated notes lacking generated: true.
+            if !frontmatter_is_generated(&text) {
+                continue;
+            }
+            // D-07: only pages whose sources list contains this compile's URI.
+            if !frontmatter_sources_contains(&text, source_uri) {
+                continue;
+            }
+            stale_paths.push((slug, path));
+        }
+        for (slug, path) in stale_paths {
+            std::fs::remove_file(&path)?;
+            let wiki_uri = format!("wiki://{slug}");
+            // Library remove_source pair — never delete_source alone (orphan vec/FTS).
+            store.delete_chunks_for_source(&wiki_uri)?;
+            store.delete_source(&wiki_uri)?;
+            cleaned += 1;
+        }
+    }
+    Ok(cleaned)
 }
 
 /// Rebuild root `index.md` by scanning sources/entities/concepts only (D-01…D-05).
@@ -272,6 +330,17 @@ fn frontmatter_is_generated(raw: &str) -> bool {
     front.lines().any(|line| {
         let t = line.trim();
         t == "generated: true" || t == "generated:true"
+    })
+}
+
+fn frontmatter_sources_contains(raw: &str, source_uri: &str) -> bool {
+    let Some(front) = peek_frontmatter(raw) else {
+        return false;
+    };
+    let needle = format!("\"{source_uri}\"");
+    front.lines().any(|line| {
+        let t = line.trim();
+        t.starts_with("sources:") && t.contains(&needle)
     })
 }
 
@@ -958,6 +1027,92 @@ mod tests {
         assert!(
             !index.contains("index.md") && !index.contains("[[index|"),
             "index.md must never be listed as an entry: {index}"
+        );
+    }
+
+    #[tokio::test]
+    async fn compile_removes_stale_generated_page() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "stale-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+
+        compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &embedder,
+            &chunker,
+            "stale-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("first compile");
+
+        let source_uri = "/tmp/stale-a.md";
+        let stale_slug = "entities/stale-gone";
+        let stale_path = wiki_root.join(format!("{stale_slug}.md"));
+        std::fs::create_dir_all(stale_path.parent().unwrap()).unwrap();
+        let stale_body = format!(
+            "---\ntitle: \"Stale Gone\"\ntype: entity\nsources: [\"{source_uri}\"]\ngenerated: true\n---\n# Stale Gone\n\nold\n"
+        );
+        std::fs::write(&stale_path, &stale_body).unwrap();
+        let stale_uri = format!("wiki://{stale_slug}");
+        let hash = ingest::hash_text(&stale_body);
+        store
+            .upsert_source(&store::Source {
+                id: stale_uri.clone(),
+                kind: SourceKind::WikiPage,
+                uri: stale_uri.clone(),
+                title: "Stale Gone".into(),
+                content_hash: hash,
+                indexed_at: Some(1),
+                status: IndexStatus::Indexed,
+                error: None,
+                summary: None,
+            })
+            .unwrap();
+        store
+            .insert_chunks(
+                &stale_uri,
+                &[NewChunk {
+                    ord: 0,
+                    text: "stale entity body".into(),
+                    loc: "L0".into(),
+                    token_count: 3,
+                    embedding: vec![0.1; 4],
+                }],
+            )
+            .unwrap();
+        assert!(stale_path.is_file());
+        assert!(store.get_source(&stale_uri).is_ok());
+
+        let summary = compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &embedder,
+            &chunker,
+            "stale-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("second compile cleans stale");
+
+        assert!(
+            summary.cleaned >= 1,
+            "expected cleaned >= 1, got {}",
+            summary.cleaned
+        );
+        assert!(
+            !stale_path.exists(),
+            "stale generated page must be removed from disk"
+        );
+        assert!(
+            store.get_source(&stale_uri).is_err(),
+            "stale wiki:// source must be deleted from Store"
         );
     }
 
