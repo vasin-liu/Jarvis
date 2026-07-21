@@ -10,10 +10,16 @@ pub enum InsightsError {
     InvalidTasksJson(String),
     #[error("failed to parse wiki json: {0}")]
     InvalidWikiJson(String),
+    #[error("wiki is disabled")]
+    WikiDisabled,
+    #[error("cannot compile a WikiPage source: {0}")]
+    WikiPageInput(String),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("llm: {0}")]
     Llm(#[from] llm::LlmError),
+    #[error("index: {0}")]
+    Index(#[from] indexer::IndexError),
     #[error("store: {0}")]
     Store(#[from] store::StoreError),
 }

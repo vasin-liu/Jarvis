@@ -1,8 +1,10 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use chunker::ChunkerConfig;
+use embedder::Embedder;
 use llm::{ChatModel, Message, Role};
 use serde::{Deserialize, Serialize};
-use store::{IndexStatus, Store};
+use store::{IndexStatus, SourceKind, Store};
 
 use crate::error::{InsightsError, Result};
 
@@ -58,6 +60,40 @@ pub fn write_wiki_pages_to_dir(compiled: &WikiCompileResult, wiki_root: &Path) -
     }
     std::fs::write(wiki_root.join("index.md"), &compiled.index_markdown)?;
     Ok(())
+}
+
+/// Compact outcome of a successful wiki compile (D-17).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WikiCompileSummary {
+    pub wiki_root: PathBuf,
+    pub pages_written: usize,
+    pub created: usize,
+    pub updated: usize,
+    pub skipped_user_edit: usize,
+    pub cleaned: usize,
+}
+
+/// Orchestrate analyze → write → scan-rebuild index.md → index WikiPage sources (WIKI-04).
+/// Wave 0 stub: gates only; full persist/index lands in Task 2.
+pub async fn compile_wiki_for_source(
+    store: &Store,
+    _chat: &dyn ChatModel,
+    _embedder: &dyn Embedder,
+    _chunker: &ChunkerConfig,
+    source_id: &str,
+    _wiki_root: &Path,
+    wiki_enabled: bool,
+) -> Result<WikiCompileSummary> {
+    if !wiki_enabled {
+        return Err(InsightsError::WikiDisabled);
+    }
+    let source = store.get_source(source_id)?;
+    if source.kind == SourceKind::WikiPage {
+        return Err(InsightsError::WikiPageInput(source_id.to_string()));
+    }
+    // Wave 0 RED: happy-path tests must fail until Task 2 implements persist+index.
+    Err(InsightsError::WikiDisabled)
 }
 
 fn parse_wiki_analysis(raw: &str) -> Result<WikiAnalysis> {
@@ -374,6 +410,8 @@ fn wikilink(path: &str, display: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chunker::ChunkerConfig;
+    use embedder::MockEmbedder;
     use llm::MockChatModel;
     use store::{NewChunk, SourceKind};
 
@@ -403,6 +441,207 @@ mod tests {
                 }],
             )
             .unwrap();
+    }
+
+    fn count_wiki_pages(store: &Store) -> usize {
+        store
+            .list_sources()
+            .unwrap()
+            .into_iter()
+            .filter(|s| s.kind == SourceKind::WikiPage)
+            .count()
+    }
+
+    fn any_content_md(wiki_root: &Path) -> bool {
+        for dir in ["sources", "entities", "concepts"] {
+            let d = wiki_root.join(dir);
+            if !d.is_dir() {
+                continue;
+            }
+            if let Ok(entries) = std::fs::read_dir(&d) {
+                for e in entries.flatten() {
+                    if e.path().extension().is_some_and(|x| x == "md") {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    #[tokio::test]
+    async fn compile_rejects_when_disabled() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "dis-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        let before = count_wiki_pages(&store);
+
+        let err = compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &MockEmbedder::new(4),
+            &ChunkerConfig::default(),
+            "dis-a",
+            &wiki_root,
+            false,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(err, InsightsError::WikiDisabled),
+            "expected WikiDisabled, got {err:?}"
+        );
+        assert_eq!(
+            count_files_recursive(&wiki_root),
+            0,
+            "disabled compile must create zero files"
+        );
+        assert_eq!(
+            count_wiki_pages(&store),
+            before,
+            "disabled compile must not add WikiPage sources"
+        );
+    }
+
+    #[tokio::test]
+    async fn compile_rejects_wiki_page_input() {
+        let store = Store::open_in_memory(4).unwrap();
+        store
+            .upsert_source(&store::Source {
+                id: "wiki://sources/seed".into(),
+                kind: SourceKind::WikiPage,
+                uri: "wiki://sources/seed".into(),
+                title: "Seed Wiki".into(),
+                content_hash: "h".into(),
+                indexed_at: Some(1),
+                status: IndexStatus::Indexed,
+                error: None,
+                summary: None,
+            })
+            .unwrap();
+        store
+            .insert_chunks(
+                "wiki://sources/seed",
+                &[NewChunk {
+                    ord: 0,
+                    text: "seed wiki page body".into(),
+                    loc: "L0".into(),
+                    token_count: 3,
+                    embedding: vec![0.1; 4],
+                }],
+            )
+            .unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        let before_files = count_files_recursive(&wiki_root);
+
+        let err = compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &MockEmbedder::new(4),
+            &ChunkerConfig::default(),
+            "wiki://sources/seed",
+            &wiki_root,
+            true,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(err, InsightsError::WikiPageInput(_)),
+            "expected WikiPageInput, got {err:?}"
+        );
+        assert_eq!(
+            count_files_recursive(&wiki_root),
+            before_files,
+            "WikiPage input must create zero wiki files"
+        );
+    }
+
+    #[tokio::test]
+    async fn compile_writes_files_and_indexes() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "ok-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+
+        let summary = compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &MockEmbedder::new(4),
+            &ChunkerConfig::default(),
+            "ok-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("enabled compile should succeed");
+
+        assert!(
+            any_content_md(&wiki_root),
+            "expected at least one sources|entities|concepts *.md"
+        );
+        assert!(
+            wiki_root.join("index.md").is_file(),
+            "index.md required after compile"
+        );
+        let wiki_pages: Vec<_> = store
+            .list_sources()
+            .unwrap()
+            .into_iter()
+            .filter(|s| s.kind == SourceKind::WikiPage)
+            .collect();
+        assert!(
+            !wiki_pages.is_empty(),
+            "expected at least one WikiPage source"
+        );
+        assert!(
+            wiki_pages.iter().all(|s| s.uri.starts_with("wiki://")),
+            "WikiPage uris must start with wiki://"
+        );
+        assert_eq!(summary.wiki_root, wiki_root);
+    }
+
+    #[tokio::test]
+    async fn compile_idempotent_hash_skip() {
+        let store = Store::open_in_memory(4).unwrap();
+        sample_indexed(&store, "idem-a");
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+
+        compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &embedder,
+            &chunker,
+            "idem-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("first compile");
+        let after_first = count_wiki_pages(&store);
+        assert!(after_first > 0, "first compile must index WikiPages");
+
+        compile_wiki_for_source(
+            &store,
+            &MockChatModel,
+            &embedder,
+            &chunker,
+            "idem-a",
+            &wiki_root,
+            true,
+        )
+        .await
+        .expect("second compile");
+        assert_eq!(
+            count_wiki_pages(&store),
+            after_first,
+            "identical re-compile must not increase WikiPage count"
+        );
     }
 
     #[tokio::test]
