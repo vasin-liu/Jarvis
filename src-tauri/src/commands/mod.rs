@@ -6,6 +6,7 @@ mod lark;
 mod library;
 mod memory;
 mod sync;
+mod wiki;
 
 pub use chat::{
     ask_in_session, ask_in_session_stream, ask_question, create_chat_session, delete_chat_session,
@@ -35,3 +36,4 @@ pub use agent::{
 };
 pub(crate) use agent::run_ask_agent_in_session;
 pub use sync::{get_sync_status, run_scheduled_sync_cmd};
+pub use wiki::compile_wiki_cmd;
