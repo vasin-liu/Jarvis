@@ -75,16 +75,16 @@ pub struct WikiCompileSummary {
 }
 
 /// Orchestrate analyze → write → scan-rebuild index.md → index WikiPage sources (WIKI-04).
-/// Wave 0 stub: gates only; full persist/index lands in Task 2.
 pub async fn compile_wiki_for_source(
     store: &Store,
-    _chat: &dyn ChatModel,
-    _embedder: &dyn Embedder,
-    _chunker: &ChunkerConfig,
+    chat: &dyn ChatModel,
+    embedder: &dyn Embedder,
+    chunker: &ChunkerConfig,
     source_id: &str,
-    _wiki_root: &Path,
+    wiki_root: &Path,
     wiki_enabled: bool,
 ) -> Result<WikiCompileSummary> {
+    // D-15 / D-16: hard gates before any FS or analyze I/O side effects.
     if !wiki_enabled {
         return Err(InsightsError::WikiDisabled);
     }
@@ -92,8 +92,211 @@ pub async fn compile_wiki_for_source(
     if source.kind == SourceKind::WikiPage {
         return Err(InsightsError::WikiPageInput(source_id.to_string()));
     }
-    // Wave 0 RED: happy-path tests must fail until Task 2 implements persist+index.
-    Err(InsightsError::WikiDisabled)
+    if source.status != IndexStatus::Indexed {
+        return Err(InsightsError::NotIndexed(source_id.to_string()));
+    }
+
+    let analysis = analyze_source_for_wiki(store, chat, source_id).await?;
+    let compiled = render_wiki_pages(&analysis, &source.uri, &source.title);
+
+    std::fs::create_dir_all(wiki_root)?;
+
+    let mut pages_written = 0usize;
+    let mut skipped_user_edit = 0usize;
+    let mut index_queue: Vec<(String, PathBuf)> = Vec::with_capacity(compiled.pages.len());
+
+    for page in &compiled.pages {
+        let path = resolve_wiki_page_path(wiki_root, &page.slug)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        let skip_write = if path.is_file() {
+            let existing = std::fs::read_to_string(&path)?;
+            !frontmatter_is_generated(&existing)
+        } else {
+            false
+        };
+
+        if skip_write {
+            skipped_user_edit += 1;
+        } else {
+            std::fs::write(&path, &page.body_markdown)?;
+            pages_written += 1;
+        }
+        index_queue.push((page.slug.clone(), path));
+    }
+
+    // Stale cleanup (D-06…D-08) deferred to Plan 02.
+    rebuild_index_md_from_disk(wiki_root)?;
+
+    let mut created = 0usize;
+    let mut updated = 0usize;
+    for (slug, path) in index_queue {
+        let text = std::fs::read_to_string(&path)?;
+        let uri = format!("wiki://{slug}");
+        let title = title_from_frontmatter_or_slug(&text, &slug);
+        let content_hash = ingest::hash_text(&text);
+
+        let prior = store.get_source(&uri).ok();
+        let prior_skip = prior
+            .as_ref()
+            .is_some_and(|s| s.content_hash == content_hash && s.status == IndexStatus::Indexed);
+        let had_prior = prior.is_some();
+
+        let doc = ingest::Document {
+            uri: uri.clone(),
+            title,
+            text,
+            content_hash,
+        };
+        indexer::index_document(store, embedder, chunker, doc, SourceKind::WikiPage).await?;
+
+        if prior_skip {
+            // Hash skip — neither created nor updated.
+        } else if had_prior {
+            updated += 1;
+        } else {
+            created += 1;
+        }
+    }
+
+    Ok(WikiCompileSummary {
+        wiki_root: wiki_root.to_path_buf(),
+        pages_written,
+        created,
+        updated,
+        skipped_user_edit,
+        cleaned: 0,
+    })
+}
+
+/// Rebuild root `index.md` by scanning sources/entities/concepts only (D-01…D-05).
+pub fn rebuild_index_md_from_disk(wiki_root: &Path) -> Result<()> {
+    let mut sources: Vec<(String, String)> = Vec::new();
+    let mut entities: Vec<(String, String)> = Vec::new();
+    let mut concepts: Vec<(String, String)> = Vec::new();
+
+    scan_wiki_section(wiki_root, "sources", &mut sources)?;
+    scan_wiki_section(wiki_root, "entities", &mut entities)?;
+    scan_wiki_section(wiki_root, "concepts", &mut concepts)?;
+
+    sources.sort_by(|a, b| a.0.cmp(&b.0));
+    entities.sort_by(|a, b| a.0.cmp(&b.0));
+    concepts.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut out = String::from("# Wiki\n");
+    if !sources.is_empty() {
+        out.push_str("\n## Sources\n");
+        for (slug, title) in &sources {
+            out.push_str(&format!("- {}\n", wikilink(slug, title)));
+        }
+    }
+    if !entities.is_empty() {
+        out.push_str("\n## Entities\n");
+        for (slug, title) in &entities {
+            out.push_str(&format!("- {}\n", wikilink(slug, title)));
+        }
+    }
+    if !concepts.is_empty() {
+        out.push_str("\n## Concepts\n");
+        for (slug, title) in &concepts {
+            out.push_str(&format!("- {}\n", wikilink(slug, title)));
+        }
+    }
+
+    std::fs::create_dir_all(wiki_root)?;
+    std::fs::write(wiki_root.join("index.md"), out)?;
+    Ok(())
+}
+
+fn scan_wiki_section(
+    wiki_root: &Path,
+    dir_name: &str,
+    out: &mut Vec<(String, String)>,
+) -> Result<()> {
+    let dir = wiki_root.join(dir_name);
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("page");
+        if stem.contains("..") || stem.contains('/') || stem.contains('\\') {
+            continue;
+        }
+        let slug = format!("{dir_name}/{stem}");
+        let text = std::fs::read_to_string(&path)?;
+        let title = title_from_frontmatter_or_slug(&text, &slug);
+        out.push((slug, title));
+    }
+    Ok(())
+}
+
+fn resolve_wiki_page_path(wiki_root: &Path, slug: &str) -> Result<PathBuf> {
+    use std::path::Component;
+    let rel = Path::new(slug);
+    if rel.is_absolute()
+        || rel.components().any(|c| {
+            !matches!(c, Component::Normal(_))
+        })
+    {
+        return Err(InsightsError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("unsafe wiki slug: {slug}"),
+        )));
+    }
+    Ok(wiki_root.join(format!("{slug}.md")))
+}
+
+fn peek_frontmatter(raw: &str) -> Option<&str> {
+    if !raw.starts_with("---") {
+        return None;
+    }
+    raw[3..]
+        .find("\n---")
+        .map(|end| raw[3..3 + end].trim_matches('\n'))
+}
+
+fn frontmatter_is_generated(raw: &str) -> bool {
+    let Some(front) = peek_frontmatter(raw) else {
+        return false;
+    };
+    front.lines().any(|line| {
+        let t = line.trim();
+        t == "generated: true" || t == "generated:true"
+    })
+}
+
+fn title_from_frontmatter_or_slug(raw: &str, slug: &str) -> String {
+    if let Some(front) = peek_frontmatter(raw) {
+        for line in front.lines() {
+            if let Some((k, v)) = line.split_once(':') {
+                if k.trim() == "title" {
+                    let mut title = v.trim().to_string();
+                    if title.starts_with('"') && title.ends_with('"') && title.len() >= 2 {
+                        title = title[1..title.len() - 1]
+                            .replace("\\\"", "\"")
+                            .replace("\\\\", "\\");
+                    }
+                    if !title.is_empty() {
+                        return title;
+                    }
+                }
+            }
+        }
+    }
+    slug.rsplit('/')
+        .next()
+        .unwrap_or(slug)
+        .to_string()
 }
 
 fn parse_wiki_analysis(raw: &str) -> Result<WikiAnalysis> {
