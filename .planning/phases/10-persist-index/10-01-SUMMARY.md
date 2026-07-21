@@ -121,7 +121,7 @@ Each task was committed atomically:
 2. **Task 2: GREEN compile_wiki_for_source** - `4f10042` (feat)
 3. **Task 3: Thin Tauri compile_wiki_cmd** - `079cb1e` (feat)
 
-**Plan metadata:** (pending docs commit)
+**Plan metadata:** `96f8c53` (docs: SUMMARY) + `a50b2de` (docs: STATE/ROADMAP) + `53254bb` (chore: Cargo.lock)
 
 ## Files Created/Modified
 
@@ -149,7 +149,7 @@ Each task was committed atomically:
 - **Fix:** Committed lockfile dependency entries
 - **Files modified:** Cargo.lock
 - **Verification:** lockfile lists the four path deps under insights
-- **Committed in:** (chore commit after docs)
+- **Committed in:** `53254bb` (chore(10-01): update Cargo.lock)
 
 **Note:** Plan `<verify>` used `cargo test … --exact` with short test names; Rust's `--exact` requires the full `wiki::tests::…` path, so verification used substring filters that actually run the tests. Behavior coverage unchanged.
 
