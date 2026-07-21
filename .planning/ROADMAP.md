@@ -21,7 +21,7 @@
 | 07 | Wiki kind + config | 3/3 | Complete    | 2026-07-18 |
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
-| 10 | Persist + index | 2/2 | Complete   | 2026-07-21 |
+| 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
@@ -181,11 +181,11 @@ Plans:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIKI-01 | 07 | Pending |
-| WIKI-02 | 07 | Pending |
-| WIKI-03 | 08 + 09 | Pending |
-| WIKI-04 | 10 | Pending |
-| WIKI-05 | 09 | Pending |
+| WIKI-01 | 07 | Complete |
+| WIKI-02 | 07 | Complete |
+| WIKI-03 | 08 + 09 | Complete |
+| WIKI-04 | 10 | Complete |
+| WIKI-05 | 09 | Complete |
 | WIKI-06 | 11 | Pending |
 | WIKI-07 | 12 | Pending |
 | WIKI-08 | 13 | Pending |
