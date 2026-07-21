@@ -2545,7 +2545,11 @@ name = "insights"
 version = "1.8.0"
 dependencies = [
  "async-trait",
+ "chunker",
+ "embedder",
  "hex",
+ "indexer",
+ "ingest",
  "llm",
  "serde",
  "serde_json",
