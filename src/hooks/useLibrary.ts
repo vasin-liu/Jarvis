@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 
 import {
+  compileWiki as compileWikiCmd,
   extractTasks as extractTasksCmd,
   indexFile,
   listCursorTranscripts,
@@ -91,6 +92,18 @@ export function useLibrary({ onError }: UseLibraryOptions = {}) {
     [refreshSources, reportError],
   );
 
+  const compileWiki = useCallback(
+    async (sourceId: string) => {
+      try {
+        await compileWikiCmd(sourceId);
+        await refreshSources();
+      } catch (error) {
+        reportError(error);
+      }
+    },
+    [refreshSources, reportError],
+  );
+
   const runInsightsAll = useCallback(async () => {
     try {
       await runInsightsAllCmd(true, true);
@@ -133,6 +146,7 @@ export function useLibrary({ onError }: UseLibraryOptions = {}) {
     removeSource,
     summarizeSource,
     extractTasks,
+    compileWiki,
     runInsightsAll,
     pickAndIndex,
     syncCursorTranscripts,

@@ -7,6 +7,7 @@ import type {
   IndexStatusView,
   SyncStatusView,
   TaskItem,
+  WikiCompileSummary,
 } from "../types/ipc";
 import type {
   CursorTranscriptSummary,
@@ -103,6 +104,10 @@ export function summarizeSource(sourceId: string) {
 
 export function extractTasks(sourceId: string) {
   return invoke<TaskItem[]>("extract_tasks_cmd", { sourceId });
+}
+
+export function compileWiki(sourceId: string) {
+  return invoke<WikiCompileSummary>("compile_wiki_cmd", { sourceId });
 }
 
 export function listTasks() {

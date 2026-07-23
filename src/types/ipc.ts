@@ -143,6 +143,15 @@ export interface SyncStatusView {
   lastScheduledSyncErrorAt?: number | null;
 }
 
+export interface WikiCompileSummary {
+  wikiRoot: string;
+  pagesWritten: number;
+  created: number;
+  updated: number;
+  skippedUserEdit: number;
+  cleaned: number;
+}
+
 export type { CursorTranscriptSummary } from "./library";
 
 export interface IndexStatusView {
