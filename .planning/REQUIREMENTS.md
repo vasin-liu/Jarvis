@@ -20,7 +20,7 @@ Requirements for milestone v1.10. Each maps to roadmap phases 07+.
 
 ### Library & Settings UX
 
-- [ ] **WIKI-06**: When wiki is enabled, user can trigger “生成笔记” from Library and toggle wiki in Settings; controls are hidden when disabled
+- [x] **WIKI-06**: When wiki is enabled, user can trigger “生成笔记” from Library and toggle wiki in Settings; controls are hidden when disabled
 - [ ] **WIKI-07**: User can export the wiki tree as an Obsidian-compatible zip (includes minimal `.obsidian/` stub)
 
 ### Trust & Verification
@@ -61,7 +61,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIKI-03 | 08 + 09 | Complete |
 | WIKI-04 | 10 | Complete |
 | WIKI-05 | 09 | Complete |
-| WIKI-06 | 11 | Pending |
+| WIKI-06 | 11 | Complete |
 | WIKI-07 | 12 | Pending |
 | WIKI-08 | 13 | Pending |
 | WIKI-09 | 13 | Pending |

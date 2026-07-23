@@ -4,17 +4,17 @@ milestone: v1.10
 milestone_name: Wiki Compile Layer
 current_phase: 11
 current_phase_name: library-settings-ui
-status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-07-23T02:34:40.782Z"
+status: verifying
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-07-23T03:00:11.255Z"
 last_activity: 2026-07-23
 last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
-  percent: 57
+  completed_plans: 11
+  percent: 71
 ---
 
 # Project State
@@ -40,15 +40,15 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Session
 
-**Last session:** 2026-07-23T02:34:40.765Z
-**Stopped at:** Completed 11-01-PLAN.md
+**Last session:** 2026-07-23T02:57:55.194Z
+**Stopped at:** Completed 11-02-PLAN.md
 **Resume file:** None
 
 ## Current Position
 
 Phase: 11 (library-settings-ui) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-23 — Phase 11 execution started
 
 ## Performance Metrics
@@ -61,6 +61,7 @@ Last activity: 2026-07-23 — Phase 11 execution started
 | Phase 10-persist-index P01 | 21 min | 3 tasks | 7 files |
 | Phase 10-persist-index P02 | 11 min | 3 tasks | 1 files |
 | Phase 11 P01 | 13 min | 2 tasks | 2 files |
+| Phase 11 P02 | 15 min | 3 tasks | 7 files |
 
 ## Decisions
 
@@ -68,3 +69,4 @@ Last activity: 2026-07-23 — Phase 11 execution started
 - [Phase 10]: Compile path uses scan-rebuild index.md + policy write; keep blind write_wiki_pages_to_dir for Phase 09 tests — D-01 and RESEARCH dual-writer resolution
 - [Phase 10]: Collect stale paths before FS/Store delete; sources peek via quoted URI — Avoid mutating read_dir mid-scan; no serde_yaml per Phase 08/STACK
 - [Phase 11]: Independent Wiki 笔记 AccordionSection; only wiki.enabled; local setConfig until 保存配置 — D-01 D-02 D-03; preserve auto_on_insights on spread
+- [Phase 11]: Library 生成笔记 gated by wiki.enabled + indexed non-wiki_page; busy in App not hook — D-05..D-09 D-14 D-16; discard WikiCompileSummary in UX per D-11
