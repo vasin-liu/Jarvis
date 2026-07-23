@@ -31,6 +31,7 @@ function App() {
     removeSource: libRemoveSource,
     summarizeSource: libSummarizeSource,
     extractTasks: libExtractTasks,
+    compileWiki: libCompileWiki,
     runInsightsAll: libRunInsightsAll,
     pickAndIndex: libPickAndIndex,
     syncCursorTranscripts: libSyncCursorTranscripts,
@@ -250,6 +251,16 @@ function App() {
     }
   }
 
+  async function handleCompileWiki(sourceId: string) {
+    setErr(null);
+    setBusy(true);
+    try {
+      await libCompileWiki(sourceId);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleRunInsightsAll() {
     setErr(null);
     setBusy(true);
@@ -363,6 +374,7 @@ function App() {
               void handleSummarizeSource(sourceId)
             }
             onExtractTasks={(sourceId) => void handleExtractTasks(sourceId)}
+            onCompileWiki={(sourceId) => void handleCompileWiki(sourceId)}
             onRetrySource={(id) => void handleRetrySource(id)}
             onRemoveSource={(id) => void handleRemoveSource(id)}
           />

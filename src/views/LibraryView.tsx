@@ -71,6 +71,7 @@ export interface LibraryViewProps {
   onSyncCursorTranscripts: () => void;
   onSummarizeSource: (sourceId: string) => void;
   onExtractTasks: (sourceId: string) => void;
+  onCompileWiki: (sourceId: string) => void;
   onRetrySource: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
 }
@@ -87,6 +88,7 @@ export function LibraryView({
   onSyncCursorTranscripts,
   onSummarizeSource,
   onExtractTasks,
+  onCompileWiki,
   onRetrySource,
   onRemoveSource,
 }: LibraryViewProps) {
@@ -220,6 +222,17 @@ export function LibraryView({
                     >
                       提取任务
                     </button>
+                    {config?.wiki?.enabled === true && s.kind !== "wiki_page" && (
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        disabled={busy}
+                        data-testid={`wiki-compile-${s.id}`}
+                        onClick={() => onCompileWiki(s.id)}
+                      >
+                        生成笔记
+                      </button>
+                    )}
                   </>
                 )}
                 <button
