@@ -8,6 +8,7 @@ import type {
   SyncStatusView,
   TaskItem,
   WikiCompileSummary,
+  WikiExportPreflight,
 } from "../types/ipc";
 import type {
   CursorTranscriptSummary,
@@ -108,6 +109,14 @@ export function extractTasks(sourceId: string) {
 
 export function compileWiki(sourceId: string) {
   return invoke<WikiCompileSummary>("compile_wiki_cmd", { sourceId });
+}
+
+export function wikiExportPreflight() {
+  return invoke<WikiExportPreflight>("wiki_export_preflight_cmd");
+}
+
+export function exportWikiZip(destPath: string) {
+  return invoke<void>("export_wiki_zip_cmd", { destPath });
 }
 
 export function listTasks() {

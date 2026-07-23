@@ -152,6 +152,10 @@ export interface WikiCompileSummary {
   cleaned: number;
 }
 
+export interface WikiExportPreflight {
+  hasNotes: boolean;
+}
+
 export type { CursorTranscriptSummary } from "./library";
 
 export interface IndexStatusView {

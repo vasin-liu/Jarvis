@@ -36,4 +36,4 @@ pub use agent::{
 };
 pub(crate) use agent::run_ask_agent_in_session;
 pub use sync::{get_sync_status, run_scheduled_sync_cmd};
-pub use wiki::compile_wiki_cmd;
+pub use wiki::{compile_wiki_cmd, export_wiki_zip_cmd, wiki_export_preflight_cmd};

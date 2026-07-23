@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 import {
   compileWiki as compileWikiCmd,
+  exportWikiZip as exportWikiZipCmd,
   extractTasks as extractTasksCmd,
   indexFile,
   listCursorTranscripts,
@@ -12,11 +13,24 @@ import {
   runInsightsAll as runInsightsAllCmd,
   summarizeSource as summarizeSourceCmd,
   syncCursorTranscripts as syncCursorTranscriptsCmd,
+  wikiExportPreflight,
 } from "../lib/tauri";
 import type { CursorTranscriptSummary, Source } from "../types/library";
 
 export interface UseLibraryOptions {
   onError?: (message: string) => void;
+}
+
+export interface ExportWikiOptions {
+  onSuccess?: (path: string) => void;
+}
+
+function localYmd(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function useLibrary({ onError }: UseLibraryOptions = {}) {
@@ -137,6 +151,29 @@ export function useLibrary({ onError }: UseLibraryOptions = {}) {
     }
   }, [refreshCursorCandidates, refreshSources, reportError]);
 
+  const exportWiki = useCallback(
+    async ({ onSuccess }: ExportWikiOptions = {}) => {
+      try {
+        const preflight = await wikiExportPreflight();
+        if (!preflight.hasNotes) {
+          reportError("还没有可导出的笔记，请先生成笔记");
+          return;
+        }
+        const destPath = await save({
+          defaultPath: `jarvis-wiki-${localYmd()}.zip`,
+          filters: [{ name: "Zip", extensions: ["zip"] }],
+        });
+        if (destPath === null) return;
+        await exportWikiZipCmd(destPath);
+        onSuccess?.(destPath);
+        return destPath;
+      } catch (error) {
+        reportError(error);
+      }
+    },
+    [reportError],
+  );
+
   return {
     sources,
     cursorCandidates,
@@ -150,5 +187,6 @@ export function useLibrary({ onError }: UseLibraryOptions = {}) {
     runInsightsAll,
     pickAndIndex,
     syncCursorTranscripts,
+    exportWiki,
   };
 }
