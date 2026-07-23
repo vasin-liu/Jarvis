@@ -379,17 +379,15 @@ pub fn export_wiki_zip(wiki_root: &Path, dest_zip: &Path) -> Result<()>;
 
 **If empty:** Not empty — A1/A2 need awareness, not blocking.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Success notice ownership**
+1. **Success notice ownership** — **RESOLVED** (12-02-PLAN)
    - What we know: AppShell only has red `err` alert today [VERIFIED].
-   - What's unclear: Whether to extend AppShell with `notice` vs toolbar-local status.
-   - Recommendation: App-level soft notice + `wiki-export-done` testid (discretion).
+   - Decision (locked in Plan 02): App-level **soft** non-red notice (`data-testid="wiki-export-done"`, cyan/emerald), dismissible like err; failures stay on shared red `err` bar. Empty copy still uses `reportError` / `setErr` (D-07 Discretion + D-09).
 
-2. **Timezone for default zip filename**
+2. **Timezone for default zip filename** — **RESOLVED** (12-02-PLAN)
    - What we know: D-06 wants `jarvis-wiki-YYYY-MM-DD.zip`.
-   - What's unclear: UTC vs local.
-   - Recommendation: Local calendar date in FE (small helper); document in plan.
+   - Decision (locked in Plan 02): **Local calendar** `YYYY-MM-DD` (not UTC-only `toISOString().slice(0,10)` near midnight) → `jarvis-wiki-${date}.zip` (D-06; RESEARCH A2).
 
 ## Environment Availability
 
