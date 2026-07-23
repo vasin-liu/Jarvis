@@ -22,7 +22,7 @@
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
-| 11 | Library / Settings UI | Feature-flagged compile UX | WIKI-06 | 3 |
+| 11 | Library / Settings UI | 1/2 | In Progress|  |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
 
@@ -140,13 +140,13 @@ Plans:
 2. With wiki enabled, Library shows “生成笔记” (or equivalent) for an indexed source
 3. With wiki disabled, compile/export controls are not shown (default E2E config)
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Settings「Wiki 笔记」AccordionSection + wiki.enabled toggle + Vitest
+- [x] 11-01-PLAN.md — Settings「Wiki 笔记」AccordionSection + wiki.enabled toggle + Vitest
 
 **Wave 2** *(blocked on Wave 1)*
 
