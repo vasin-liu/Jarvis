@@ -1,6 +1,11 @@
 //! Obsidian-compatible zip export for the on-disk wiki tree (WIKI-07).
 
-use std::path::Path;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::{Component, Path, PathBuf};
+
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipWriter};
 
 use crate::error::{InsightsError, Result};
 
@@ -10,7 +15,19 @@ const OBSIDIAN_STUB_ENTRY: &str = ".obsidian/app.json";
 /// True iff any `.md` exists under `sources/`, `entities/`, or `concepts/` (D-10).
 /// Root-only `index.md` or missing section dirs → false.
 pub fn wiki_has_exportable_notes(wiki_root: &Path) -> bool {
-    let _ = wiki_root;
+    for dir in ["sources", "entities", "concepts"] {
+        let d = wiki_root.join(dir);
+        if !d.is_dir() {
+            continue;
+        }
+        if let Ok(entries) = fs::read_dir(&d) {
+            for e in entries.flatten() {
+                if e.path().extension().is_some_and(|x| x == "md") {
+                    return true;
+                }
+            }
+        }
+    }
     false
 }
 
@@ -18,8 +35,121 @@ pub fn wiki_has_exportable_notes(wiki_root: &Path) -> bool {
 ///
 /// Hard-rejects when `wiki_enabled` is false or the tree has no exportable notes.
 pub fn export_wiki_zip(wiki_root: &Path, dest_zip: &Path, wiki_enabled: bool) -> Result<()> {
-    let _ = (wiki_root, dest_zip, wiki_enabled, OBSIDIAN_STUB_BODY, OBSIDIAN_STUB_ENTRY);
-    Err(InsightsError::WikiEmpty)
+    if !wiki_enabled {
+        return Err(InsightsError::WikiDisabled);
+    }
+    if !wiki_has_exportable_notes(wiki_root) {
+        return Err(InsightsError::WikiEmpty);
+    }
+
+    let temp = dest_temp_path(dest_zip);
+    match write_zip_to_temp(wiki_root, &temp) {
+        Ok(()) => {
+            if dest_zip.exists() {
+                fs::remove_file(dest_zip)?;
+            }
+            fs::rename(&temp, dest_zip)?;
+            Ok(())
+        }
+        Err(e) => {
+            let _ = fs::remove_file(&temp);
+            Err(e)
+        }
+    }
+}
+
+fn dest_temp_path(dest_zip: &Path) -> PathBuf {
+    match dest_zip.file_name().and_then(|n| n.to_str()) {
+        Some(name) => dest_zip.with_file_name(format!("{name}.tmp")),
+        None => dest_zip.with_extension("zip.tmp"),
+    }
+}
+
+fn write_zip_to_temp(wiki_root: &Path, temp: &Path) -> Result<()> {
+    let file = File::create(temp)?;
+    let mut zip = ZipWriter::new(file);
+    let options =
+        SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+
+    for (name, path) in collect_packable_files(wiki_root)? {
+        zip.start_file(&name, options)?;
+        zip.write_all(&fs::read(&path)?)?;
+    }
+
+    zip.start_file(OBSIDIAN_STUB_ENTRY, options)?;
+    zip.write_all(OBSIDIAN_STUB_BODY)?;
+    zip.finish()?;
+    Ok(())
+}
+
+fn is_under_ondisk_obsidian(wiki_root: &Path, path: &Path) -> bool {
+    let Ok(rel) = path.strip_prefix(wiki_root) else {
+        return false;
+    };
+    matches!(
+        rel.components().next(),
+        Some(Component::Normal(c)) if c == ".obsidian"
+    )
+}
+
+fn relative_zip_entry_name(wiki_root: &Path, abs: &Path) -> Result<String> {
+    let rel = abs.strip_prefix(wiki_root).map_err(|_| {
+        InsightsError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "path outside wiki_root",
+        ))
+    })?;
+    if rel.as_os_str().is_empty() {
+        return Err(InsightsError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "empty relative path",
+        )));
+    }
+    if rel.is_absolute()
+        || rel.components().any(|c| !matches!(c, Component::Normal(_)))
+    {
+        return Err(InsightsError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("unsafe zip entry path: {}", rel.display()),
+        )));
+    }
+    Ok(rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/"))
+}
+
+fn collect_packable_files(wiki_root: &Path) -> Result<Vec<(String, PathBuf)>> {
+    let mut out = Vec::new();
+    if !wiki_root.is_dir() {
+        return Ok(out);
+    }
+    let mut stack = vec![wiki_root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let ft = entry.file_type()?;
+            let path = entry.path();
+            // Do not follow symlinks out of wiki_root (T-12-02).
+            if ft.is_symlink() {
+                continue;
+            }
+            if ft.is_dir() {
+                if is_under_ondisk_obsidian(wiki_root, &path) {
+                    continue;
+                }
+                stack.push(path);
+            } else if ft.is_file() {
+                if is_under_ondisk_obsidian(wiki_root, &path) {
+                    continue;
+                }
+                let name = relative_zip_entry_name(wiki_root, &path)?;
+                out.push((name, path));
+            }
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

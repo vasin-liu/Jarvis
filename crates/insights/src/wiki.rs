@@ -725,20 +725,7 @@ mod tests {
     }
 
     fn any_content_md(wiki_root: &Path) -> bool {
-        for dir in ["sources", "entities", "concepts"] {
-            let d = wiki_root.join(dir);
-            if !d.is_dir() {
-                continue;
-            }
-            if let Ok(entries) = std::fs::read_dir(&d) {
-                for e in entries.flatten() {
-                    if e.path().extension().is_some_and(|x| x == "md") {
-                        return true;
-                    }
-                }
-            }
-        }
-        false
+        crate::wiki_has_exportable_notes(wiki_root)
     }
 
     #[tokio::test]
