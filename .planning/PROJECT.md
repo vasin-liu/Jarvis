@@ -8,7 +8,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phase 10 complete (`compile_wiki_for_source` persist + `wiki://` index). Next: Phase 11 Library / Settings UI.
+**In progress:** **v1.10** Wiki Compile Layer — Phase 11 complete (Settings wiki toggle + Library「生成笔记」). Next: Phase 12 Obsidian zip export.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
@@ -59,10 +59,12 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ WikiConfig nested default-off + SourceKind::WikiPage + Library label「笔记页」— Validated in Phase 07: wiki-kind-config
 - ✓ Deterministic `render_wiki_pages` (frontmatter, wikilinks, index) — Validated in Phase 08: deterministic-markdown-renderer
 - ✓ LLM wiki analysis (`analyze_source_for_wiki`) + fail-closed parse (WIKI-05) — Validated in Phase 09: llm-wiki-analysis
+- ✓ Persist + index wiki pages (`compile_wiki_for_source`, `wiki://` WikiPage, hash skip, stale cleanup) — Validated in Phase 10: persist-index
+- ✓ Library/Settings wiki UI (`wiki.enabled` toggle + Library「生成笔记」gated compile) — Validated in Phase 11: library-settings-ui
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–09 done; Phases 10–13 remain
+- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–11 done; Phases 12–13 remain
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
@@ -110,4 +112,4 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-19 after Phase 09 LLM wiki analysis complete*
+*Last updated: 2026-07-23 after Phase 11 Library / Settings UI complete*
