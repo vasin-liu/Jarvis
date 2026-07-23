@@ -21,6 +21,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [err, setErrState] = useState<string | null>(null);
   const setErr = setErrState;
+  const [notice, setNotice] = useState<string | null>(null);
 
   const {
     sources,
@@ -32,6 +33,7 @@ function App() {
     summarizeSource: libSummarizeSource,
     extractTasks: libExtractTasks,
     compileWiki: libCompileWiki,
+    exportWiki: libExportWiki,
     runInsightsAll: libRunInsightsAll,
     pickAndIndex: libPickAndIndex,
     syncCursorTranscripts: libSyncCursorTranscripts,
@@ -261,6 +263,21 @@ function App() {
     }
   }
 
+  async function handleExportWiki() {
+    setErr(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await libExportWiki({
+        onSuccess: (path) => {
+          setNotice(`Wiki 已导出：${path}`);
+        },
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleRunInsightsAll() {
     setErr(null);
     setBusy(true);
@@ -321,6 +338,8 @@ function App() {
       busy={busy}
       err={err}
       setErr={setErr}
+      notice={notice}
+      setNotice={setNotice}
       sourceCount={sources.length}
       e2eMode={e2eMode}
       askHandleCount={askHandleCount}
@@ -375,6 +394,7 @@ function App() {
             }
             onExtractTasks={(sourceId) => void handleExtractTasks(sourceId)}
             onCompileWiki={(sourceId) => void handleCompileWiki(sourceId)}
+            onExportWiki={() => void handleExportWiki()}
             onRetrySource={(id) => void handleRetrySource(id)}
             onRemoveSource={(id) => void handleRemoveSource(id)}
           />

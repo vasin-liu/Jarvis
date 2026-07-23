@@ -72,6 +72,7 @@ export interface LibraryViewProps {
   onSummarizeSource: (sourceId: string) => void;
   onExtractTasks: (sourceId: string) => void;
   onCompileWiki: (sourceId: string) => void;
+  onExportWiki: () => void;
   onRetrySource: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
 }
@@ -89,6 +90,7 @@ export function LibraryView({
   onSummarizeSource,
   onExtractTasks,
   onCompileWiki,
+  onExportWiki,
   onRetrySource,
   onRemoveSource,
 }: LibraryViewProps) {
@@ -137,6 +139,17 @@ export function LibraryView({
           >
             选择文件索引
           </button>
+          {config?.wiki?.enabled === true && (
+            <button
+              type="button"
+              className="btn-ghost"
+              disabled={busy}
+              data-testid="wiki-export"
+              onClick={onExportWiki}
+            >
+              导出 Wiki
+            </button>
+          )}
         </div>
       </div>
 

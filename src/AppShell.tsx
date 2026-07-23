@@ -15,6 +15,8 @@ export interface AppShellProps {
   busy: boolean;
   err: string | null;
   setErr: (err: string | null) => void;
+  notice?: string | null;
+  setNotice?: (notice: string | null) => void;
   sourceCount: number;
   e2eMode?: boolean;
   askHandleCount?: number;
@@ -27,6 +29,8 @@ export function AppShell({
   busy,
   err,
   setErr,
+  notice = null,
+  setNotice,
   sourceCount,
   e2eMode = false,
   askHandleCount = 0,
@@ -90,6 +94,26 @@ export function AppShell({
               >
                 关闭
               </button>
+            </div>
+          </div>
+        )}
+
+        {notice && (
+          <div
+            data-testid="wiki-export-done"
+            className="glass-panel border-emerald-400/30 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-100"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <span>{notice}</span>
+              {setNotice && (
+                <button
+                  type="button"
+                  className="btn-ghost shrink-0 px-2 py-0.5 text-xs"
+                  onClick={() => setNotice(null)}
+                >
+                  关闭
+                </button>
+              )}
             </div>
           </div>
         )}
