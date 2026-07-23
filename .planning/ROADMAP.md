@@ -22,7 +22,7 @@
 | 08 | Markdown renderer | 2/2 | Complete    | 2026-07-19 |
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
-| 11 | Library / Settings UI | 2/2 | Complete   | 2026-07-23 |
+| 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
 
