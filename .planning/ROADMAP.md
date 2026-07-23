@@ -196,7 +196,7 @@ Plans:
 | WIKI-03 | 08 + 09 | Complete |
 | WIKI-04 | 10 | Complete |
 | WIKI-05 | 09 | Complete |
-| WIKI-06 | 11 | Pending |
+| WIKI-06 | 11 | Complete |
 | WIKI-07 | 12 | Pending |
 | WIKI-08 | 13 | Pending |
 | WIKI-09 | 13 | Pending |
