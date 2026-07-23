@@ -1,8 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig } from "../types/ipc";
 import { SettingsView } from "./SettingsView";
@@ -138,12 +144,17 @@ async function expandWikiSection() {
 
 describe("SettingsView wiki section", () => {
   beforeEach(async () => {
+    cleanup();
     setConfig.mockClear();
     handleSaveConfig.mockClear();
     const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
     vi.mocked(useJarvisConfig).mockReturnValue(
       mockUseJarvisConfig() as ReturnType<typeof useJarvisConfig>,
     );
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders Wiki 笔记 section and 启用 Wiki 笔记层 toggle after expand", async () => {
@@ -158,8 +169,7 @@ describe("SettingsView wiki section", () => {
     expect(screen.getByTestId("wiki-enabled-toggle")).toBeTruthy();
   });
 
-  it("checkbox reflects config.wiki.enabled", async () => {
-    const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
+  it("checkbox unchecked when wiki.enabled is false", async () => {
     render(
       <SettingsView busy={false} setBusy={vi.fn()} settingsActive />,
     );
@@ -167,7 +177,10 @@ describe("SettingsView wiki section", () => {
     expect(
       (screen.getByTestId("wiki-enabled-toggle") as HTMLInputElement).checked,
     ).toBe(false);
+  });
 
+  it("checkbox checked when wiki.enabled is true", async () => {
+    const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
     vi.mocked(useJarvisConfig).mockReturnValue(
       mockUseJarvisConfig({
         ...baseConfig,
@@ -177,12 +190,9 @@ describe("SettingsView wiki section", () => {
     render(
       <SettingsView busy={false} setBusy={vi.fn()} settingsActive />,
     );
-    const sections = screen.getAllByTestId("settings-section-wiki");
-    fireEvent.click(within(sections[1]!).getByRole("button"));
+    await expandWikiSection();
     expect(
-      (within(sections[1]!).getByTestId(
-        "wiki-enabled-toggle",
-      ) as HTMLInputElement).checked,
+      (screen.getByTestId("wiki-enabled-toggle") as HTMLInputElement).checked,
     ).toBe(true);
   });
 

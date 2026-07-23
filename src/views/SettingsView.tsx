@@ -622,6 +622,29 @@ export function SettingsView({
         </div>
       </AccordionSection>
 
+      <AccordionSection testId="settings-section-wiki" title="Wiki 笔记">
+        <p className="text-xs text-zinc-500">
+          开启后可在资料库为已索引来源生成笔记页。关闭后仅隐藏生成入口，已有笔记页仍保留。
+        </p>
+        <label className="flex items-center gap-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            data-testid="wiki-enabled-toggle"
+            checked={config.wiki?.enabled ?? false}
+            onChange={(e) =>
+              setConfig({
+                ...config,
+                wiki: {
+                  enabled: e.target.checked,
+                  auto_on_insights: config.wiki?.auto_on_insights ?? false,
+                },
+              })
+            }
+          />
+          启用 Wiki 笔记层
+        </label>
+      </AccordionSection>
+
       <AccordionSection testId="settings-section-lark" title="飞书 / lark-cli">
         <p className="text-xs text-zinc-500">
           官方接入：安装{" "}
