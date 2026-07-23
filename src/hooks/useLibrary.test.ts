@@ -25,6 +25,14 @@ vi.mock("../lib/tauri", () => ({
   removeSource: vi.fn().mockResolvedValue(undefined),
   summarizeSource: vi.fn().mockResolvedValue("summary"),
   extractTasks: vi.fn().mockResolvedValue([]),
+  compileWiki: vi.fn().mockResolvedValue({
+    wikiRoot: "/tmp/wiki",
+    pagesWritten: 1,
+    created: 1,
+    updated: 0,
+    skippedUserEdit: 0,
+    cleaned: 0,
+  }),
   runInsightsAll: vi.fn().mockResolvedValue({
     summarized: 1,
     tasksExtracted: 0,
@@ -66,9 +74,31 @@ describe("useLibrary", () => {
     expect(typeof result.current.removeSource).toBe("function");
     expect(typeof result.current.summarizeSource).toBe("function");
     expect(typeof result.current.extractTasks).toBe("function");
+    expect(typeof result.current.compileWiki).toBe("function");
     expect(typeof result.current.runInsightsAll).toBe("function");
     expect(typeof result.current.pickAndIndex).toBe("function");
     expect(typeof result.current.syncCursorTranscripts).toBe("function");
+  });
+
+  it("compileWiki calls tauri and refreshSources", async () => {
+    const { compileWiki: compileWikiCmd } = await import("../lib/tauri");
+    const { result } = renderHook(() => useLibrary());
+    await act(async () => {
+      await result.current.compileWiki("source-1");
+    });
+    expect(compileWikiCmd).toHaveBeenCalledWith("source-1");
+    expect(listSources).toHaveBeenCalled();
+  });
+
+  it("compileWiki reports errors via onError", async () => {
+    const { compileWiki: compileWikiCmd } = await import("../lib/tauri");
+    vi.mocked(compileWikiCmd).mockRejectedValueOnce(new Error("wiki off"));
+    const onError = vi.fn();
+    const { result } = renderHook(() => useLibrary({ onError }));
+    await act(async () => {
+      await result.current.compileWiki("source-1");
+    });
+    expect(onError).toHaveBeenCalled();
   });
 
   it("does not expose indexProgress or busy", () => {
