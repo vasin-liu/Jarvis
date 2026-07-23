@@ -140,7 +140,17 @@ Plans:
 2. With wiki enabled, Library shows “生成笔记” (or equivalent) for an indexed source
 3. With wiki disabled, compile/export controls are not shown (default E2E config)
 
-**Plans:** TBD via `/gsd-plan-phase 11`
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Settings「Wiki 笔记」AccordionSection + wiki.enabled toggle + Vitest
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 11-02-PLAN.md — tauri/useLibrary/App compile wiring + Library「生成笔记」gates + Vitest
 
 ---
 
