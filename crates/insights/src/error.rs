@@ -12,10 +12,14 @@ pub enum InsightsError {
     InvalidWikiJson(String),
     #[error("wiki is disabled")]
     WikiDisabled,
+    #[error("wiki has no exportable notes")]
+    WikiEmpty,
     #[error("cannot compile a WikiPage source: {0}")]
     WikiPageInput(String),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
+    #[error("zip: {0}")]
+    Zip(#[from] zip::result::ZipError),
     #[error("llm: {0}")]
     Llm(#[from] llm::LlmError),
     #[error("index: {0}")]

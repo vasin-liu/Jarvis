@@ -1,0 +1,234 @@
+//! Obsidian-compatible zip export for the on-disk wiki tree (WIKI-07).
+
+use std::path::Path;
+
+use crate::error::{InsightsError, Result};
+
+const OBSIDIAN_STUB_BODY: &[u8] = br#"{"legacyEditor":false}"#;
+const OBSIDIAN_STUB_ENTRY: &str = ".obsidian/app.json";
+
+/// True iff any `.md` exists under `sources/`, `entities/`, or `concepts/` (D-10).
+/// Root-only `index.md` or missing section dirs → false.
+pub fn wiki_has_exportable_notes(wiki_root: &Path) -> bool {
+    let _ = wiki_root;
+    false
+}
+
+/// Pack `wiki_root` into `dest_zip` with inject-only `.obsidian` stub.
+///
+/// Hard-rejects when `wiki_enabled` is false or the tree has no exportable notes.
+pub fn export_wiki_zip(wiki_root: &Path, dest_zip: &Path, wiki_enabled: bool) -> Result<()> {
+    let _ = (wiki_root, dest_zip, wiki_enabled, OBSIDIAN_STUB_BODY, OBSIDIAN_STUB_ENTRY);
+    Err(InsightsError::WikiEmpty)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Read;
+    use std::path::Component;
+
+    use zip::ZipArchive;
+
+    fn write_md(path: &Path, body: &str) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(path, body).unwrap();
+    }
+
+    fn archive_names(zip_path: &Path) -> Vec<String> {
+        let f = fs::File::open(zip_path).unwrap();
+        let mut archive = ZipArchive::new(f).unwrap();
+        (0..archive.len())
+            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .collect()
+    }
+
+    fn assert_path_safe_names(names: &[String]) {
+        for n in names {
+            assert!(
+                !n.contains(".."),
+                "entry must not contain ParentDir segments: {n}"
+            );
+            assert!(
+                !n.starts_with('/') && !n.starts_with('\\'),
+                "entry must not be absolute: {n}"
+            );
+            assert!(
+                !n.contains('\\'),
+                "entry must use / separators only: {n}"
+            );
+            let p = Path::new(n);
+            assert!(
+                !p.is_absolute(),
+                "entry path must not be absolute: {n}"
+            );
+            assert!(
+                p.components().all(|c| matches!(c, Component::Normal(_))),
+                "entry must have only Normal components: {n}"
+            );
+            // Drive / prefix style (e.g. C:)
+            assert!(
+                !n.chars().nth(1).is_some_and(|c| c == ':'),
+                "entry must not be drive-prefixed: {n}"
+            );
+        }
+    }
+
+    #[test]
+    fn export_wiki_zip_includes_stub_and_pages() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("sources/foo.md"), "# Foo\n");
+        write_md(&wiki_root.join("index.md"), "# Index\n");
+
+        let dest = dir.path().join("out.zip");
+        export_wiki_zip(&wiki_root, &dest, true).expect("export should succeed");
+
+        assert!(dest.is_file(), "dest zip must exist");
+        assert!(
+            !wiki_root.join(".obsidian").exists(),
+            "stub must not be written on disk (D-14)"
+        );
+
+        let names = archive_names(&dest);
+        assert!(
+            names.iter().any(|n| n == "sources/foo.md" || n.ends_with("sources/foo.md")),
+            "zip must include sources page, got {names:?}"
+        );
+        let obsidian: Vec<_> = names
+            .iter()
+            .filter(|n| n.starts_with(".obsidian"))
+            .collect();
+        assert_eq!(
+            obsidian,
+            vec![".obsidian/app.json"],
+            "exactly one .obsidian entry expected, got {obsidian:?}"
+        );
+
+        let f = fs::File::open(&dest).unwrap();
+        let mut archive = ZipArchive::new(f).unwrap();
+        let mut stub = archive.by_name(OBSIDIAN_STUB_ENTRY).unwrap();
+        let mut body = String::new();
+        stub.read_to_string(&mut body).unwrap();
+        assert_eq!(body, r#"{"legacyEditor":false}"#);
+
+        assert_path_safe_names(&names);
+    }
+
+    #[test]
+    fn export_wiki_zip_rejects_empty_wiki() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("index.md"), "# Index only\n");
+
+        let dest = dir.path().join("empty.zip");
+        let err = export_wiki_zip(&wiki_root, &dest, true).unwrap_err();
+        assert!(
+            matches!(err, InsightsError::WikiEmpty),
+            "expected WikiEmpty, got {err:?}"
+        );
+        assert!(
+            !dest.exists(),
+            "dest must not be written for empty wiki"
+        );
+    }
+
+    #[test]
+    fn export_wiki_rejects_when_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("sources/foo.md"), "# Foo\n");
+
+        let dest = dir.path().join("disabled.zip");
+        let err = export_wiki_zip(&wiki_root, &dest, false).unwrap_err();
+        assert!(
+            matches!(err, InsightsError::WikiDisabled),
+            "expected WikiDisabled, got {err:?}"
+        );
+        assert!(!dest.exists(), "dest must not be written when disabled");
+    }
+
+    #[test]
+    fn export_wiki_skips_ondisk_obsidian_injects_stub() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("sources/foo.md"), "# Foo\n");
+        let ondisk = wiki_root.join(".obsidian/app.json");
+        write_md(&ondisk, r#"{"legacyEditor":true,"userTheme":"dark"}"#);
+
+        let dest = dir.path().join("skip-obsidian.zip");
+        export_wiki_zip(&wiki_root, &dest, true).expect("export should succeed");
+
+        // On-disk .obsidian still present (we did not delete it), but zip uses stub.
+        assert!(ondisk.is_file());
+
+        let f = fs::File::open(&dest).unwrap();
+        let mut archive = ZipArchive::new(f).unwrap();
+        let names: Vec<_> = (0..archive.len())
+            .map(|i| archive.by_index(i).unwrap().name().to_string())
+            .collect();
+        let obsidian: Vec<_> = names
+            .iter()
+            .filter(|n| n.starts_with(".obsidian"))
+            .cloned()
+            .collect();
+        assert_eq!(obsidian, vec![".obsidian/app.json".to_string()]);
+
+        let mut stub = archive.by_name(OBSIDIAN_STUB_ENTRY).unwrap();
+        let mut body = String::new();
+        stub.read_to_string(&mut body).unwrap();
+        assert_eq!(body, r#"{"legacyEditor":false}"#);
+        assert!(!body.contains("userTheme"));
+    }
+
+    #[test]
+    fn export_wiki_has_exportable_notes_matches_d10() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+
+        assert!(
+            !wiki_has_exportable_notes(&wiki_root),
+            "missing dirs → false"
+        );
+
+        write_md(&wiki_root.join("index.md"), "# Index\n");
+        assert!(
+            !wiki_has_exportable_notes(&wiki_root),
+            "index-only → false"
+        );
+
+        write_md(&wiki_root.join("sources/a.md"), "# A\n");
+        assert!(
+            wiki_has_exportable_notes(&wiki_root),
+            "sources .md → true"
+        );
+
+        let dir2 = tempfile::tempdir().unwrap();
+        let root2 = dir2.path().join("wiki");
+        write_md(&root2.join("entities/e.md"), "# E\n");
+        assert!(wiki_has_exportable_notes(&root2));
+
+        let dir3 = tempfile::tempdir().unwrap();
+        let root3 = dir3.path().join("wiki");
+        write_md(&root3.join("concepts/c.md"), "# C\n");
+        assert!(wiki_has_exportable_notes(&root3));
+    }
+
+    #[test]
+    fn export_wiki_zip_path_safe_entry_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("sources/nested/page.md"), "# Nested\n");
+        write_md(&wiki_root.join("entities/e.md"), "# E\n");
+
+        let dest = dir.path().join("safe.zip");
+        export_wiki_zip(&wiki_root, &dest, true).expect("export should succeed");
+
+        let names = archive_names(&dest);
+        assert_path_safe_names(&names);
+        assert!(names.iter().any(|n| n.contains("sources/") && n.ends_with(".md")));
+    }
+}

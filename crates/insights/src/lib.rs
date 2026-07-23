@@ -2,6 +2,7 @@ mod error;
 mod summarize;
 mod tasks;
 mod wiki;
+mod wiki_export;
 
 pub use error::{InsightsError, Result};
 pub use summarize::summarize_source;
@@ -11,6 +12,7 @@ pub use wiki::{
     WikiAnalysis, WikiCompileResult, WikiCompileSummary, WikiConcept, WikiEntity, WikiPageDraft,
     WikiPageType,
 };
+pub use wiki_export::{export_wiki_zip, wiki_has_exportable_notes};
 
 pub(crate) fn truncate_chars(text: &str, max: usize) -> String {
     if text.chars().count() <= max {
