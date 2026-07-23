@@ -23,7 +23,7 @@
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
-| 12 | Obsidian zip export | 1/2 | In Progress|  |
+| 12 | Obsidian zip export | 2/2 | Complete   | 2026-07-23 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
 
 ---
@@ -166,7 +166,7 @@ Plans:
 2. Zip entries are relative and path-safe (no `..` / absolute paths) in unit tests
 3. Export is gated on `wiki.enabled` (errors or no-ops when disabled)
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 
@@ -176,7 +176,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 12-02-PLAN.md — Tauri preflight/export IPC + Library「导出 Wiki」+ Save dialog + Vitest (WIKI-07)
+- [x] 12-02-PLAN.md — Tauri preflight/export IPC + Library「导出 Wiki」+ Save dialog + Vitest (WIKI-07)
 
 ---
 
@@ -207,7 +207,7 @@ Plans:
 | WIKI-04 | 10 | Complete |
 | WIKI-05 | 09 | Complete |
 | WIKI-06 | 11 | Complete |
-| WIKI-07 | 12 | Pending |
+| WIKI-07 | 12 | Complete |
 | WIKI-08 | 13 | Pending |
 | WIKI-09 | 13 | Pending |
 
