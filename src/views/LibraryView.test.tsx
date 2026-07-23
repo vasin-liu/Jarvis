@@ -54,6 +54,7 @@ const baseProps = {
   onSummarizeSource: vi.fn(),
   onExtractTasks: vi.fn(),
   onCompileWiki: vi.fn(),
+  onExportWiki: vi.fn(),
   onRetrySource: vi.fn(),
   onRemoveSource: vi.fn(),
 };
@@ -118,5 +119,64 @@ describe("LibraryView wiki compile", () => {
     render(<LibraryView {...baseProps} />);
     fireEvent.click(screen.getByTestId("wiki-compile-src-1"));
     expect(baseProps.onCompileWiki).toHaveBeenCalledWith("src-1");
+  });
+});
+
+describe("LibraryView wiki export", () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("shows 导出 Wiki when wiki.enabled", () => {
+    render(<LibraryView {...baseProps} />);
+    const btn = screen.getByTestId("wiki-export");
+    expect(btn).toBeTruthy();
+    expect(btn.textContent).toContain("导出 Wiki");
+  });
+
+  it("places wiki-export after 选择文件索引 in toolbar", () => {
+    render(<LibraryView {...baseProps} />);
+    const exportBtn = screen.getByTestId("wiki-export");
+    const fileIndexBtn = screen.getByText("选择文件索引");
+    const toolbar = exportBtn.parentElement;
+    expect(toolbar).toBeTruthy();
+    const buttons = Array.from(toolbar!.querySelectorAll("button"));
+    const fileIdx = buttons.indexOf(fileIndexBtn as HTMLButtonElement);
+    const exportIdx = buttons.indexOf(exportBtn as HTMLButtonElement);
+    expect(fileIdx).toBeGreaterThanOrEqual(0);
+    expect(exportIdx).toBeGreaterThan(fileIdx);
+  });
+
+  it("hides wiki-export when wiki.enabled is false", () => {
+    render(
+      <LibraryView
+        {...baseProps}
+        config={{ wiki: { enabled: false, auto_on_insights: false } } as AppConfig}
+      />,
+    );
+    expect(screen.queryByTestId("wiki-export")).toBeNull();
+  });
+
+  it("hides wiki-export when wiki is missing", () => {
+    render(<LibraryView {...baseProps} config={{} as AppConfig} />);
+    expect(screen.queryByTestId("wiki-export")).toBeNull();
+  });
+
+  it("disables wiki-export when busy", () => {
+    render(<LibraryView {...baseProps} busy />);
+    expect(
+      (screen.getByTestId("wiki-export") as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("clicking wiki-export calls onExportWiki", () => {
+    render(<LibraryView {...baseProps} />);
+    fireEvent.click(screen.getByTestId("wiki-export"));
+    expect(baseProps.onExportWiki).toHaveBeenCalled();
   });
 });

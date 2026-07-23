@@ -33,6 +33,8 @@ vi.mock("../lib/tauri", () => ({
     skippedUserEdit: 0,
     cleaned: 0,
   }),
+  wikiExportPreflight: vi.fn().mockResolvedValue({ hasNotes: true }),
+  exportWikiZip: vi.fn().mockResolvedValue(undefined),
   runInsightsAll: vi.fn().mockResolvedValue({
     summarized: 1,
     tasksExtracted: 0,
@@ -44,6 +46,7 @@ vi.mock("../lib/tauri", () => ({
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn().mockResolvedValue(null),
+  save: vi.fn().mockResolvedValue(null),
 }));
 
 describe("useLibrary", () => {
@@ -108,5 +111,69 @@ describe("useLibrary", () => {
     expect(keys).not.toContain("indexProgress");
     expect(keys).not.toContain("busy");
     expect(keys).not.toContain("err");
+  });
+
+  it("exportWiki reports empty wiki and skips save dialog", async () => {
+    const { wikiExportPreflight } = await import("../lib/tauri");
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(wikiExportPreflight).mockResolvedValueOnce({ hasNotes: false });
+    const onError = vi.fn();
+    const { result } = renderHook(() => useLibrary({ onError }));
+
+    await act(async () => {
+      await result.current.exportWiki();
+    });
+
+    expect(onError).toHaveBeenCalledWith("还没有可导出的笔记，请先生成笔记");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("exportWiki cancels when save returns null", async () => {
+    const { wikiExportPreflight, exportWikiZip } = await import("../lib/tauri");
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(wikiExportPreflight).mockResolvedValueOnce({ hasNotes: true });
+    vi.mocked(save).mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useLibrary());
+
+    await act(async () => {
+      await result.current.exportWiki();
+    });
+
+    expect(exportWikiZip).not.toHaveBeenCalled();
+  });
+
+  it("exportWiki saves then exports and notifies onSuccess", async () => {
+    const { wikiExportPreflight, exportWikiZip } = await import("../lib/tauri");
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const dest = "C:\\exports\\jarvis-wiki-2026-07-23.zip";
+    vi.mocked(wikiExportPreflight).mockResolvedValueOnce({ hasNotes: true });
+    vi.mocked(save).mockResolvedValueOnce(dest);
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => useLibrary());
+
+    await act(async () => {
+      await result.current.exportWiki({ onSuccess });
+    });
+
+    expect(exportWikiZip).toHaveBeenCalledWith(dest);
+    expect(onSuccess).toHaveBeenCalledWith(dest);
+  });
+
+  it("exportWiki reports export errors and still excludes busy", async () => {
+    const { wikiExportPreflight, exportWikiZip } = await import("../lib/tauri");
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    vi.mocked(wikiExportPreflight).mockResolvedValueOnce({ hasNotes: true });
+    vi.mocked(save).mockResolvedValueOnce("/tmp/out.zip");
+    vi.mocked(exportWikiZip).mockRejectedValueOnce(new Error("zip failed"));
+    const onError = vi.fn();
+    const { result } = renderHook(() => useLibrary({ onError }));
+
+    await act(async () => {
+      await result.current.exportWiki();
+    });
+
+    expect(onError).toHaveBeenCalled();
+    const keys = Object.keys(result.current);
+    expect(keys).not.toContain("busy");
   });
 });
