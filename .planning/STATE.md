@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Wiki Compile Layer
 current_phase: 12
-current_phase_name: Obsidian zip export
+current_phase_name: obsidian-zip-export
 status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-07-23T08:51:40.386Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-07-23T09:37:14.314Z"
 last_activity: 2026-07-23
-last_activity_desc: Phase 11 complete, transitioned to Phase 12
+last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
-  percent: 71
+  total_plans: 13
+  completed_plans: 12
+  percent: 92
 ---
 
 # Project State
@@ -40,16 +40,16 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Session
 
-**Last session:** 2026-07-23T07:38:21.522Z
-**Stopped at:** Phase 12 context gathered
-**Resume file:** .planning/phases/12-obsidian-zip-export/12-CONTEXT.md
+**Last session:** 2026-07-23T09:37:14.293Z
+**Stopped at:** Completed 12-01-PLAN.md
+**Resume file:** None
 
 ## Current Position
 
-Phase: 12 — Obsidian zip export
-Plan: Not started
+Phase: 12 (obsidian-zip-export) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-07-23 — Phase 11 complete, transitioned to Phase 12
+Last activity: 2026-07-23 — Phase 12 execution started
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Last activity: 2026-07-23 — Phase 11 complete, transitioned to Phase 12
 | Phase 10-persist-index P02 | 11 min | 3 tasks | 1 files |
 | Phase 11 P01 | 13 min | 2 tasks | 2 files |
 | Phase 11 P02 | 15 min | 3 tasks | 7 files |
+| Phase 12-obsidian-zip-export P01 | 25min | 2 tasks | 7 files |
 
 ## Decisions
 
@@ -70,3 +71,5 @@ Last activity: 2026-07-23 — Phase 11 complete, transitioned to Phase 12
 - [Phase 10]: Collect stale paths before FS/Store delete; sources peek via quoted URI — Avoid mutating read_dir mid-scan; no serde_yaml per Phase 08/STACK
 - [Phase 11]: Independent Wiki 笔记 AccordionSection; only wiki.enabled; local setConfig until 保存配置 — D-01 D-02 D-03; preserve auto_on_insights on spread
 - [Phase 11]: Library 生成笔记 gated by wiki.enabled + indexed non-wiki_page; busy in App not hook — D-05..D-09 D-14 D-16; discard WikiCompileSummary in UX per D-11
+- [Phase 12]: Pinned zip 7.2 (MSRV 1.85-safe) not 8.x — zip 8.x requires MSRV 1.88; workspace rust-version is 1.85
+- [Phase 12]: Skip all symlinks when packing wiki zip — T-12-02: do not follow outbound symlinks out of wiki_root
