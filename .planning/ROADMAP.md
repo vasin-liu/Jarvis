@@ -23,7 +23,7 @@
 | 09 | LLM wiki analysis | 2/2 | Complete    | 2026-07-19 |
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
-| 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 3 |
+| 12 | Obsidian zip export | Export vault zip safely | WIKI-07 | 2/2 |
 | 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 4 |
 
 ---
@@ -166,7 +166,17 @@ Plans:
 2. Zip entries are relative and path-safe (no `..` / absolute paths) in unit tests
 3. Export is gated on `wiki.enabled` (errors or no-ops when disabled)
 
-**Plans:** TBD via `/gsd-plan-phase 12`
+**Plans:** 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Rust `export_wiki_zip` + path-safe packing + zip 7.2 + unit tests (WIKI-07)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 12-02-PLAN.md — Tauri preflight/export IPC + Library「导出 Wiki」+ Save dialog + Vitest (WIKI-07)
 
 ---
 
