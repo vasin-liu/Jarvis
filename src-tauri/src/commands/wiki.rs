@@ -1,5 +1,5 @@
 use insights::{
-    compile_wiki_for_source, export_wiki_zip, wiki_has_exportable_notes, WikiCompileSummary,
+    compile_wiki_for_source, export_wiki_zip, wiki_export_preflight, WikiCompileSummary,
 };
 use serde::Serialize;
 use tauri::State;
@@ -44,10 +44,10 @@ pub async fn compile_wiki_cmd(
 pub async fn wiki_export_preflight_cmd(
     state: State<'_, AppState>,
 ) -> Result<WikiExportPreflight, String> {
+    let cfg = state.config();
     let wiki_root = wiki_root_from_state(&state)?;
-    Ok(WikiExportPreflight {
-        has_notes: wiki_has_exportable_notes(&wiki_root),
-    })
+    let has_notes = wiki_export_preflight(&wiki_root, cfg.wiki.enabled).map_err(|e| e.to_string())?;
+    Ok(WikiExportPreflight { has_notes })
 }
 
 #[tauri::command]
