@@ -159,6 +159,32 @@ describe("useLibrary", () => {
     expect(onSuccess).toHaveBeenCalledWith(dest);
   });
 
+  it("exportWiki uses __JARVIS_E2E_WIKI_EXPORT_PATH__ and skips save", async () => {
+    const { wikiExportPreflight, exportWikiZip } = await import("../lib/tauri");
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const forcedPath = "C:\\Temp\\jarvis-e2e-wiki.zip";
+    vi.mocked(wikiExportPreflight).mockResolvedValueOnce({ hasNotes: true });
+    (
+      window as Window & { __JARVIS_E2E_WIKI_EXPORT_PATH__?: string }
+    ).__JARVIS_E2E_WIKI_EXPORT_PATH__ = forcedPath;
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() => useLibrary());
+
+    try {
+      await act(async () => {
+        await result.current.exportWiki({ onSuccess });
+      });
+
+      expect(save).not.toHaveBeenCalled();
+      expect(exportWikiZip).toHaveBeenCalledWith(forcedPath);
+      expect(onSuccess).toHaveBeenCalledWith(forcedPath);
+    } finally {
+      delete (
+        window as Window & { __JARVIS_E2E_WIKI_EXPORT_PATH__?: string }
+      ).__JARVIS_E2E_WIKI_EXPORT_PATH__;
+    }
+  });
+
   it("exportWiki reports export errors and still excludes busy", async () => {
     const { wikiExportPreflight, exportWikiZip } = await import("../lib/tauri");
     const { save } = await import("@tauri-apps/plugin-dialog");
