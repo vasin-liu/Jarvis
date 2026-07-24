@@ -33,8 +33,9 @@ pub fn wiki_has_exportable_notes(wiki_root: &Path) -> bool {
 
 /// Preflight for Obsidian zip export: enabled gate then notes scan (D-06/D-07).
 pub fn wiki_export_preflight(wiki_root: &Path, wiki_enabled: bool) -> Result<bool> {
-    // RED stub: ungated until GREEN implements WikiDisabled gate.
-    let _ = wiki_enabled;
+    if !wiki_enabled {
+        return Err(InsightsError::WikiDisabled);
+    }
     Ok(wiki_has_exportable_notes(wiki_root))
 }
 

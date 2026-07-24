@@ -12,7 +12,7 @@ pub use wiki::{
     WikiAnalysis, WikiCompileResult, WikiCompileSummary, WikiConcept, WikiEntity, WikiPageDraft,
     WikiPageType,
 };
-pub use wiki_export::{export_wiki_zip, wiki_has_exportable_notes};
+pub use wiki_export::{export_wiki_zip, wiki_export_preflight, wiki_has_exportable_notes};
 
 pub(crate) fn truncate_chars(text: &str, max: usize) -> String {
     if text.chars().count() <= max {
