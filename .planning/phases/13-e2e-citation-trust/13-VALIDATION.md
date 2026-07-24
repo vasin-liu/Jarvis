@@ -38,14 +38,14 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 13-*-* | TBD | TBD | WIKI-09 | — | N/A | E2E | `--spec e2e/specs/wiki.spec.ts` (default-off + journey) | ❌ W0 | ⬜ pending |
-| 13-*-* | TBD | TBD | WIKI-09 | — | N/A | E2E | `--spec e2e/specs/full-ui.spec.ts` (light default-off) | ✅ extend | ⬜ pending |
-| 13-*-* | TBD | TBD | WIKI-08 | T-13-03 | citation URI attr escaped | E2E | wiki.spec URI assert after compile | ❌ W0 | ⬜ pending |
-| 13-*-* | TBD | TBD | WIKI-08 | — | N/A | E2E | `--spec e2e/specs/qa.spec.ts` (unchanged) | ✅ | ⬜ pending |
-| 13-*-* | TBD | TBD | WIKI-09 | T-13-01/02 | export path bypass | unit | `npx vitest run src/hooks/useLibrary.test.ts` | ✅ gap | ⬜ pending |
+| 13-01-01 | 01 | 1 | WIKI-09 | T-13-01 | forced-path Vitest RED | unit | `npx vitest run src/hooks/useLibrary.test.ts` | ✅ gap | ⬜ pending |
+| 13-01-02 | 01 | 1 | WIKI-08 / WIKI-09 | T-13-01/03 | export bypass + `data-source-uri` + `settings-save-config` | unit + rg | `npx vitest run src/hooks/useLibrary.test.ts` && `rg -n "data-source-uri" src/views/ChatView.tsx` && `rg -n "settings-save-config" src/views/SettingsView.tsx` | ✅ / ❌ attr | ⬜ pending |
+| 13-01-03 | 01 | 1 | WIKI-09 | T-13-02 | helpers export path + zip size | rg (+ optional tsc) | `rg -n "setWikiExportPath\|wikiE2eZipPath\|assertWikiZipNonEmpty" e2e/helpers.ts` | ✅ extend | ⬜ pending |
+| 13-02-01 | 02 | 2 | WIKI-08 / WIKI-09 | T-13-05/06 | wiki journey + citation URI trust | E2E | `npm run build:e2e && cross-env JARVIS_E2E=1 JARVIS_E2E_FIXTURE=./e2e/fixtures/sample.md npx wdio run e2e/wdio.conf.ts --spec e2e/specs/wiki.spec.ts` | ❌ W0 | ⬜ pending |
+| 13-02-02 | 02 | 2 | WIKI-09 | T-13-07 | full-ui Library default-off + docs map | E2E + rg | `rg -n "wiki.spec.ts" .cursor/rules/e2e-required.mdc e2e/README.md && rg -n "wiki-export" e2e/specs/full-ui.spec.ts && cross-env JARVIS_E2E=1 JARVIS_E2E_FIXTURE=./e2e/fixtures/sample.md npx wdio run e2e/wdio.conf.ts --spec e2e/specs/full-ui.spec.ts --spec e2e/specs/qa.spec.ts` | ✅ extend | ⬜ pending |
+| 13-02-03 | 02 | 2 | WIKI-08 / WIKI-09 | — | phase gate | E2E | `npm run test:e2e:local` | ✅ suite | ⬜ pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*  
-*Planner fills concrete Task IDs when PLAN.md is written.*
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
 ---
 

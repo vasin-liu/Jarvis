@@ -400,21 +400,19 @@ expect(await $$('[data-testid^="wiki-compile-"]')).toHaveLength(0);
 
 **If wrong:** A1/A3 are process mitigations; A2 is the only product-risk assumption — validate by running the wiki citation step once green.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Save-button selector**
+1. **Save-button selector** — **RESOLVED** (13-01-PLAN)
    - What we know:「保存配置」has no `data-testid` today.
-   - What's unclear: Prefer new testid vs text DOM click.
-   - Recommendation: Add `data-testid="settings-save-config"` (tiny, reusable); update Settings Vitest if present. Discretion.
+   - Decision (locked in Plan 01): Add `data-testid="settings-save-config"` on Settings「保存配置」button; wiki.spec clicks via that testid (not text-only DOM click).
 
-2. **Settings default-off depth in `wiki.spec` / `full-ui`**
+2. **Settings default-off depth in `wiki.spec` / `full-ui`** — **RESOLVED** (13-02-PLAN)
    - What we know: Library absence is mandatory (D-12).
-   - What's unclear: Whether to also assert unchecked toggle.
-   - Recommendation: Library-only in `full-ui`; optional unchecked toggle in `wiki.spec` opening step after expand (cheap).
+   - Decision (locked in Plan 02): Library absence only (`wiki-export` / `wiki-compile-*` length 0) in both `wiki.spec` opening it and `full-ui`; do not require unchecked `wiki-enabled-toggle` assert.
 
-3. **End-of-spec wiki disable**
+3. **End-of-spec wiki disable** — **RESOLVED** (13-02-PLAN)
    - What we know: Shared session pollution risk if order changes.
-   - Recommendation: Optional cleanup (toggle off + save) at end of positive test — low cost insurance.
+   - Decision (locked in Plan 02): Optional disable (toggle off + save) at end of positive `wiki.spec` it — Discretion insurance, not mandatory.
 
 ## Environment Availability
 
