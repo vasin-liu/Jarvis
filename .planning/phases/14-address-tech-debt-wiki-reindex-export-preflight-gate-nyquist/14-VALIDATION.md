@@ -38,7 +38,7 @@ created: 2026-07-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 14-01-01 | 01 | 1 | Soft skip D-01/D-05 | T-14-01 | Early-return before `delete_chunks`; no Failed | unit | `cargo test -p tauri-app --lib index_ops` | ❌ W0 | ⬜ pending |
+| 14-01-01 | 01 | 1 | Soft skip D-01/D-05 | T-14-01 | Early-return before `delete_chunks`; no Failed | unit | `cargo test -p tauri-app index_ops` | ❌ W0 | ⬜ pending |
 | 14-01-02 | 01 | 1 | Hide retry D-03/D-04 | — | `retry-source-*` absent for wiki_page | unit | `npx vitest run src/views/LibraryView.test.tsx` | ✅ file / ❌ case | ⬜ pending |
 | 14-02-01 | 02 | 1 | Preflight D-06/D-09 | T-14-02 | `enabled=false` → WikiDisabled | unit | `cargo test -p insights` | ❌ W0 | ⬜ pending |
 | 14-03-01 | 03 | 2 | Nyquist D-10..D-12 | — | `nyquist_compliant: true` + evidence note | docs | Read 12/13 VALIDATION frontmatter | ✅ | ⬜ pending |
