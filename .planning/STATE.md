@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Wiki Compile Layer
 current_phase: 14
-status: Ready to execute
-stopped_at: Phase 14 planned — ready to execute
-last_updated: "2026-07-24T14:55:00.000Z"
+current_phase_name: address-tech-debt-wiki-reindex-export-preflight-gate-nyquist
+status: executing
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-07-24T23:38:09.662Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 14 planned (3 plans, 2 waves)
+last_activity_desc: Phase 14 execution started
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 88
-current_phase_name: address-tech-debt-wiki-reindex-export-preflight-gate-nyquist
 ---
 
 # Project State
@@ -40,16 +40,16 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Session
 
-**Last session:** 2026-07-24T14:55:00.000Z
-**Stopped at:** Phase 14 planned — ready to execute
-**Resume file:** .planning/phases/14-address-tech-debt-wiki-reindex-export-preflight-gate-nyquist/14-01-PLAN.md
+**Last session:** 2026-07-24T23:38:09.642Z
+**Stopped at:** Completed 14-01-PLAN.md
+**Resume file:** None
 
 ## Current Position
 
-Phase: 14
-Plan: 01 (of 03)
+Phase: 14 (address-tech-debt-wiki-reindex-export-preflight-gate-nyquist) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-24 — Phase 14 planned (3 plans, 2 waves)
+Last activity: 2026-07-24 — Phase 14 execution started
 
 ## Roadmap Evolution
 
@@ -69,6 +69,7 @@ Last activity: 2026-07-24 — Phase 14 planned (3 plans, 2 waves)
 | Phase 12-obsidian-zip-export P01 | 25min | 2 tasks | 7 files |
 | Phase 12-obsidian-zip-export P02 | 38min | 3 tasks | 11 files |
 | Phase 13-e2e-citation-trust P01 | 19 min | 3 tasks | 5 files |
+| Phase 14 P01 | 33min | 2 tasks | 3 files |
 
 ## Decisions
 
@@ -88,3 +89,5 @@ Last activity: 2026-07-24 — Phase 14 planned (3 plans, 2 waves)
 - [Phase 13]: Honor __JARVIS_E2E_WIKI_EXPORT_PATH__ whenever set (no e2eMode gate) �?RESEARCH A3 / plan interfaces default; same trust model as other __JARVIS_E2E_* hooks
 - [Phase 13]: citation-excerpt stays on excerpt div; only citation button gets data-source-uri �?D-11 keeps qa.spec citation-excerpt regression valid
 - [Phase 13]: Defer WIKI-08/WIKI-09 requirements.mark-complete until Plan 02 ships wiki.spec �?Plan 01 only ships harness hooks; both plans share the same requirement IDs
+- [Phase 14]: WikiPage soft skip before delete_chunks; never mark_failed — D-01/T-14-01: early Ok(false) preserves chunks and status
+- [Phase 14]: Hide Library retry for wiki_page (kind-only); E2E waived — D-03/D-04/D-15: Vitest + Rust unit; UI hide is primary UX

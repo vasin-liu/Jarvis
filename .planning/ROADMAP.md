@@ -25,7 +25,7 @@
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
 | 13 | E2E + citation trust | 2/2 | Complete    | 2026-07-24 |
-| 14 | Tech debt closeout | 0/3 | Pending     | — |
+| 14 | Tech debt closeout | 1/3 | In Progress|  |
 
 ---
 
@@ -243,13 +243,13 @@ Plans:
 3. Phases 12 and 13 `*-VALIDATION.md` marked `nyquist_compliant: true` (or explicitly waived with evidence)
 4. ROADMAP Coverage table matches REQUIREMENTS (WIKI-08/09 Complete) — already synced in this closeout draft
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 14-01-PLAN.md — WikiPage soft skip + Library hide retry (D-01..D-05)
+- [x] 14-01-PLAN.md — WikiPage soft skip + Library hide retry (D-01..D-05)
 - [ ] 14-02-PLAN.md — Export preflight WikiDisabled gate (D-06..D-09)
 
 **Wave 2** *(blocked on Wave 1)*
