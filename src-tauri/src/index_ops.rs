@@ -749,6 +749,56 @@ mod tests {
         assert!(store.count_chunks().unwrap() > 0);
     }
 
+    #[tokio::test]
+    async fn rebuild_wiki_page_soft_skips_without_failed_or_chunk_wipe() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("kb.sqlite");
+        let file = dir.path().join("wiki-note.md");
+        fs::write(&file, "wiki page soft skip seed").unwrap();
+
+        let store = Store::open(&db, 4).unwrap();
+        let embedder = MockEmbedder::new(4);
+        let chunker = ChunkerConfig::default();
+        let runner = FakeRunner::new();
+
+        let source_id = index_path(&store, &embedder, &chunker, &file)
+            .await
+            .unwrap();
+
+        let mut wiki = store.get_source(&source_id).unwrap();
+        wiki.kind = SourceKind::WikiPage;
+        store.upsert_source(&wiki).unwrap();
+
+        let chunks_before = store.count_chunks().unwrap();
+        assert!(chunks_before > 0);
+        let status_before = wiki.status;
+
+        use lark::{LarkCliOptions, LarkIdentity};
+
+        let lark = LarkCliOptions::new("lark-cli", LarkIdentity::User);
+        let report = rebuild_all_sources(
+            &store,
+            &embedder,
+            &chunker,
+            &runner,
+            &lark,
+            "",
+            "rebuild",
+            |_| {},
+        )
+        .await
+        .unwrap();
+
+        let after = store.get_source(&source_id).unwrap();
+        assert_ne!(after.status, IndexStatus::Failed);
+        assert_eq!(after.status, status_before);
+        assert_eq!(after.error, wiki.error);
+        assert_eq!(store.count_chunks().unwrap(), chunks_before);
+        assert!(report.skipped >= 1);
+        assert_eq!(report.failed, 0);
+        assert_eq!(report.indexed, 0);
+    }
+
     fn write_cursor_transcript(root: &Path, project: &str, session_id: &str) {
         let dir = root
             .join(project)
