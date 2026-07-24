@@ -24,7 +24,7 @@
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
-| 13 | E2E + citation trust | 2/2 | Complete   | 2026-07-24 |
+| 13 | E2E + citation trust | 2/2 | Complete    | 2026-07-24 |
 
 ---
 
