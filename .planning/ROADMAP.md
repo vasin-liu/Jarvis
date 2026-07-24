@@ -24,7 +24,7 @@
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
-| 13 | E2E + citation trust | User journey + RAG regression gate | WIKI-08, WIKI-09 | 2 plans |
+| 13 | E2E + citation trust | 1/2 | In Progress|  |
 
 ---
 
@@ -193,13 +193,13 @@ Plans:
 3. QA / citation assertions still resolve to original fixture sources when wiki is off
 4. With wiki on, answers remain usable and wiki does not solely replace original citations in the asserted journey
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 13-01-PLAN.md — Chat `data-source-uri` + export path bypass + Settings save testid + E2E helpers (WIKI-08/09 harness)
+- [x] 13-01-PLAN.md — Chat `data-source-uri` + export path bypass + Settings save testid + E2E helpers (WIKI-08/09 harness)
 
 **Wave 2** *(blocked on Wave 1)*
 
