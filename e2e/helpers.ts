@@ -53,25 +53,16 @@ export async function setReactCheckbox(
   checked: boolean,
 ) {
   await element.waitForDisplayed({ timeout: 15_000 });
-  await browser.execute(
-    (elem, val) => {
-      const setter = Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "checked",
-      )?.set;
-      setter?.call(elem, val);
-      elem.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertText",
-          data: val,
-        }),
-      );
-      elem.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    element,
-    checked,
-  );
+  const already = await element.isSelected();
+  if (already === checked) return;
+  // Prefer DOM click so React checkbox onChange (click-driven) fires.
+  await browser.execute((elem) => {
+    (elem as HTMLElement).click();
+  }, element);
+  await browser.waitUntil(async () => (await element.isSelected()) === checked, {
+    timeout: 5_000,
+    timeoutMsg: `checkbox did not become checked=${checked}`,
+  });
 }
 
 export async function setReactInputValue(

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SourceKind {
     LocalFile,
     LarkDoc,
@@ -45,6 +46,7 @@ impl SourceKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum IndexStatus {
     Pending,
     Indexed,
@@ -216,5 +218,21 @@ mod tests {
         for s in [IndexStatus::Pending, IndexStatus::Indexed, IndexStatus::Failed] {
             assert_eq!(IndexStatus::parse(s.as_str()), Some(s));
         }
+    }
+
+    #[test]
+    fn index_status_and_source_kind_serde_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&IndexStatus::Indexed).unwrap(),
+            "\"indexed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SourceKind::LocalFile).unwrap(),
+            "\"local_file\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SourceKind::WikiPage).unwrap(),
+            "\"wiki_page\""
+        );
     }
 }

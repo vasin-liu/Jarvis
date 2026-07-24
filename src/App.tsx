@@ -437,7 +437,12 @@ function App() {
             settingsActive
             e2eMode={e2eMode}
             onAfterLibraryChange={refreshLibrary}
-            onAfterIndexChange={refreshIndexStatus}
+            onAfterIndexChange={async () => {
+              // Settings owns its own useJarvisConfig; refresh App config so
+              // Library gates (e.g. wiki.enabled) see the saved values.
+              await refreshConfig();
+              await refreshIndexStatus();
+            }}
           />
         )}
       </AnimatePresence>

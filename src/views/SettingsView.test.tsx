@@ -76,6 +76,7 @@ const handleSaveConfig = vi.fn();
 function mockUseJarvisConfig(config: AppConfig = baseConfig) {
   return {
     config,
+    nestedConfig: null,
     setConfig,
     indexStatus: null,
     syncStatus: null,
@@ -107,8 +108,16 @@ function mockUseJarvisConfig(config: AppConfig = baseConfig) {
     setNewAgentChatProvider: vi.fn(),
     newAgentEmbedderProvider: "",
     setNewAgentEmbedderProvider: vi.fn(),
+    refreshConfig: vi.fn(),
     refreshIndexStatus: vi.fn(),
+    refreshSyncStatus: vi.fn(),
+    refreshSkills: vi.fn(),
+    refreshHooks: vi.fn(),
+    refreshPlugins: vi.fn(),
+    refreshSettingsData: vi.fn(),
     handleSaveConfig,
+    patchConfig: vi.fn(),
+    updateConfigLocal: vi.fn(),
     handleClearApiKey: vi.fn(),
     handleRebuildIndex: vi.fn(),
     handleReinitAndRebuild: vi.fn(),
@@ -128,7 +137,9 @@ function mockUseJarvisConfig(config: AppConfig = baseConfig) {
     handleRemoveAgent: vi.fn(),
     handleTogglePipelineAgent: vi.fn(),
     handleMovePipelineAgent: vi.fn(),
+    savePipelineAgents: vi.fn(),
     handleSetActiveAgent: vi.fn(),
+    busy: false,
   };
 }
 
