@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: Wiki Compile Layer
-current_phase: 13
-status: verifying
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-07-24T07:59:23.444Z"
+current_phase: 14
+status: planning
+stopped_at: Phase 14 context gathered
+last_updated: "2026-07-24T13:54:42.455Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 13 complete
+last_activity_desc: Phase 14 added (tech debt closeout)
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
   total_plans: 15
   completed_plans: 15
-  percent: 100
-current_phase_name: e2e-citation-trust
+  percent: 88
+current_phase_name: address-tech-debt-wiki-reindex-export-preflight-gate-nyquist
 ---
 
 # Project State
@@ -25,7 +25,7 @@ current_phase_name: e2e-citation-trust
 
 ## Current focus
 
-**v1.10 Wiki Compile Layer** �?requirements defined; roadmap draft pending approval.
+**v1.10 Wiki Compile Layer** — Phase 14 tech debt closeout (pre-ship) after audit `tech_debt`.
 
 ## Deferred Items
 
@@ -40,16 +40,20 @@ Items acknowledged at milestone close on 2026-07-17:
 
 ## Session
 
-**Last session:** 2026-07-24T03:26:22.024Z
-**Stopped at:** Completed 13-01-PLAN.md
-**Resume file:** None
+**Last session:** 2026-07-24T13:54:42.068Z
+**Stopped at:** Phase 14 context gathered
+**Resume file:** .planning/phases/14-address-tech-debt-wiki-reindex-export-preflight-gate-nyquist/14-CONTEXT.md
 
 ## Current Position
 
-Phase: 13
+Phase: 14
 Plan: Not started
-Status: Plans complete �� awaiting phase verification
-Last activity: 2026-07-24 — Phase 13 complete
+Status: Phase added — discuss/plan next
+Last activity: 2026-07-24 — Phase 14 added (tech debt closeout)
+
+## Roadmap Evolution
+
+- Phase 14 added: Address tech debt from v1.10-MILESTONE-AUDIT (wiki reindex, export preflight gate, Nyquist 12/13, ROADMAP sync); WIKI-F01 + dual index.md writers stay deferred
 
 ## Performance Metrics
 
