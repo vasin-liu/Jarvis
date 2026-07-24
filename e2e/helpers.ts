@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
 export async function openNav(id: string, readySelector?: string) {
   const nav = await $(`[data-testid="nav-${id}"]`);
   await nav.waitForDisplayed({ timeout: 15_000 });
@@ -124,6 +128,25 @@ export async function setOrchestrationMode(
     };
     await w.__JARVIS_E2E_REFRESH_CONFIG__?.();
   });
+}
+
+export async function setWikiExportPath(destPath: string) {
+  await browser.execute((p: string) => {
+    (
+      window as Window & { __JARVIS_E2E_WIKI_EXPORT_PATH__?: string }
+    ).__JARVIS_E2E_WIKI_EXPORT_PATH__ = p;
+  }, destPath);
+}
+
+export function wikiE2eZipPath() {
+  return path.join(os.tmpdir(), "jarvis-e2e-wiki.zip");
+}
+
+export function assertWikiZipNonEmpty(zipPath: string) {
+  const st = fs.statSync(zipPath);
+  if (st.size <= 0) {
+    throw new Error(`wiki zip empty or missing: ${zipPath}`);
+  }
 }
 
 export async function setReactRadio(selector: string) {
