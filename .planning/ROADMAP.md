@@ -24,7 +24,7 @@
 | 10 | Persist + index | 2/2 | Complete    | 2026-07-21 |
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
-| 13 | E2E + citation trust | 1/2 | In Progress|  |
+| 13 | E2E + citation trust | 2/2 | Complete   | 2026-07-24 |
 
 ---
 
@@ -193,7 +193,7 @@ Plans:
 3. QA / citation assertions still resolve to original fixture sources when wiki is off
 4. With wiki on, answers remain usable and wiki does not solely replace original citations in the asserted journey
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 
@@ -203,7 +203,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 13-02-PLAN.md — `wiki.spec.ts` journey + citation trust + full-ui light default-off + docs maps (WIKI-08, WIKI-09)
+- [x] 13-02-PLAN.md — `wiki.spec.ts` journey + citation trust + full-ui light default-off + docs maps (WIKI-08, WIKI-09)
 
 ---
 

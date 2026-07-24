@@ -25,8 +25,8 @@ Requirements for milestone v1.10. Each maps to roadmap phases 07+.
 
 ### Trust & Verification
 
-- [ ] **WIKI-08**: With wiki off or on, RAG Q&A still cites original sources when relevant — wiki pages are additive, not a replacement for citations
-- [ ] **WIKI-09**: E2E journey covers enable → compile → list wiki page → export under `JARVIS_E2E=1` mocks; default-off does not break `full-ui`
+- [x] **WIKI-08**: With wiki off or on, RAG Q&A still cites original sources when relevant — wiki pages are additive, not a replacement for citations
+- [x] **WIKI-09**: E2E journey covers enable → compile → list wiki page → export under `JARVIS_E2E=1` mocks; default-off does not break `full-ui`
 
 ## Future Requirements
 
@@ -63,8 +63,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIKI-05 | 09 | Complete |
 | WIKI-06 | 11 | Complete |
 | WIKI-07 | 12 | Complete |
-| WIKI-08 | 13 | Pending |
-| WIKI-09 | 13 | Pending |
+| WIKI-08 | 13 | Complete |
+| WIKI-09 | 13 | Complete |
 
 **Coverage:**
 
