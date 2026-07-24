@@ -31,6 +31,13 @@ pub fn wiki_has_exportable_notes(wiki_root: &Path) -> bool {
     false
 }
 
+/// Preflight for Obsidian zip export: enabled gate then notes scan (D-06/D-07).
+pub fn wiki_export_preflight(wiki_root: &Path, wiki_enabled: bool) -> Result<bool> {
+    // RED stub: ungated until GREEN implements WikiDisabled gate.
+    let _ = wiki_enabled;
+    Ok(wiki_has_exportable_notes(wiki_root))
+}
+
 /// Pack `wiki_root` into `dest_zip` with inject-only `.obsidian` stub.
 ///
 /// Hard-rejects when `wiki_enabled` is false or the tree has no exportable notes.
@@ -279,6 +286,35 @@ mod tests {
             "expected WikiDisabled, got {err:?}"
         );
         assert!(!dest.exists(), "dest must not be written when disabled");
+    }
+
+    #[test]
+    fn wiki_export_preflight_rejects_when_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("sources/foo.md"), "# Foo\n");
+
+        let err = wiki_export_preflight(&wiki_root, false).unwrap_err();
+        assert!(
+            matches!(err, InsightsError::WikiDisabled),
+            "expected WikiDisabled, got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            InsightsError::WikiDisabled.to_string(),
+            "Display must match export WikiDisabled IPC string"
+        );
+    }
+
+    #[test]
+    fn wiki_export_preflight_enabled_reports_notes() {
+        let dir = tempfile::tempdir().unwrap();
+        let wiki_root = dir.path().join("wiki");
+        write_md(&wiki_root.join("index.md"), "# Index only\n");
+        assert_eq!(wiki_export_preflight(&wiki_root, true).unwrap(), false);
+
+        write_md(&wiki_root.join("sources/foo.md"), "# Foo\n");
+        assert_eq!(wiki_export_preflight(&wiki_root, true).unwrap(), true);
     }
 
     #[test]
