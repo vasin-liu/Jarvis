@@ -25,6 +25,7 @@
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
 | 13 | E2E + citation trust | 2/2 | Complete    | 2026-07-24 |
+| 14 | Tech debt closeout | 0/3 | Pending     | — |
 
 ---
 
@@ -218,18 +219,49 @@ Plans:
 | WIKI-05 | 09 | Complete |
 | WIKI-06 | 11 | Complete |
 | WIKI-07 | 12 | Complete |
-| WIKI-08 | 13 | Pending |
-| WIKI-09 | 13 | Pending |
+| WIKI-08 | 13 | Complete |
+| WIKI-09 | 13 | Complete |
 
 **v1 requirements:** 9 · **Mapped:** 9 · **Unmapped:** 0 ✓
 
 *Note:* WIKI-03 spans Phases 08 (render) and 09 (analyze) by design — one requirement, two delivery boundaries.
 
+---
+
+### Phase 14: Tech debt closeout (INSERTED — pre-ship)
+
+**Goal:** Clear v1.10 milestone-audit tech debt so closeout can be `passed` without accepting known gaps: WikiPage reindex stub, export preflight `wiki.enabled` gate, Nyquist validation for phases 12–13, ROADMAP coverage sync.
+
+**Requirements:** Audit closeout (no new WIKI-IDs); leave WIKI-F01 / dual `index.md` writers deferred
+
+**Depends on:** Phase 13
+
+**Success criteria:**
+
+1. Library「重新同步」on a `WikiPage` source does not leave a permanent fail-closed stub (reindex path works or is intentionally no-op with clear UX)
+2. `wiki_export_preflight_cmd` rejects when `wiki.enabled` is false (parity with export cmd)
+3. Phases 12 and 13 `*-VALIDATION.md` marked `nyquist_compliant: true` (or explicitly waived with evidence)
+4. ROADMAP Coverage table matches REQUIREMENTS (WIKI-08/09 Complete) — already synced in this closeout draft
+
+**Plans:** 3 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 14-01-PLAN.md — WikiPage soft skip + Library hide retry (D-01..D-05)
+- [ ] 14-02-PLAN.md — Export preflight WikiDisabled gate (D-06..D-09)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 14-03-PLAN.md — Nyquist 12/13 flip + ROADMAP closeout sync (D-10..D-15)
+
 ## Backlog (post-v1.10)
 
 - Related-docs / MCP read-only
-- Bulk compile + `auto_on_insights` UX
+- Bulk compile + `auto_on_insights` UX (WIKI-F01)
 - Cross-corpus entity merge
+- Dual `index.md` writers consolidation (Phase 09 test helper vs compile rebuild) — intentional; defer
 
 ---
 
