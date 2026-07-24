@@ -102,6 +102,22 @@ describe("LibraryView wiki compile", () => {
     expect(screen.queryByTestId("wiki-compile-wiki-1")).toBeNull();
   });
 
+  it("hides retry for wiki_page", () => {
+    render(
+      <LibraryView
+        {...baseProps}
+        sources={[indexedWikiPage]}
+        config={{ wiki: { enabled: true, auto_on_insights: false } } as AppConfig}
+      />,
+    );
+    expect(screen.queryByTestId("retry-source-wiki-1")).toBeNull();
+  });
+
+  it("shows retry for local_file", () => {
+    render(<LibraryView {...baseProps} />);
+    expect(screen.getByTestId("retry-source-src-1")).toBeTruthy();
+  });
+
   it("still lists wiki_page rows when wiki is disabled", () => {
     render(
       <LibraryView
