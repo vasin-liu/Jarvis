@@ -8,7 +8,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phase 12 complete (Obsidian zip export from Library). Next: Phase 13 E2E + citation trust.
+**In progress:** **v1.10** Wiki Compile Layer — Phases 07–13 complete (E2E + citation trust green). Ready for milestone close / audit.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
@@ -61,10 +61,11 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ LLM wiki analysis (`analyze_source_for_wiki`) + fail-closed parse (WIKI-05) — Validated in Phase 09: llm-wiki-analysis
 - ✓ Persist + index wiki pages (`compile_wiki_for_source`, `wiki://` WikiPage, hash skip, stale cleanup) — Validated in Phase 10: persist-index
 - ✓ Library/Settings wiki UI (`wiki.enabled` toggle + Library「生成笔记」gated compile) — Validated in Phase 11: library-settings-ui
+- ✓ Obsidian zip export (`export_wiki_zip` + Library「导出 Wiki」+ soft success notice) — Validated in Phase 12: obsidian-zip-export
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–11 done; Phases 12–13 remain
+- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–12 done; Phase 13 (E2E + citation trust) remains
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
