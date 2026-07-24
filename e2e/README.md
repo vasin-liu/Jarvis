@@ -52,6 +52,7 @@ cross-env JARVIS_E2E=1 JARVIS_E2E_FIXTURE=./e2e/fixtures/sample.md npx wdio run 
 | `memory.spec.ts` | Add / edit / forget memory (v9) |
 | `agent.spec.ts` | Agent mode + orchestration UI |
 | `settings.spec.ts` | Index status + rebuild control + accordion layout |
+| `wiki.spec.ts` | Wiki enable→compile→笔记页→export + citation URI trust; default-off Library controls |
 
 ## Supplemental Playwright smoke (not CI)
 

@@ -35,6 +35,7 @@ alwaysApply: true
 | Settings / index | `settings.spec.ts` |
 | Navigation | `navigation.spec.ts` |
 | Smoke | `smoke.spec.ts` |
+| Wiki | `wiki.spec.ts` |
 
 New feature → add test to the focused spec **and** extend `full-ui.spec.ts` if it is part of the primary journey.
 

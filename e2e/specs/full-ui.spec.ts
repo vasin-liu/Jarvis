@@ -50,6 +50,9 @@ describe("Jarvis full UI journey", () => {
     await openNav("library");
     const stats = await $('[data-testid="library-stats"]');
     await expect(stats).toHaveText(expect.stringContaining("已索引"));
+    // Wiki default-off (D-12): no compile/export until Settings enables wiki
+    expect(await $$('[data-testid="wiki-export"]')).toHaveLength(0);
+    expect(await $$('[data-testid^="wiki-compile-"]')).toHaveLength(0);
   });
 
   it("manages memories: add, edit, forget", async () => {
