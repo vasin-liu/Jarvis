@@ -201,6 +201,7 @@ export function ChatView({
                         <button
                           type="button"
                           className="text-left text-xs text-cyan-300 hover:underline"
+                          data-source-uri={c.source_uri}
                           onClick={() =>
                             openCitation(c.source_uri).catch((e) =>
                               setErr(String(e)),

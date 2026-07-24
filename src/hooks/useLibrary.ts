@@ -159,11 +159,18 @@ export function useLibrary({ onError }: UseLibraryOptions = {}) {
           reportError("还没有可导出的笔记，请先生成笔记");
           return;
         }
-        const destPath = await save({
-          defaultPath: `jarvis-wiki-${localYmd()}.zip`,
-          filters: [{ name: "Zip", extensions: ["zip"] }],
-        });
-        if (destPath === null) return;
+        const e2ePath =
+          typeof window !== "undefined"
+            ? (window as Window & { __JARVIS_E2E_WIKI_EXPORT_PATH__?: string })
+                .__JARVIS_E2E_WIKI_EXPORT_PATH__
+            : undefined;
+        const destPath =
+          e2ePath ??
+          (await save({
+            defaultPath: `jarvis-wiki-${localYmd()}.zip`,
+            filters: [{ name: "Zip", extensions: ["zip"] }],
+          }));
+        if (destPath === null || destPath === undefined) return;
         await exportWikiZipCmd(destPath);
         onSuccess?.(destPath);
         return destPath;

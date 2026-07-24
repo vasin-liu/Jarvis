@@ -1205,6 +1205,7 @@ export function SettingsView({
       <button
         type="button"
         className="btn-primary w-fit"
+        data-testid="settings-save-config"
         disabled={busy}
         onClick={() => {
           void handleSaveConfig(config).then(() => refreshIndexStatus());
