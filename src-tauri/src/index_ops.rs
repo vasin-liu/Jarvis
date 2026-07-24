@@ -542,6 +542,11 @@ async fn reindex_source(
     cursor_projects_root: &str,
     source: &Source,
 ) -> Result<bool, String> {
+    // Soft skip: WikiPage has no reindex path yet — leave chunks/status intact (D-01).
+    if source.kind == SourceKind::WikiPage {
+        return Ok(false);
+    }
+
     let memory_text = if source.kind == SourceKind::Memory {
         Some(
             store
@@ -650,10 +655,7 @@ async fn reindex_source(
                 .map_err(|e| e.to_string())?;
             Ok(true)
         }
-        SourceKind::WikiPage => {
-            mark_failed(store, source, "wiki page reindex not implemented")?;
-            Ok(false)
-        }
+        SourceKind::WikiPage => unreachable!("WikiPage soft-skipped before match"),
     }
 }
 
