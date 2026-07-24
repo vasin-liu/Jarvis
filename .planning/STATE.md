@@ -77,6 +77,6 @@ Last activity: 2026-07-24 — Phase 13 execution started
 - [Phase 12]: Skip all symlinks when packing wiki zip — T-12-02: do not follow outbound symlinks out of wiki_root
 - [Phase 12]: Preflight returns WikiExportPreflight { hasNotes } camelCase struct — Planner Discretion; FE needs clear empty/ok signal without bare bool ambiguity
 - [Phase 12]: Soft success notice emerald wiki-export-done; empty/errors stay on red err — D-07 Discretion + RESEARCH Pitfall 6 — success must not spoof as error
-- [Phase 13]: ﻿Honor __JARVIS_E2E_WIKI_EXPORT_PATH__ whenever set (no e2eMode gate) — ﻿RESEARCH A3 / plan interfaces default; same trust model as other __JARVIS_E2E_* hooks
-- [Phase 13]: ﻿citation-excerpt stays on excerpt div; only citation button gets data-source-uri — ﻿D-11 keeps qa.spec citation-excerpt regression valid
-- [Phase 13]: ﻿Defer WIKI-08/WIKI-09 requirements.mark-complete until Plan 02 ships wiki.spec — ﻿Plan 01 only ships harness hooks; both plans share the same requirement IDs
+- [Phase 13]: Honor __JARVIS_E2E_WIKI_EXPORT_PATH__ whenever set (no e2eMode gate) — RESEARCH A3 / plan interfaces default; same trust model as other __JARVIS_E2E_* hooks
+- [Phase 13]: citation-excerpt stays on excerpt div; only citation button gets data-source-uri — D-11 keeps qa.spec citation-excerpt regression valid
+- [Phase 13]: Defer WIKI-08/WIKI-09 requirements.mark-complete until Plan 02 ships wiki.spec — Plan 01 only ships harness hooks; both plans share the same requirement IDs
