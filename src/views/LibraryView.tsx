@@ -248,15 +248,17 @@ export function LibraryView({
                     )}
                   </>
                 )}
-                <button
-                  type="button"
-                  className="btn-ghost text-xs"
-                  disabled={busy}
-                  data-testid={`retry-source-${s.id}`}
-                  onClick={() => onRetrySource(s.id)}
-                >
-                  {s.status === "failed" ? "重试" : "重新同步"}
-                </button>
+                {s.kind !== "wiki_page" && (
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    disabled={busy}
+                    data-testid={`retry-source-${s.id}`}
+                    onClick={() => onRetrySource(s.id)}
+                  >
+                    {s.status === "failed" ? "重试" : "重新同步"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-ghost text-xs"
