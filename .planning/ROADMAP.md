@@ -51,59 +51,83 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 ### Phase Details
 
 ### Phase 15: Overlap scoring API
+
 **Goal**: Callers can get top overlapping indexed sources for a seed source via hybrid retrieval, without noise or self-hits
 **Depends on**: Nothing (v1.11 start; builds on shipped retriever/store)
 **Requirements**: REL-02
 **Success Criteria** (what must be TRUE):
+
   1. Given a seed source id, the API returns other sources only (seed excluded), rolled up by `source_id` from chunk hits
   2. Results are capped (~3–8); when affinity is weak the result set is empty (prefer empty over junk neighbors)
   3. Overlap uses the existing hybrid retrieve path (vector + FTS + RRF) — not a second vector store or cosine-% UI contract
   4. Unit/integration tests with MockEmbedder pass for related vs unrelated fixtures (`cargo test -p retriever`)
-**Plans**: TBD
+
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 15-01-PLAN.md — RED: RelatedSource stub + failing REL-02 integration tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 15-02-PLAN.md — GREEN: related_sources hybrid rollup implementation + full retriever gate
 
 ### Phase 16: Related-docs Library panel
+
 **Goal**: Users selecting a Library source see honest related neighbors and can open them
 **Depends on**: Phase 15
 **Requirements**: REL-01, REL-03, REL-04
 **Success Criteria** (what must be TRUE):
+
   1. Selecting an indexed Library source shows a related-docs panel with loading, empty, and error states
   2. Each related row shows title, kind label, and a short overlap snippet/reason (not raw similarity scores alone)
   3. Clicking a related result navigates/selects that source in Library
   4. Panel uses stable `data-testid`s suitable for E2E (no graph UI scope creep)
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 17: MCP transport + read-only scaffold
+
 **Goal**: External hosts can spawn a local stdio MCP binary whose tool surface is structurally read-only
 **Depends on**: Phase 15 (shared Store/data-dir assumptions; can parallelize with Phase 16 after 15)
 **Requirements**: MCP-03, MCP-04
 **Success Criteria** (what must be TRUE):
+
   1. Workspace ships a console stdio binary (e.g. `jarvis-mcp`) separate from the Windows GUI subsystem app
   2. `tools/list` exposes exactly `{search, list_sources}` — no write/delete/ingest/memory-mutate tool names
   3. Binary resolves KB via documented data-dir (`JARVIS_DATA_DIR` / `--db`); Cursor/Claude Desktop config docs exist
   4. Only `crates/store` opens SQLite; pin is `rmcp` 2.2.0 (not 3.x beta / no MSRV bump solely for MCP)
+
 **Plans**: TBD
 
 ### Phase 18: MCP tools search + list_sources
+
 **Goal**: External MCP clients get the same hybrid search and source inventory semantics as in-app agent tools
 **Depends on**: Phase 17
 **Requirements**: MCP-01, MCP-02
 **Success Criteria** (what must be TRUE):
+
   1. MCP `search` uses the same hybrid retrieval path as in-app agent knowledge search (shared helper, not a fork)
   2. MCP `list_sources` inventories indexed sources with bounded payload size
   3. Agent `search_knowledge` / `list_sources` and MCP handlers share `kb_readonly` (or equivalent) so semantics cannot drift
   4. `cargo test -p mcp` (and agent tests covering shared helpers) pass offline with mocks
+
 **Plans**: TBD
 
 ### Phase 19: E2E + citation regression gate
+
 **Goal**: Related-docs and MCP ship without regressing RAG citation trust or user-facing coverage
 **Depends on**: Phase 16, Phase 18
 **Requirements**: TRUST-01, TRUST-02
 **Success Criteria** (what must be TRUE):
+
   1. Existing qa / citation E2E (and full-ui citation trust) stay green — default RAG/citation behavior unchanged
   2. Automated coverage includes related-docs panel visibility + navigate under `JARVIS_E2E=1` mocks (no live LLM)
   3. MCP tool happy paths are verified offline (cargo harness); `npm run test:e2e:local` green for the related-docs journey
   4. e2e-required spec map updated for related-docs; README/docs MCP config snippet remains accurate
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -119,7 +143,7 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 | 12. Obsidian zip export | v1.10 | 2/2 | Complete | 2026-07-23 |
 | 13. E2E + citation trust | v1.10 | 2/2 | Complete | 2026-07-24 |
 | 14. Tech debt closeout | v1.10 | 3/3 | Complete | 2026-07-25 |
-| 15. Overlap scoring API | v1.11 | 0/? | Not started | - |
+| 15. Overlap scoring API | v1.11 | 0/2 | Not started | - |
 | 16. Related-docs Library panel | v1.11 | 0/? | Not started | - |
 | 17. MCP transport + read-only scaffold | v1.11 | 0/? | Not started | - |
 | 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
