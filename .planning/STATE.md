@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: Related-docs + MCP
 status: planning
-last_updated: "2026-07-25T06:32:00.000Z"
+last_updated: "2026-07-25T07:30:00.000Z"
 last_activity: 2026-07-25
 progress:
   total_phases: 5
