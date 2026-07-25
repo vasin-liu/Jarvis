@@ -6,7 +6,7 @@ current_phase: 14
 current_phase_name: address-tech-debt-wiki-reindex-export-preflight-gate-nyquist
 status: verifying
 stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-07-25T00:21:07.140Z"
+last_updated: "2026-07-25T00:24:14.585Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 14 execution started
 progress:
@@ -95,3 +95,6 @@ Last activity: 2026-07-24 — Phase 14 execution started
 - [Phase 14]: Hide Library retry for wiki_page (kind-only); E2E waived — D-03/D-04/D-15: Vitest + Rust unit; UI hide is primary UX
 - [Phase 14]: Crate helper wiki_export_preflight preferred over cmd-only gate — D-09 unit testability beside export_wiki_rejects_when_disabled
 - [Phase 14]: Reuse InsightsError::WikiDisabled Display; no FE Chinese remapping — D-07/D-08 IPC string parity with export_wiki_zip
+- [Phase 14]: Nyquist flip from existing VERIFICATION passed scores — no /gsd-validate-phase ceremony (D-10) — D-10: audit can mark nyquist without re-running validate-phase when VERIFICATION already passed
+- [Phase 14]: Leave status draft and wave_0_complete false on 12/13 VALIDATION (D-11) — Phase 11 pattern — only nyquist_compliant flips
+- [Phase 14]: WIKI-F01 + dual index.md writers remain Deferred through milestone audit (D-14) — Clearing four Phase-14 audit items is enough for passed
