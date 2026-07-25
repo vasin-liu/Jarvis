@@ -1,168 +1,177 @@
 # Feature Research
 
-**Domain:** LLM-compiled personal wiki layer beside local-first RAG (Jarvis v1.10)
-**Researched:** 2026-07-17
+**Domain:** Related-docs (source overlap) panel + read-only MCP knowledge tools for a local-first desktop KB (Jarvis v1.11)
+**Researched:** 2026-07-25
 **Confidence:** HIGH
 
 ## Feature Landscape
 
-### How LLM-compiled wikis typically work
+### How related-docs / source-overlap typically works
 
-Pattern (Karpathy LLM Wiki → `nashsu/llm_wiki`, Obsidian vaults, Memo/Reflect-style entity pages):
+Pattern (Curiosity “similar documents”, RAG Library side-panels, Obsidian backlinks-lite without a graph):
 
-1. **Three layers** — immutable raw sources → LLM-maintained Markdown wiki → schema/rules (how pages look).
-2. **Compile, don't re-derive** — ingest once into interlinked pages; later queries read the wiki (or chat over it). Competitors often *replace* ad-hoc RAG with this compiled layer.
-3. **Page types** — source summaries, entities, concepts; YAML frontmatter; `[[wikilinks]]`; catalog `index.md`.
-4. **Obsidian as viewer** — wiki directory (or zip) opens as a vault; graph/Dataview live *outside* the compiler.
-5. **Human curates, LLM maintains** — overwrite policy, review queues, lint — productized in full apps; MVP keeps a simple `generated: true` guard.
+1. **Seed → neighbors** — User selects one indexed source; system returns other sources that are “about the same thing.”
+2. **Chunk → source aggregation** — Similarity is computed on **chunks** (embeddings ± lexical), then rolled up to **source** rows so the UI lists documents, not raw chunks.
+3. **Exclude self** — Never show the seed source (or its own WikiPage mirror) as a hit; looks broken if you do.
+4. **Bounded list** — Top **3–8** related sources; optional score cutoff so weak neighbors stay empty rather than noisy.
+5. **Explain lightly** — Title, kind label, short overlapping snippet (or “N shared themes”); prefer human labels over raw cosine floats for power users who still don’t want ML UI.
+6. **Navigate** — Click → open/select that source in Library (and optionally jump to chat with that source scoped later — not required for v1.11).
 
-**Jarvis stance:** wiki is an **optional compile layer beside RAG**, not a replacement. Hybrid retrieval + citations to original chunks stay authoritative; wiki pages are additional `SourceKind::WikiPage` documents in the same index.
+**Overlap vs backlinks:** True backlinks need explicit links/`[[wikilinks]]`. Source-overlap for a RAG KB is **retrieval neighborhood** (same hybrid stack as Q&A), not a graph. Jarvis already has `retrieve` (vector + FTS → RRF); related-docs is “retrieve using seed text/embedding, group by `source_id`.”
+
+**Jarvis stance:** Panel is a **Library companion** for discovery among already-indexed sources. No new vector DB. No graph UI. WikiPage sources may appear as neighbors when they overlap — treat like any other `SourceKind`.
+
+### How read-only MCP knowledge tools typically work
+
+Pattern (MCP tools spec; RAG-MCP / KnowledgeStack / KnowledgeMCP community servers; Cursor/Claude Desktop stdio):
+
+1. **External agent hosts Jarvis as a tool server** — Client spawns a local process (stdio JSON-RPC) or connects to a local endpoint; LLM discovers tools via `tools/list`, calls via `tools/call`.
+2. **Minimal read surface** — Almost every KB MCP ships **`search`** (query → ranked hits with provenance) and **`list_sources`** (inventory). Optional later: `read` / `get_chunk`. Write/ingest tools are a separate product risk.
+3. **Reuse the same retrieval brain** — MCP `search` should call the same hybrid path as in-app agent `search_knowledge` / RAG (`retriever::retrieve` + Store), not a second index.
+4. **Annotations** — Mark tools `readOnlyHint: true`, `destructiveHint: false` so clients can auto-approve; annotations are **hints**, not enforcement — real safety is “don’t implement mutate tools.”
+5. **Local-first contract** — Open the same `kb.sqlite` (via `store` only); no cloud exfil beyond what the host LLM already does with returned text. Stdio must keep protocol on stdout (logs → stderr).
+6. **Human trust** — MCP security guidance: validate inputs, sanitize outputs, rate-limit; UI/docs should make clear Jarvis is exposing **read** of the personal KB to Cursor/Claude.
+
+**Jarvis stance:** v1.11 exposes **read-only** `search` + `list_sources` mirroring existing agent tools (`crates/agent/src/tools.rs`). No ingest, delete, memory mutate, or plugin `shell_exec` over MCP. In-app agents keep their full tool set; MCP is the **external read API**.
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete *for a “wiki compile” feature*.
+Features users assume exist for v1.11. Missing = milestone feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Opt-in wiki (`WikiConfig.enabled`, default **off**) | Existing users must see zero behavior change | LOW | serde `#[serde(default)]`; commands error/no-op when disabled |
-| LLM → structured analysis (summary + entities + concepts) | “Compile” means synthesis, not copy-paste chunks | MEDIUM | JSON-only prompt; MockChatModel in unit/E2E; reuse insights truncate (~12k) |
-| Markdown pages with YAML frontmatter + `sources: []` | Traceability is table stakes in llm_wiki / Obsidian PKM | LOW–MEDIUM | Frontmatter: `title`, `type`, `sources`, `content_hash`, `generated: true` |
-| `[[wikilink]]` between summary and entity/concept pages | Interlinked wiki is the product metaphor | LOW | Deterministic renderer after LLM JSON |
-| `index.md` catalog | Users expect a vault entry point | LOW | Merge/update on each compile |
-| Persist under `{app_data}/wiki/` | Local-first; readable on disk without Jarvis | LOW | Same app-data pattern as skills/hooks |
-| Index wiki pages via existing ingest→index pipeline | Wiki must participate in Library + RAG like Memory | MEDIUM | `SourceKind::WikiPage`, `uri: wiki://{slug}`, hash skip |
-| Idempotent re-compile (`content_hash` / stable URIs) | Rebuildable layer; no duplicate sources | MEDIUM | Indexer already skips unchanged hashes |
-| Library “生成笔记” + Settings toggle | Discoverable UX for opt-in feature | MEDIUM | `data-testid`s; hide controls when disabled |
-| Obsidian-compatible zip export | Escape hatch / competitor parity without shipping a graph UI | MEDIUM | Zip tree + minimal `.obsidian/app.json`; export-only |
-| Preserve RAG + citations | Core value; wiki must not steal answer authority | LOW (policy) | E2E: qa/agent journeys unchanged; wiki is additive sources |
-| Deterministic E2E journey | User-facing = required E2E | MEDIUM | `wiki.spec.ts` + Mock wiki JSON sequence in `e2e.rs` |
+| Related-docs panel on Library source selection | “Show me what else covers this” is standard KB UX | MEDIUM | Seed = selected `Source`; empty/loading/error states; `data-testid`s |
+| Results are other **sources** (not only chunks) | Users navigate Library by document | MEDIUM | Aggregate chunk hits → unique `source_id`; exclude seed |
+| Open / navigate to related source | Discovery without action is useless | LOW | Select in Library list / scroll-into-view |
+| Hybrid-backed overlap (reuse retriever) | Trust that “related” matches how Q&A finds evidence | MEDIUM | Query from seed title + summary or top chunks; `retrieve` + rollup |
+| Empty state when no neighbors | Sparse corpora must not fake relevance | LOW | Cutoff or `final_k` with empty UI copy |
+| MCP `search` (hybrid query → hits + titles/uris) | External agents need one retrieval tool | MEDIUM | Thin wrapper over `retrieve` + `get_source`; cite-friendly fields |
+| MCP `list_sources` (indexed inventory) | Agents need corpus map before/alongside search | LOW | Mirror agent tool: filter `IndexStatus::Indexed`; title + kind (+ uri id) |
+| Read-only only (no mutate tools) | Local KB + MCP = high blast radius if writable | LOW (policy) | Explicit milestone constraint; annotate `readOnlyHint` |
+| Stdio (or documented) local transport for Cursor/Claude | How desktop MCP is consumed | MEDIUM | Prefer `rmcp` stdio binary or `jarvis mcp` subcommand; path to `kb.sqlite` / app-data |
+| Unit + E2E/Vitest coverage | Project rule: user-facing + IPC must be verified | MEDIUM | Panel journey in Library E2E; MCP happy path with MockEmbedder (no live LLM) |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set Jarvis apart. Not required for a standalone wiki app, but valuable *here*.
+Not required of a generic MCP KB, but valuable *here*.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Wiki beside RAG, not instead of it** | Citations stay grounded in original chunks; wiki is a readable synthesis layer users can also retrieve | LOW–MEDIUM | Policy + retrieval ranking later; v1.10: don’t prefer wiki over originals in prompts |
-| Reuse **insights + indexer + `SourceKind`** (Memory precedent) | One pipeline; no second DB or LanceDB | LOW | Extend `crates/insights` (`wiki.rs`); thin Tauri commands |
-| Multi-source corpus already indexed (files, Lark, Cursor, memory) | Compile notes from Feishu/transcripts without a new ingest product | LOW (leverage) | Compile gated on `Indexed` sources only |
-| Local-first + swappable LLM/embedder + CI mocks | Trust + shippable quality vs cloud-only wiki apps | MEDIUM | Aligns with Core Value |
-| `generated: true` overwrite only | Safe coexistence with light human edits without full review queue | LOW | Explicit anti-scope for smart merge |
-| Agent/RAG can retrieve wiki pages later | Compiled entities become searchable knowledge without graph UI | LOW after index | No new agent tools required for MVP |
+| **Same hybrid RRF as RAG/agent** | External Cursor agents see the same evidence neighborhood as in-app Q&A | LOW (leverage) | Do not ship vector-only MCP while UI uses hybrid |
+| **Multi-kind corpus** (file, Lark, Cursor, memory, wiki) | One `list_sources` / related panel across Feishu + transcripts + notes | LOW | Kind labels already in `sourceDisplay` |
+| **Panel beside mature Library** | Discovery without leaving the app users already trust | MEDIUM | LibraryView selection hook; no new nav section required |
+| **MCP as thin facade over agent tools** | One implementation path; less drift | LOW–MEDIUM | Shared Rust fn used by `execute_tool` and MCP handlers |
+| **Local-first + Mock CI** | Ship MCP without live providers in E2E | MEDIUM | Align with `JARVIS_E2E=1` / MockEmbedder patterns |
+| Optional snippet + `loc` in MCP search results | Agents can cite like in-app citations | LOW | Match `Citation` / agent excerpt shape (~200 chars) |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems — especially when bolted onto a mature RAG app.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Replace RAG with wiki-only Q&A | “Compile once” narrative from llm_wiki | Breaks citation trust; regressions on chunk-level answers; fights Core Value | Keep RAG primary; wiki is optional additive sources |
-| Knowledge graph UI / Louvain / “graph insights” | Obsidian / llm_wiki showcase | High FE+algo cost; weak MVP signal; out of plan | Export vault → open in Obsidian |
-| LanceDB / second vector store | Semantic search over wiki tree | Violates single-DB-owner; duplicates sqlite-vec | Index `WikiPage` into existing store |
-| Bidirectional Obsidian sync | “My vault is source of truth” | Conflict resolution, watchers, delete semantics | One-way zip/folder export |
-| Chrome clipper / Deep Research / web ingest | Grow corpus from web | New products; auth, cost, flaky CI | Use existing ingest + later skills |
-| Auto-compile all sources on by default | “Magic wiki builds itself” | LLM cost, noise, surprise writes | Default `enabled=false`; `auto_on_insights` default false |
-| Full `schema.md` / `purpose.md` / lint/review queues | Faithful Karpathy/llm_wiki product | Large surface; slow v1.10 | Hard-coded render contract + unit tests |
-| Cross-corpus entity merge (one “Acme” page from 50 docs) | Reflect/Memo entity pages | Dedup, merge, conflict; hard to test | **Per-source compile** first; shared entities later |
-| Live LLM in unit/E2E | “Real quality” | Flaky CI, cost | MockChatModel + fixed JSON fixtures |
-| Editing wiki inside Jarvis as a second notes app | Compete with Obsidian | Scope explosion vs Library+export | Disk Markdown + Obsidian; Jarvis compiles |
+| MCP write / ingest / delete / `add_memory` | “Full remote control of Jarvis” | Accidental wipe from host agents; trust collapse; violates milestone | Read-only v1.11; mutate stays in-app with UI |
+| MCP `ask` / full RAG answer generation | One-shot Q&A from Cursor | Couples host LLM + Jarvis LLM; cost; non-deterministic CI; duplicates Chat | Host LLM uses `search` results itself |
+| Knowledge graph / Louvain / backlink graph UI | Obsidian parity | High FE cost; out of wiki plan + PROJECT Out of Scope | Related list + export wiki to Obsidian |
+| Second vector DB / Lance / HTTP-only remote MCP as default | “Proper” RAG-MCP clones | Breaks single-DB-owner; network attack surface | Same SQLite via `store`; stdio local |
+| Raw cosine score as primary UI | Transparency | Users misread floats; embedding-model dependent | Rank order + optional “strong/weak” band |
+| Related-docs over **all** kinds including Failed stubs | Completeness | Noise, broken open actions | Indexed-only (same as agent `list_sources`) |
+| Hard WikiPage filter in related/MCP | Citation purity debates from v1.10 | Scope creep; already deferred | Soft: treat WikiPage as normal source |
+| Auto-approve mutate later “because annotations” | Convenience | Annotations are untrusted hints | Never ship mutate over MCP without separate milestone + confirm UX |
+| Per-chunk related panel as primary UX | “More precise” | Cognitive overload vs Library mental model | Source rollup; show one snippet per source |
+| Bidirectional sync / clipper / Deep Research | Competitor checklist | Explicit later milestones (v1.12+) | Stay on overlap + read MCP |
 
 ## Feature Dependencies
 
 ```
-WikiConfig.enabled
-    └──requires──> AppConfig nested serde (v1.9)
-    └──gates──> Library compile UI / export UI / IPC
+Indexed sources in Store
+    └──requires──> existing ingest/index pipeline (shipped)
+    └──feeds──> list_sources (IPC + MCP + agent)
 
-SourceKind::WikiPage
-    └──requires──> store types + schema kind string
-    └──requires──> sourceDisplay label
-    └──enhances──> Library list + RAG retrieval
+retriever::retrieve (hybrid RRF)
+    └──requires──> Store search_vector + search_fts + Embedder
+    └──feeds──> agent search_knowledge (shipped)
+    └──feeds──> MCP search (v1.11)
+    └──feeds──> related-docs rollup (v1.11)
 
-analyze_source_for_wiki (LLM JSON)
-    └──requires──> ChatModel + indexed source chunks (Store)
-    └──requires──> insights truncate / InsightsError::Parse
-    └──feeds──> render_wiki_pages (pure)
+related-docs service
+    └──requires──> seed Source (+ chunks or summary text)
+    └──requires──> retrieve OR source-embedding neighborhood
+    └──requires──> exclude seed / optional exclude same-uri mirrors
+    └──enhances──> LibraryView selection panel
 
-render_wiki_pages
-    └──feeds──> write wiki/*.md + index.md
-    └──feeds──> index_document (WikiPage, wiki:// URI)
+Library IPC list_sources / get_source
+    └──enhances──> panel open/navigate
+    └──already──> commands/library.rs
 
-compile_wiki_for_source
-    └──requires──> analyze + render + Embedder + indexer hash skip
-    └──enhances──> Library “生成笔记”
+MCP server (stdio)
+    └──requires──> path to app-data kb.sqlite (config)
+    └──requires──> build_embedder (or Mock in tests)
+    └──requires──> shared search + list_sources handlers
+    └──conflicts──> mutate tools (same milestone)
 
-export_wiki_zip
-    └──requires──> wiki_root on disk
-    └──enhances──> Obsidian escape hatch
-
-E2E wiki.spec
-    └──requires──> toggle + compile + list + export + Mock sequence
-    └──conflicts──> (soft) shared MockChatModel queues if not isolated
-
-Wiki compile ──conflicts──> “RAG replacement” product framing
-Wiki export ──conflicts──> bidirectional Obsidian sync (same milestone)
+E2E / Vitest
+    └──requires──> panel data-testids + fixture corpus with ≥2 overlapping docs
+    └──requires──> MCP unit/integration with mocks (spawn or in-process)
 ```
 
 ### Dependency Notes
 
-- **Compile requires indexed sources:** analysis reads chunks from Store; skip if not `Indexed`.
-- **WikiPage requires indexer + store kind:** same path as Memory (`normalize → Document → index_document`).
-- **UI requires config flag:** default-off means full-ui must assert controls **hidden** until enabled.
-- **Export requires files on disk:** can ship after compile path; stub IPC early if sequenced.
-- **E2E requires dedicated mock replies:** wiki JSON must not collide with Q&A/agent mock sequences.
-- **RAG primary conflicts with wiki-as-answer-layer:** do not change citation preference in v1.10.
+- **Related-docs requires retriever + Store:** Prefer seeding query from source title + `summary` (insights) or concatenated top chunks; embedding the whole document is optional later.
+- **MCP search requires Embedder:** Same factory as app; E2E/tests use Mock — never live FastEmbed download in CI if avoidable.
+- **MCP list_sources requires Store only:** Cheap; good smoke tool before search.
+- **Panel requires Library selection model:** If Library has no stable “selected source” today, add selection state first (LOW) then panel.
+- **Shared handlers prevent drift:** Agent `search_knowledge` / `list_sources` and MCP tools should call one crate-level API.
+- **Read-only conflicts with write MCP:** Do not phase “just one write tool” into v1.11.
+- **Single DB owner:** MCP process must use `store::Store::open` — no second connection layer outside the crate.
 
 ## MVP Definition
 
-### Launch With (v1.10)
+### Launch With (v1.11)
 
-Minimum viable product — ruthless for validating “optional wiki beside RAG.”
+Minimum to validate “discover overlap in-app + query KB from Cursor/Claude read-only.”
 
-- [ ] `WikiConfig { enabled: false, auto_on_insights: false }` + Settings toggle — zero regression when off
-- [ ] `SourceKind::WikiPage` + Library label — first-class sources
-- [ ] `analyze` → `render` → write `{app_data}/wiki/` → index with `wiki://` + `content_hash` — core compile loop
-- [ ] Frontmatter + `[[wikilinks]]` + `index.md` + `generated: true` overwrite rule — vault semantics users expect
-- [ ] Library “生成笔记” (per indexed source) when enabled — one explicit user action
-- [ ] Obsidian zip export (tree + minimal `.obsidian/`) — differentiator without graph UI
-- [ ] E2E: enable → compile → see wiki page → export; qa/agent still green — ship gate
+- [ ] Related-docs panel for selected Library source — top-N overlapping **sources**, exclude seed, open/navigate
+- [ ] Overlap backed by existing hybrid retrieve + source rollup (no new DB)
+- [ ] Empty / loading / error states + `data-testid`s
+- [ ] MCP tools: `search` + `list_sources` only, `readOnlyHint: true`
+- [ ] Shared Rust path with agent tools (or extracted shared module)
+- [ ] Documented local launch (stdio + path to user data / env)
+- [ ] Tests: unit (rollup/exclude), MCP handler mocks, E2E panel visibility + navigate; no live LLM
 
-### Add After Validation (v1.x / v1.11+)
+### Add After Validation (v1.x)
 
-- [ ] `auto_on_insights` wired after summarize — only after cost/noise validated
-- [ ] Related-docs / source-overlap panel — plan’s v1.11
-- [ ] Read-only MCP `search` / `list_sources` — plan’s v1.11
-- [ ] Cross-source entity merge / upsert by canonical name — after per-source MVP
-- [ ] Agent tools that prefer or cite wiki entities — once retrieval quality known
-- [ ] Bulk “compile all indexed” with progress events — reuse `IndexProgressEvent` patterns
+- [ ] MCP `read` / get chunk by id — when agents need full text beyond excerpts
+- [ ] Related-docs score cutoff settings — if noise reported on large corpora
+- [ ] “Ask about these sources” deep-link into Chat with prefilled scope
+- [ ] WIKI-F01 bulk/auto-compile — deferred from v1.10; separate from MCP
+- [ ] Soft related-wiki preference (show WikiPage neighbors with badge) — after trust review
 
 ### Future Consideration (v2+ / later)
 
-- [ ] Graph UI / Louvain / graph insights — export to Obsidian instead for now
-- [ ] Bidirectional Obsidian sync — conflict hell
-- [ ] Chrome clipper, Deep Research, LanceDB — competitor parity, not Core Value
-- [ ] Full schema/purpose/lint/review product surface — llm_wiki-scale app
-- [ ] In-app Markdown editor for wiki pages — stay compiler + Library
+- [ ] Graph / Louvain UI — export to Obsidian instead
+- [ ] MCP write/mutate surface — only with explicit confirm + permissions model
+- [ ] Remote Streamable HTTP MCP — multi-machine; security review first
+- [ ] PDF/MinerU + Deep Research skill — plan’s v1.12
+- [ ] Hard WikiPage RAG citation filter — still deferred
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| WikiConfig default off + Settings toggle | HIGH | LOW | P1 |
-| SourceKind::WikiPage + display label | HIGH | LOW | P1 |
-| Deterministic Markdown renderer (frontmatter, links, index) | HIGH | LOW | P1 |
-| LLM analyze → WikiAnalysis (Mock-tested) | HIGH | MEDIUM | P1 |
-| Write wiki/ + index via existing pipeline | HIGH | MEDIUM | P1 |
-| Library compile control + busy/error | HIGH | MEDIUM | P1 |
-| Obsidian zip export | HIGH | MEDIUM | P1 |
-| E2E wiki journey + mock isolation | HIGH | MEDIUM | P1 |
-| Idempotent re-compile (hash / URI upsert) | HIGH | MEDIUM | P1 |
-| Preserve RAG citations (regression) | HIGH | LOW | P1 |
-| `auto_on_insights` | MEDIUM | LOW | P2 |
-| Bulk compile + progress | MEDIUM | MEDIUM | P2 |
-| Cross-source entity merge | MEDIUM | HIGH | P3 |
-| Related-docs / MCP | MEDIUM | MEDIUM | P3 |
-| Graph UI / LanceDB / clipper / Deep Research / bi-sync | LOW (for Core Value) | HIGH | P3 (defer / anti) |
+| Library related-docs panel (source rollup) | HIGH | MEDIUM | P1 |
+| Exclude seed + empty state | HIGH | LOW | P1 |
+| Open/navigate related source | HIGH | LOW | P1 |
+| Hybrid retrieve reuse for overlap | HIGH | MEDIUM | P1 |
+| MCP `search` (hybrid + provenance) | HIGH | MEDIUM | P1 |
+| MCP `list_sources` (indexed) | HIGH | LOW | P1 |
+| Read-only policy + annotations | HIGH | LOW | P1 |
+| Shared handlers with agent tools | HIGH | LOW–MEDIUM | P1 |
+| E2E panel + MCP mock tests | HIGH | MEDIUM | P1 |
+| Stdio / `rmcp` packaging docs | HIGH | MEDIUM | P1 |
+| Snippet/`loc` in MCP results | MEDIUM | LOW | P2 |
+| Related score cutoff config | MEDIUM | LOW | P2 |
+| MCP `read` full document | MEDIUM | MEDIUM | P2 |
+| Chat deep-link from related | MEDIUM | MEDIUM | P3 |
+| Graph UI / write MCP / remote HTTP | LOW (Core Value) | HIGH | defer / anti |
 
 **Priority key:**
 - P1: Must have for launch
@@ -171,28 +180,58 @@ Minimum viable product — ruthless for validating “optional wiki beside RAG.�
 
 ## Competitor Feature Analysis
 
-| Feature | nashsu/llm_wiki | Obsidian / Memo–Reflect | Jarvis v1.10 approach |
-|---------|-----------------|-------------------------|------------------------|
-| Compile sources → Markdown wiki | Core product; often *instead of* RAG | Human-written notes; AI plugins optional | Optional compile **beside** existing RAG |
-| Entity / concept pages | Yes, agent-maintained | Entity pages (Memo/Reflect) / wikilinks | Per-source entity/concept + source summary |
-| YAML + `[[wikilinks]]` + index | Yes | Obsidian native | Yes (table stakes) |
-| Source traceability | `sources: []` in frontmatter | Manual / plugins | Same contract |
-| Vector / hybrid search | Optional LanceDB + chat over wiki | Plugins / separate | **Existing** sqlite-vec + FTS; index WikiPage |
-| Knowledge graph UI | First-class Louvain graph | Obsidian graph | **Out of scope** — export vault |
-| Web clipper / Deep Research | Shipped | Clipper ecosystem | **Out of scope** |
-| Obsidian interop | Vault-compatible dir | Native | Zip + minimal `.obsidian/` (export-only) |
-| Citations in Q&A | Wiki-centric chat | N/A | **RAG citations to originals remain primary** |
-| Default on | Product is the wiki | User vault | **Default off** |
+| Feature | Curiosity / RAG UIs | Community KB MCP (RAG-MCP, KnowledgeMCP, KS-MCP) | Jarvis v1.11 approach |
+|---------|---------------------|--------------------------------------------------|------------------------|
+| Similar / related docs | Top-N embedding neighbors; cutoff; exclude self | Rarely a first-class desktop panel | Library panel via hybrid rollup |
+| List corpus | Library / KB browser | `list_sources` / `knowledge-show` / `list_contents` | MCP `list_sources` + existing Library |
+| Search | Hybrid / vector in-product | `search` / `knowledge-search` / `search_knowledge` | MCP `search` = same `retrieve` as agent |
+| Read full doc | Viewer | Often `read` / `knowledge-show` | **Defer** — excerpts enough for MVP |
+| Write / ingest via agent host | Usually in-app only | Many servers include add/remove | **Anti** — read-only |
+| Citations / provenance | Source chips in chat | Vary; KS has cite helpers | Return title/uri/loc/excerpt like agent tools |
+| Graph | Sometimes | Rare | **Out of scope** |
+| Transport | N/A | stdio + sometimes HTTP | **stdio local** first |
+| Trust model | In-app only | Mix of read-only vs full CRUD | Explicit read-only; local SQLite |
+
+## Expected Behavior (local-first desktop KB)
+
+**Related-docs panel**
+1. User opens Library, selects an indexed source.
+2. Panel loads related sources (async): other indexed docs whose chunks rank near the seed under hybrid retrieval.
+3. Each row: title, kind, one short snippet; click selects/opens that source.
+4. If corpus is tiny or orthogonal → empty state, not filler.
+5. Does not mutate index, wiki, or memory.
+
+**Read-only MCP**
+1. User configures Cursor/Claude to launch Jarvis MCP against their app-data DB.
+2. Host agent calls `list_sources` → sees indexed titles/kinds.
+3. Host agent calls `search` with a natural-language query → ranked hits with enough provenance to cite.
+4. No tool can ingest, delete, complete tasks, or write memory.
+5. Failures return tool errors (`isError`) without crashing the host; empty search is a successful empty result.
+
+## Complexity & Dependency Summary (for requirement scoping)
+
+| Area | Complexity | Depends on (existing) | New surface |
+|------|------------|----------------------|-------------|
+| Source-overlap algorithm | MEDIUM | `retriever`, `store` chunks/vectors, Embedder | Rollup + exclude + optional cutoff |
+| Related-docs UI | MEDIUM | `LibraryView`, `list_sources` IPC, sourceDisplay | Selection + panel + E2E |
+| MCP `search` / `list_sources` | MEDIUM | Agent tools + retriever + Store + config paths | `rmcp` (or equiv) stdio binary/subcommand |
+| Read-only guarantee | LOW | Milestone policy | Tool allowlist + annotations; no write handlers |
+| Packaging / DX | MEDIUM | App-data layout, provider factory | Docs + stable CLI entry for hosts |
+
+**Do not depend on for v1.11:** wiki graph, WIKI-F01 auto-compile, new vector engines, cite-filter changes, mutate MCP.
 
 ## Sources
 
-- Implementation plan: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
-- Project brief: `.planning/PROJECT.md` (v1.10 Wiki Compile Layer)
-- Competitor: [nashsu/llm_wiki](https://github.com/nashsu/llm_wiki) (Karpathy three-layer pattern, Obsidian vault, graph/Lance/clipper as expansions)
-- Pattern origin: Karpathy LLM Wiki gist (raw → wiki → schema; ingest/query/lint)
-- Inspiration: Obsidian vaults; Memo/Reflect-style entity pages
-- Existing Jarvis: `crates/insights` summarize/tasks; `SourceKind::Memory`; indexer hash skip; Library/Settings; `JARVIS_E2E=1`
+- Project brief: `.planning/PROJECT.md` (v1.11 Related-docs + MCP; Out of Scope write MCP / graph)
+- Plan deferral: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md` — Out of Scope table row v1.11
+- Prior research: `.planning/research/FEATURES.md` (v1.10 wiki; listed related-docs/MCP as post-validation)
+- In-repo: `crates/agent/src/tools.rs` (`search_knowledge`, `list_sources`); `crates/retriever` hybrid RRF; `src-tauri/src/commands/library.rs`; `crates/store` list/search
+- MCP tools & security: [modelcontextprotocol.io — Tools](https://modelcontextprotocol.io/docs/concepts/tools) (human-in-the-loop, validation)
+- MCP annotations practice: readOnlyHint / destructiveHint as UX hints, not enforcement (Salesforce / Outreach / community explainers)
+- Similar-docs UX: [Curiosity Semantic Similarity](https://docs.curiosity.ai/workspace-build/ai-and-agents/ai-integrations/semantic-similarity) (top-N, cutoff, exclude seed)
+- KB MCP precedents: KnowledgeStack ks-mcp (mostly read-only search/list/read); RAG-MCP (`search_documentation`, `list_sources`); KnowledgeMCP (local search + list; also ships writes — anti-pattern for Jarvis)
+- Rust MCP: official `rmcp` stdio server pattern for desktop hosts
 
 ---
-*Feature research for: Jarvis Wiki Compile Layer (v1.10)*
-*Researched: 2026-07-17*
+*Feature research for: Jarvis v1.11 Related-docs + read-only MCP*
+*Researched: 2026-07-25*

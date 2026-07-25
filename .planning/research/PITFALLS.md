@@ -1,418 +1,385 @@
 # Pitfalls Research
 
-**Domain:** LLM wiki compile layer beside existing RAG (Jarvis v1.10)
-**Researched:** 2026-07-17
-**Confidence:** HIGH
+**Domain:** Related-docs (source-overlap) UI + read-only MCP for an existing Tauri+SQLite RAG hub (Jarvis v1.11)
+**Researched:** 2026-07-25
+**Confidence:** HIGH (Jarvis invariants); MEDIUM (MCP ecosystem security patterns)
 
-**Plan:** `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`  
-**Constraints:** `wiki.enabled=false` by default; RAG authoritative; rebuildable via `content_hash`; Mock LLM in tests; only `crates/store` opens SQLite.
+**Milestone:** v1.11 — related-docs panel + read-only MCP `search` / `list_sources`  
+**Constraints:** No write/mutate MCP tools; only `crates/store` opens SQLite; Core Value = citation trust; E2E with `JARVIS_E2E=1` mocks (no live LLM); reuse existing retriever/agent read paths where possible.
 
-**Phase key** (v1.10 continues after v1.9 Phase 06):
+**Provisional phase key** (roadmap may renumber; use these topics when planning):
 
-| Phase | Focus | Plan task |
-|-------|--------|-----------|
-| **07** | `SourceKind::WikiPage` + `WikiConfig` (default off) | Task 1 |
-| **08** | Deterministic Markdown renderer + safe slugs | Task 2 |
-| **09** | LLM → `WikiAnalysis` (Mock-friendly JSON parse) | Task 3 |
-| **10** | Persist wiki files + index as sources (`content_hash`) | Task 4 |
-| **11** | Tauri IPC + Library/Settings UI (feature-flagged) | Task 5 |
-| **12** | Obsidian zip export | Task 6 |
-| **13** | E2E journey + RAG/citation regression gate | Task 7 |
+| Phase | Focus |
+|-------|--------|
+| **15** | Overlap scoring API (pure logic + Store/retriever queries) |
+| **16** | Related-docs Library panel UI (`data-testid`, navigate/open) |
+| **17** | MCP transport + **structural** read-only enforcement |
+| **18** | MCP tools: `search` + `list_sources` (thin wrappers over existing APIs) |
+| **19** | E2E (panel + MCP) + citation/RAG regression gate |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Dual-write / re-index without `content_hash` skip
+### Pitfall 1: “Read-only MCP” enforced only by hints or docs
 
 **What goes wrong:**
-Every wiki compile creates new `WikiPage` rows or re-embeds identical Markdown. Library fills with duplicates; embed cost spikes; `wiki://` URIs drift; rebuild is no longer idempotent.
+Server advertises `readOnlyHint` / README “read-only,” but still registers mutate tools (`add_memory`, `complete_task`, plugin `shell_exec`, index rebuild, config write). A client or prompt-injected agent calls them → KB / filesystem mutation from an external Cursor/Claude session.
 
 **Why it happens:**
-Compile path builds a fresh `Document` each time and calls `index_document` without setting a stable URI + `content_hash`, or bypasses the indexer skip that already exists for unchanged hashes (`crates/indexer` skips when `existing.content_hash == doc.content_hash` and status is Indexed).
+MCP tool annotations are **advisory, not a security boundary**. Teams wrap the full `agent::tools` match arm “for reuse,” or add “just one helper” write later. Spec/docs say read-only while the allowlist is open.
 
 **How to avoid:**
-- Stable URI: `wiki://{slug}` for every page.
-- `content_hash: sha256(body)` (or equivalent) at write time; store in frontmatter and on the source row.
-- Reuse `indexer::index_document` — never a parallel insert path.
-- Integration test: compile twice with same Mock output → same source count, no duplicate URIs.
+- **Structural allowlist:** compile-time or startup registry with exactly `{search, list_sources}` (plus optional future read tools). No default “all agent tools.”
+- Separate crate/module (`mcp_readonly`) that cannot call mutate Store methods — not a flag on the agent tool loop.
+- Unit test: tool list length/names fixed; invoking unknown / write names returns hard error without side effects.
+- Never treat `readOnlyHint` as enforcement.
 
 **Warning signs:**
-- Second compile increases `list_sources()` WikiPage count.
-- Embedder called on unchanged bodies in tests/logs.
-- Multiple Library rows for the same title/slug.
+- MCP `tools/list` includes anything beyond search/list.
+- Shared `execute_tool(name)` path with agent mode.
+- “We’ll add write tools behind a config later” without a separate binary/capability.
 
 **Phase to address:**
-**10** (persist/index); verify again in **13**.
+**17** (scaffold + allowlist); re-verify in **18** and **19**.
 
 ---
 
-### Pitfall 2: Wiki pages replace or crowd out original citations
+### Pitfall 2: Second SQLite connection / long lock holds (DB contention)
 
 **What goes wrong:**
-RAG answers cite `wiki_page` / `wiki://…` instead of the user’s original files. Trust in “answers come from my data” erodes; E2E QA journeys pass for the wrong reason (Mock answers from wiki text).
+MCP process or Tauri command opens its own `rusqlite::Connection`, or overlap scoring holds `Store`’s `Mutex<Connection>` across embed + large scans. UI freezes during Library select; indexer/scheduler hit `SQLITE_BUSY` / mutex poison; chat and MCP stall together.
 
 **Why it happens:**
-Wiki pages are indexed into the same hybrid retriever. RRF promotes dense summary pages over sparse original chunks. Prompt/citation UI treats all `SourceKind` equally. Product copy implies wiki is the knowledge base.
+Jarvis `Store` is a single `Mutex<Connection>` (v1.9 deferred WAL/pool). New features “need their own connection for concurrency.” Related-docs N² chunk compares or “embed title then vector-search all” run while holding the mutex. MCP stdio server runs in-process and blocks the same mutex on every tool call during indexing.
 
 **How to avoid:**
-- Product rule: **RAG remains authoritative** — wiki is additional context, not a citation substitute.
-- Prefer citing non-wiki sources when both rank; if a wiki page is cited, require/link through frontmatter `sources:`.
-- Do not change `rag` / retriever defaults to “wiki-first.”
-- Keep `qa.spec` / `full-ui` asserting answers still resolve to fixture original sources when wiki is off; with wiki on, assert originals still appear when relevant.
-- Never make wiki the only indexed representation of a source.
+- **Only** `crates/store` opens SQLite — MCP and related-docs call `Arc<Store>` methods (same rule as wiki).
+- Keep Store methods short: query → release lock → compute overlap in memory; never embed inside a held connection lock.
+- Cap work: top-K candidates, timeout, cancel on source deselect; avoid full-corpus pairwise on every click.
+- Do not open a second app-data `kb.sqlite` connection from an MCP sidecar unless deliberately designed (WAL + busy_timeout + single-writer) — out of scope for v1.11; prefer in-process Store.
+- Integration stress: select source while index/sync runs → UI stays responsive; no new `rusqlite` deps outside `store`.
 
 **Warning signs:**
-- Citation chips show only “Wiki” / `wiki://`.
-- Disabling wiki changes answer quality dramatically (should be additive).
-- Agent `search_knowledge` results dominated by WikiPage after compile.
+- `rusqlite` in MCP / UI / new crate manifests.
+- Library selection freezes for seconds on large libraries.
+- `database is locked` during MCP search + background sync.
+- Overlap query embeds under `conn.lock()`.
 
 **Phase to address:**
-**10** (index semantics), **11** (UI labeling), **13** (E2E citation regression).
+**15** (API design); **17–18** (MCP wiring); verify under load in **19**.
 
 ---
 
-### Pitfall 3: Default-on or auto-compile breaks existing installs
+### Pitfall 3: Overlap scoring garbage (false “related” noise)
 
 **What goes wrong:**
-Upgrade enables wiki or `auto_on_insights` without consent → surprise LLM calls, disk writes under `wiki/`, Library clutter, slower insights path, cost for cloud users.
+Panel shows unrelated sources as “related” (generic intros, same language boilerplate, WikiPage summaries, Memory stubs). Users distrust the panel and, worse, treat it as retrieval truth. Raw cosine “87%” displayed as confidence.
 
 **Why it happens:**
-`WikiConfig` defaults flipped to `true`, or `#[serde(default)]` missing so missing fields deserialize oddly; `auto_on_insights` wired into `insights_ops` without checking `enabled`; Settings toggle defaults checked.
+Single signal (title embed cosine or one centroid) with a low static threshold; no exclusion of self / same-URI / WikiPage→original pairs; embeddings from dense Chinese/English clusters sit at ~0.8+ for random pairs; length bias and “hub” docs (getting-started) dominate.
 
 **How to avoid:**
-- `WikiConfig { enabled: false, auto_on_insights: false }` via `Default` + `#[serde(default)]` on nested field.
-- Golden config test: load pre-v1.10 `config.json` → `wiki.enabled == false`.
-- Commands return clear error / no-op when `!enabled`.
-- UI: compile/export controls hidden unless enabled (`data-testid` absent in default E2E).
-- `full-ui.spec.ts`: with default config, wiki controls not shown.
+- Prefer **multi-signal, rank-based** overlap: e.g. shared chunk hits via existing hybrid retrieve-as-query (title+summary excerpt), or Jaccard on significant terms + vector — not raw cosine alone.
+- Hard filters: exclude self `source_id`; optionally demote/exclude `SourceKind::WikiPage` and `Memory` from “related originals” (or label derived kinds clearly).
+- Cap results (e.g. 5–8); empty state when below threshold — **empty is better than garbage**.
+- Do not show raw cosine as percent; show ordinal “related” / shared-topic without fake precision — or omit scores.
+- Unit tests with fixture pairs: known-related vs known-unrelated; threshold must separate them under MockEmbedder.
 
 **Warning signs:**
-- Fresh clone / upgrade runs compile during summarize without user action.
-- Cloud API usage jumps after upgrade with wiki never toggled.
-- E2E full-ui fails only when wiki UI unexpectedly appears.
+- Every source relates to every other.
+- Wiki/Memory always top related.
+- UI shows “92% similar” for boilerplate.
+- No negative (unrelated) test cases.
 
 **Phase to address:**
-**07** (config defaults), **11** (UI gating), **13** (default-off E2E).
+**15** (scoring + tests); **16** (honest UI); spot-check in **19**.
 
 ---
 
-### Pitfall 4: CJK / unsafe slug paths break Windows filesystem and Obsidian
+### Pitfall 4: E2E / MCP tests that need a live LLM or live MCP client matrix
 
 **What goes wrong:**
-Entity names like `张三` or `Acme/Corp` become path components → empty slug, invalid Windows paths, path separators in filenames, or Obsidian links that don’t resolve. Export zip contains broken entries.
+Related-docs or MCP specs call real Ollama/cloud, or require full Cursor/Claude Desktop in CI → flaky Windows E2E, secrets, timeouts. Green only on developer machines with API keys.
 
 **Why it happens:**
-Naïve `slugify` that strips non-ASCII to empty string, or keeps `/`, `\`, `:`, control chars. Title used as filename without fallback hash.
+“MCP must talk to a real client”; overlap scoring mistakenly routed through ChatModel; forgetting `JARVIS_E2E=1` / MockEmbedder for any embed path; no in-process MCP tool invoke harness.
 
 **How to avoid:**
-- Lock plan rule in tests: keep `[a-z0-9-]`; if empty after slugify → `e-{sha256_6(name)}` (and likewise for concepts).
-- Never use raw user/LLM strings as path segments.
-- Title lives in frontmatter / display; filesystem slug is ASCII-safe.
-- Windows CI / tempfile tests with CJK and slash-containing names.
+- Related-docs: deterministic MockEmbedder (or pure lexical overlap in tests) — **no ChatModel required**.
+- MCP: unit/integration invoke tool handlers directly; optional stdio smoke with a tiny scripted client — not live Claude.
+- E2E: panel visibility + navigate with `JARVIS_E2E_FIXTURE`; extend `e2e.rs` only if new IPC needed; add focused spec (e.g. `related-docs.spec.ts`) + row in e2e-required map; keep `qa.spec` / `full-ui` offline.
+- Never gate CI on network LLM.
 
 **Warning signs:**
-- Compile fails only on Chinese sources.
-- `entities/.md` or empty filename on disk.
-- Wikilinks in body don’t match on-disk paths.
+- Spec skips without `OPENAI_API_KEY`.
+- E2E waits on streaming tokens for related-docs.
+- MCP test spawns external IDE.
 
 **Phase to address:**
-**08** (renderer/slugify); re-check in **12** (zip paths).
+**15** (unit), **16**/**18** (IPC), **19** (E2E gate).
 
 ---
 
-### Pitfall 5: LLM JSON parse failure still writes a partial wiki
+### Pitfall 5: Citation / RAG trust regressions
 
 **What goes wrong:**
-Model returns prose, truncated JSON, or fenced junk. Code writes half the pages / updates `index.md` / indexes incomplete `WikiPage`s. User sees corrupt notes; re-compile compounds mess.
+Shipping related-docs or MCP “improves discovery” but Q&A starts citing wrong sources, WikiPages, or MCP-shaped excerpts. Core Value (“answers from my data”) erodes. v1.10 citation E2E goes red or is skipped “because MCP.”
 
 **Why it happens:**
-Happy-path-only parsing; “best effort” write after soft parse errors; streaming tokens flushed to disk; per-entity write loop continues after first failure.
+Overlap feature mutates retriever defaults / RRF weights; MCP `search` reimplements retrieval with different top-k or prompt injection into shared cache; UI wires “open related” into ask pipeline as forced context; WikiPage still crowds hybrid search (deferred hard filter from v1.10).
 
 **How to avoid:**
-- Parse to complete `WikiAnalysis` first; on failure → `InsightsError::Parse` (or equivalent) and **abort before any disk/index write**.
-- Strip fences / extract first `{…}` object; unit-test garbage, truncated, and non-JSON Mock replies.
-- Atomicity preference: write drafts to temp then rename, or transactional “all pages or none” for a compile run.
-- Never leave `generated: true` pages half-updated without rolling back index upserts for that run when possible.
+- Related-docs and MCP are **read side-channels** — must not change `rag::ask` / default retriever config.
+- MCP `search` = thin wrapper over existing `retriever` + same citation-shaped excerpts as agent `search_knowledge` (or shared helper) — one implementation.
+- Phase **19** must re-run `qa.spec` / `full-ui` / wiki citation trust; treat regressions as ship blockers.
+- Do not auto-inject related-docs into the next user question without explicit user action.
 
 **Warning signs:**
-- `index.md` updated but entity files missing after an error toast.
-- Store has WikiPage rows with empty/placeholder bodies after failed compile.
-- Tests only cover valid Mock JSON.
+- Diff touches `crates/rag` defaults “for better MCP.”
+- QA citations change with related-docs panel unused.
+- Duplicate retrieve implementations diverge in tests.
 
 **Phase to address:**
-**09** (parse), **10** (write gating).
+**15**/**18** (shared retrieve helper); **19** (mandatory regression).
 
 ---
 
-### Pitfall 6: Zip export path traversal / unsafe zip entries
+### Pitfall 6: Unbounded `list_sources` / `search` payloads (exfil + DoS)
 
 **What goes wrong:**
-Malicious or buggy relative paths under `wiki_root` (or crafted page slugs) produce zip entries like `../../config.json` or absolute paths. Unzip outside intended folder; user secrets or app data exposed/overwritten when opening in Obsidian tooling.
+MCP returns entire library (titles, URIs, paths, memory text) or huge chunk dumps per search. External agent context floods; sensitive local paths leak; host CPU spikes on malicious/repeated calls.
 
 **Why it happens:**
-Walking `wiki_root` with `strip_prefix` skipped; using slug strings directly as zip entry names without normalization; including files outside wiki via symlink follow.
+Copying agent `list_sources` string dump without pagination; search returns full chunk bodies; no rate/size limits on MCP tool results.
 
 **How to avoid:**
-- Canonicalize each file path; refuse if not under `wiki_root`.
-- Zip entry names = relative paths only; reject `..` components.
-- Do not follow symlinks out of root (or disallow symlinks).
-- Unit test: planted `../escape.md` style path must fail or be excluded; happy path includes `index.md` + `.obsidian/app.json` only from intended tree.
-- Dest path from dialog is the **output zip**, not a write into wiki root with user-controlled join.
+- Cap list (e.g. title + kind + id; truncate URI); paginate or hard max (e.g. 200) with “truncated” notice.
+- Search: same top-k as in-app retrieve; excerpt length limit (agent already truncates ~200 chars — reuse).
+- Consider redacting `file://` absolute paths to basename for MCP if product accepts (document the choice).
+- Test: fixture library size bound on tool output length.
 
 **Warning signs:**
-- Zip listing shows absolute paths or `..`.
-- Export “succeeds” with files from parent of `wiki/`.
-- No tests around zip entry names.
+- Multi-MB MCP tool responses.
+- Memory source full bodies in `list_sources`.
+- No max on `search` hits.
 
 **Phase to address:**
-**12** primarily; slug safety in **08** reduces input surface.
+**18**; abuse cases in **19**.
 
 ---
 
-### Pitfall 7: Indexing wiki pages triggers infinite compile loops
+### Pitfall 7: MCP transport exposure (loopback / auth assumptions)
 
 **What goes wrong:**
-Post-index / insights / watcher hooks see new `WikiPage` sources and call `compile_wiki_for_source` again → more pages → more compiles. CPU, disk, and LLM burn; Library explodes.
+HTTP/SSE MCP bound to `0.0.0.0` without auth → LAN peers query the personal KB. Or DNS-rebinding / confused-deputy patterns against a local server. Stdio is safer but misconfigured wrappers re-expose HTTP.
 
 **Why it happens:**
-`auto_on_insights` or scheduler treats all Indexed sources equally; compile indexes WikiPages which re-enter the same hook; watch folder includes `{app_data}/wiki`.
+Copy-paste MCP server examples use open binds; “local app” assumed unreachable; annotations confused with auth.
 
 **How to avoid:**
-- **Never** auto-compile `SourceKind::WikiPage` (and ideally never treat wiki URIs as compile inputs).
-- Gate auto path: `enabled && auto_on_insights && kind != WikiPage`.
-- Keep wiki root **outside** user watch folders by default; document that watching `wiki/` is unsupported.
-- Integration test: after compile, insights/auto hook does not recurse.
+- Prefer **stdio** MCP launched by the trusted client for v1.11.
+- If HTTP later: bind `127.0.0.1` only + explicit opt-in; document no auth = loopback-only.
+- Do not enable remote MCP in this milestone.
 
 **Warning signs:**
-- Compile progress never settles; WikiPage count grows without new user sources.
-- Scheduler CPU high after enabling auto wiki.
-- Nested `wiki://` sources as inputs to analyze.
+- Default listen address `0.0.0.0`.
+- “Open in browser” MCP URL on LAN interface.
 
 **Phase to address:**
-**10** (index wiring + hook guards), **11** if auto toggle lands in UI.
+**17**.
 
 ---
 
-### Pitfall 8: Store ownership violations (SQLite outside `crates/store`)
+### Pitfall 8: Related-docs UI without loading / empty / error (and selection storms)
 
 **What goes wrong:**
-Wiki feature “quickly” opens `rusqlite` in `insights` or `src-tauri` for page metadata → lock contention with indexer/scheduler, missed migrations, FTS/vec inconsistency.
+Selecting sources fires overlapping requests; stale responses reorder “related” list; blank panel with no empty state; errors silent. Feels broken; E2E flaky.
 
 **Why it happens:**
-New metadata tables or ad-hoc queries seem easier than extending `Store`; copy-paste from tests that open connections.
+No request id / abort; fetch on every hover; missing `data-testid` for empty/loading/error (violates frontend taste + e2e-required).
 
 **How to avoid:**
-- Persist wiki **as sources** via existing Store + indexer APIs only.
-- Any new query = new `Store` method.
-- PR checklist: no `rusqlite` in `insights` / `src-tauri` production code.
-- Architecture review at end of **10** / **13**.
+- Debounce or fetch-on-select with abortable invoke; ignore stale responses.
+- Explicit empty (“暂无相关文档”) and error states with stable testids.
+- E2E: select fixture source → related panel shows expected peer or empty — never hang.
 
 **Warning signs:**
-- `rusqlite` appears in `crates/insights/Cargo.toml` or `src-tauri` beyond tests.
-- `SQLITE_BUSY` during compile + sync.
-- Wiki metadata not visible through `list_sources`.
+- Related list flickers between two sources.
+- No testids on panel.
+- Network tab / logs show stacked `related_docs` invokes.
 
 **Phase to address:**
-**10** (and any phase touching persistence); **All 07–13** as review gate.
+**16**, **19**.
 
 ---
 
-### Pitfall 9: E2E / unit tests without Mock LLM (live API in CI)
+## Moderate Pitfalls
+
+### Pitfall 9: Duplicating agent tool semantics under new names
 
 **What goes wrong:**
-Wiki compile E2E hits real Ollama/cloud → flaky, slow, costly, or secret-dependent CI. Unit tests skip parse/compile coverage. Green locally with API key, red in Windows CI.
+MCP `search` vs agent `search_knowledge` diverge (different k, filters, Wiki inclusion). Users and agents get inconsistent answers in-app vs in Cursor.
 
-**Why it happens:**
-Compile command uses ambient `ChatModel` without ensuring `JARVIS_E2E=1` Mock sequence returns wiki JSON; Mock still returns RAG prose; live provider left as default in test config.
+**Prevention:** Shared retrieve helper used by agent tools, Tauri commands, and MCP. One golden integration test for hit ordering on fixtures.
 
-**How to avoid:**
-- Unit/integration: `MockChatModel` with fixed wiki JSON (plan Task 3/4).
-- E2E: extend `src-tauri/src/e2e.rs` so compile path gets dedicated Mock responses (don’t collide with ask/agent sequences).
-- Never call live LLM in `cargo test` or `npm run test:e2e`.
-- Spec map row for `wiki.spec.ts` in e2e rules.
-
-**Warning signs:**
-- E2E requires network or API key.
-- Compile step times out waiting for tokens.
-- `analyze_source_for_wiki` untested except manually.
-
-**Phase to address:**
-**09** (Mock unit), **13** (E2E mocks + journey).
+**Phase:** **18**.
 
 ---
 
-### Pitfall 10: Overwriting user-edited wiki pages
+### Pitfall 10: Treating related-docs as a graph product
 
 **What goes wrong:**
-User edits a note in Obsidian or on disk; next compile clobbers edits. Trust in export/edit workflow dies.
+Scope creeps into Louvain/graph UI (explicitly out of v1.11 / v1.10 exclusions). Milestone slips; overlap v1 quality suffers.
 
-**Why it happens:**
-Compile always overwrites `wiki_root/{slug}.md` without checking `generated: true` frontmatter (plan v1.10 rule).
+**Prevention:** Panel = ranked list + navigate only. No force-directed graph.
 
-**How to avoid:**
-- Overwrite only pages with `generated: true` in frontmatter.
-- Skip or rename collision for user pages lacking the marker.
-- Test: hand-written file without marker survives re-compile.
-
-**Warning signs:**
-- User reports lost edits after “生成笔记.”
-- No frontmatter `generated` field in written pages.
-
-**Phase to address:**
-**10** (write policy).
+**Phase:** **16** (scope lock).
 
 ---
 
-### Pitfall 11: Exhaustive `SourceKind` / UI match arms missed
+### Pitfall 11: Config / Settings surprise for MCP
 
 **What goes wrong:**
-Compile fails or panics; Library shows blank kind; serde rejects `wiki_page` from DB; frontend label missing.
+MCP starts on every app launch without consent, or port conflicts; users don’t know KB is exposed to other tools.
 
-**Why it happens:**
-New enum variant added in `store` without updating all Rust `match` arms and `sourceDisplay.ts`.
+**Prevention:** Explicit enable in Settings (default off) if MCP is a long-running side server; stdio-only may be client-spawned — document clearly. Golden config: upgrade does not auto-enable network MCP.
 
-**How to avoid:**
-- Roundtrip test for `wiki_page`; compile-fail or tests on exhaustive matches.
-- Vitest for `sourceDisplay` label.
-- Grep for `SourceKind::` matches when adding variant.
+**Phase:** **17**, **16** if Settings toggle.
 
-**Warning signs:**
-- `non-exhaustive patterns` only caught late; runtime “unknown kind” in UI.
+---
 
-**Phase to address:**
-**07**.
+## Minor Pitfalls
+
+### Pitfall 12: Missing `data-testid` / spec map row
+
+**Prevention:** Add related-docs (and MCP status if UI) testids; update `.cursor/rules/e2e-required.mdc` spec map; extend `full-ui` only if primary journey.
+
+**Phase:** **16**, **19**.
+
+### Pitfall 13: Exhaustive UI match only for new IPC shapes
+
+**Prevention:** Serde camelCase DTOs for related hits; Vitest for any display helpers; don’t break Library selection types.
+
+**Phase:** **16**.
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Index wiki into same FTS/vec without citation policy | Fast “wiki searchable” | Wiki crowds citations | Never without Phase 13 citation checks |
-| Soft-fail LLM parse + write what we can | Something on disk | Corrupt wiki tree | Never |
-| `auto_on_insights=true` by default | “Magic” UX | Surprise LLM cost / loops | Never in v1.10 |
-| Put wiki under a watched folder | Convenient sync | Compile loops | Never by default |
-| Open SQLite in insights for wiki meta | Quick metadata | Store ownership break | Never |
-| Live LLM in E2E “just this once” | Faster local demo | Flaky CI | Never |
-| Slug = raw Unicode title | Readable paths | Windows/Obsidian breakage | Never — use hash fallback |
-| Skip `generated: true` check | Simpler writer | Destroys user edits | Never for overwrite |
+| Wrap full `agent::tools` for MCP | Fast parity | Accidental writes | **Never** for v1.11 |
+| Trust `readOnlyHint` only | Spec checkbox | No real boundary | **Never** |
+| Second SQLite connection for MCP | Feels concurrent | Lock/BUSY + ownership break | **Never** in v1.11 |
+| Raw cosine as “% related” | Pretty UI | Trust destruction | **Never** |
+| Change RAG defaults for MCP quality | One knobs turn | Citation regression | **Never** without Phase 19 proof |
+| Live LLM in related-docs E2E | Demo polish | Flaky CI | **Never** |
+| Graph UI “while we’re here” | Wow factor | Scope blowout | **Never** this milestone |
+| Unbounded `list_sources` | Simple code | Exfil / context DoS | Cap always |
 
 ## Integration Gotchas
 
-Common mistakes when connecting wiki to Jarvis subsystems.
-
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `indexer::index_document` | Insert WikiPage without hash skip | Stable `wiki://` URI + `content_hash`; rely on existing skip |
-| `insights_ops` / post-index | Auto-compile every Indexed source | Exclude `WikiPage`; require `wiki.enabled` |
-| `ChatModel` / Mock | Same Mock reply as RAG ask | Dedicated wiki JSON sequence for compile |
-| `AppConfig` serde | Flat `wiki_enabled` without nested default | `wiki: WikiConfig` + `#[serde(default)]` |
-| Library UI | Always show “生成笔记” | Gate on `config.wiki.enabled` |
-| Watcher / scheduler | Watch `{app_data}/wiki` | Keep wiki root out of watch folders |
-| Retriever / RAG | Prefer wiki chunks in prompt | Original sources authoritative; wiki additive |
-| Zip / dialog | Join user path into wiki tree unsafely | Export writes zip at dest; entries relative + sanitized |
-| Store | Ad-hoc connection for wiki tables | Only `SourceKind::WikiPage` via Store APIs |
+| `Store` / SQLite | MCP opens own `Connection` | `Arc<Store>` only; short lock scopes |
+| `retriever` / RRF | Fork scoring for MCP | Shared retrieve helper; same top-k policy |
+| `agent::tools` | Re-export mutate tools | Dedicated read-only registry |
+| Library UI | Related fetch changes ask context | Navigate/open only; no silent RAG inject |
+| WikiPage / Memory | Rank as top “related” | Filter or label derived kinds |
+| Embedder | Live embed in E2E | MockEmbedder / deterministic fixture |
+| Indexer / scheduler | Overlap holds lock during sync | Compute after unlock; cap work |
+| MCP transport | Bind `0.0.0.0` | stdio or `127.0.0.1` + opt-in |
+| E2E harness | Skip qa because “MCP tested” | Phase 19 citation gate mandatory |
+| Config | Auto-enable MCP on upgrade | Default off / client-spawned only |
 
 ## Performance Traps
 
-Patterns that work at small scale but fail as usage grows.
-
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Re-embed every compile | Slow compile, fan spin | `content_hash` skip | >50 pages or cloud embed |
-| Unbounded entities/concepts from LLM | Huge wiki trees, long index | Cap entities/concepts in prompt + truncate input (12_000 chars) | Noisy long docs |
-| Compile all sources on enable | UI freeze on large libraries | Per-source explicit compile only in v1.10 | Libraries with hundreds of sources |
-| Full wiki re-index on every export | Export takes minutes | Export = zip files only, no re-embed | Large `wiki/` trees |
-| Auto-compile on every insight | LLM queue backlog | Default `auto_on_insights=false`; debounce | Continuous sync + insights |
+| O(n) or O(n²) overlap on every select | UI hitch | Candidate cap + cheap prefilter | Libraries ≫ hundreds of sources |
+| Embed-per-related-query under mutex | Global freeze | Unlock before embed; cache source centroids if needed | Concurrent chat + MCP + select |
+| MCP search with huge top-k | Slow tools, huge JSON | Match in-app k; truncate excerpts | Agent clients with large context |
+| No debounce on rapid selection | Request storms | Abort + debounce | Power users clicking through Library |
+| Full `list_sources` every MCP turn | Latency + tokens | Cap + pagination | Large indexed corpora |
 
 ## Security Mistakes
 
-Domain-specific security issues beyond general web security.
-
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Zip path traversal | Overwrite files outside export dir / leak paths | Canonicalize under `wiki_root`; reject `..` |
-| LLM-injected path/slug | Write outside wiki root | Slug allowlist + hash fallback; never trust model for paths |
-| Export includes secrets | API keys / config in zip | Zip only `wiki_root` + stub `.obsidian/`; no `config.json` |
-| Wiki prompt includes secrets from source | Leak via cloud LLM | Existing truncate; don’t special-case paste of key files into compile |
-| Symlink escape from wiki root | Read arbitrary files into zip | Don’t follow outbound symlinks |
+| Mutate tools on “read-only” server | KB/fs corruption via prompt injection | Structural allowlist; tests |
+| Advisory `readOnlyHint` as ACL | False sense of safety | Code-enforced registry |
+| Non-loopback MCP HTTP | LAN exfil of personal KB | stdio / 127.0.0.1 only |
+| Dumping absolute paths + memory bodies | Privacy leak to external agent logs | Truncate/redact; excerpt caps |
+| Tool results with instruction-like text | Indirect prompt injection into client | Return data-shaped text; no “now call write_…” |
+| Opening DB outside `store` | Schema drift + lock races | Single DB owner rule |
+| Plugin/shell tools reachable via MCP | RCE class risk | Never register plugins on MCP |
 
 ## UX Pitfalls
 
-Common user experience mistakes in this domain.
-
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Wiki on by default | Surprise cost and clutter | Default off; explicit Settings toggle |
-| No busy/error on compile | Stuck button / silent fail | Loading + `chat-error`-style error + done testid |
-| Wiki kind unlabeled | Confusing Library list | `wiki_page` → clear “Wiki” / “笔记页” label |
-| Citations look like “made up notes” | Distrust | Prefer original citations; show wiki as derived |
-| Clobbering Obsidian edits | Lost work | `generated: true` overwrite rule |
-| Export with empty wiki | Confusing empty vault | Disable export or clear empty-state message |
+| Garbage related list | Distrust panel | Strict threshold + empty state |
+| Fake % scores | Misplaced confidence | Rank only or qualitative label |
+| Silent MCP enable | Surprise data sharing | Settings/docs clarity; default safe |
+| Stale related results | Confusion | Abort in-flight; show loading |
+| Related opens wrong source | Lost orientation | Use source_id navigation already in Library |
+| No error when overlap fails | “Broken Library” | Error state + retry |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Default off:** Pre-v1.10 config loads with `wiki.enabled == false` — verify serde test + full-ui hidden controls
-- [ ] **Idempotent compile:** Second compile same Mock output does not duplicate `wiki://` sources — verify integration test
-- [ ] **Parse abort:** Invalid LLM JSON writes zero files — verify negative unit test
-- [ ] **No compile loop:** WikiPage sources never auto-compile — verify hook guard test
-- [ ] **CJK slugs:** Chinese entity names produce safe ASCII paths — verify unit test
-- [ ] **Zip safety:** Entries have no `..` or absolute paths — verify export unit test
-- [ ] **RAG authority:** QA E2E still cites fixture originals with wiki enabled — verify `qa` / wiki / full-ui
-- [ ] **E2E mocks:** `JARVIS_E2E=1` compile uses Mock wiki JSON — verify `e2e.rs` sequence
-- [ ] **Store ownership:** No new `rusqlite` outside `store` — verify crate deps / review
-- [ ] **User edit preserve:** Pages without `generated: true` not overwritten — verify write policy test
-- [ ] **UI testids:** `wiki-enabled-toggle`, compile, export, done — verify `wiki.spec.ts`
-- [ ] **Exhaustive kind:** All `SourceKind` matches + `sourceDisplay` updated — verify compile + Vitest
+- [ ] **Read-only structure:** `tools/list` === `{search, list_sources}` only — verify unit test
+- [ ] **No agent mutate path:** MCP module cannot call add/update/delete Store APIs — verify API surface / compile boundaries
+- [ ] **Single DB owner:** No new `rusqlite` outside `crates/store` — verify deps + review
+- [ ] **Short locks:** Overlap/MCP search do not embed while holding `Mutex<Connection>` — verify code + contention test
+- [ ] **Overlap quality:** Unrelated fixtures do not appear — verify unit/integration
+- [ ] **Derived kinds:** Wiki/Memory policy explicit (filter or labeled) — verify tests
+- [ ] **Payload caps:** `list_sources` / `search` bounded — verify size test
+- [ ] **Transport:** stdio or loopback-only — verify config defaults
+- [ ] **UI states:** loading / empty / error testids — verify E2E
+- [ ] **No RAG default changes:** `rag`/retriever config untouched — verify diff + qa E2E
+- [ ] **E2E offline:** `JARVIS_E2E=1`, no live LLM — verify CI
+- [ ] **Citation gate:** `qa.spec` / `full-ui` (and wiki trust) green — verify Phase 19
+- [ ] **Spec map:** e2e-required.mdc updated for related-docs — verify rule file
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Duplicate WikiPage sources | MEDIUM | Delete WikiPage sources by kind/URI; wipe `{app_data}/wiki`; re-compile once |
-| Corrupt partial wiki | LOW | Delete `wiki/` tree + WikiPage sources; fix parse; re-compile |
-| Compile loop | HIGH | Set `wiki.enabled=false` / `auto_on_insights=false`; kill runaway; remove wiki from watch folders; delete excess WikiPages |
-| Citation regression | MEDIUM | Disable wiki; confirm QA green; add citation preference; re-enable |
-| Zip traversal incident | HIGH | Stop using export; rotate any exposed secrets; patch sanitizer; re-export |
-| User edits clobbered | HIGH | Restore from Obsidian/backup/zip if any; enforce `generated` flag; document |
-| Default-on upgrade | LOW | Ship config patch forcing `enabled=false`; communicate toggle location |
-| Store ownership mess | HIGH | Remove rogue connections; migrate any ad-hoc tables into Store; run integrity checks |
+| Mutate tool shipped on MCP | HIGH | Disable MCP; patch allowlist; audit Store for unexpected writes; notify users |
+| DB lock storms | MEDIUM | Kill MCP side server; reduce overlap work; restart app; avoid second connection |
+| Garbage related panel | LOW | Raise threshold / ship empty-preferring patch; hide panel behind flag if needed |
+| Citation regression | HIGH | Revert retriever/RAG diffs; confirm qa green; re-ship MCP as wrapper only |
+| LAN MCP exposure | HIGH | Bind localhost / disable HTTP; rotate any secrets that may have leaked via KB content |
+| E2E flaky live LLM | LOW | Force Mock providers; delete network assumptions from specs |
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Dual-write without `content_hash` | **10** | Double-compile integration test; source count stable |
-| Wiki replaces citations | **10**, **13** | QA/full-ui still cite originals; optional citation policy test |
-| Default-on / surprise auto | **07**, **11**, **13** | Config default test; controls hidden; full-ui green |
-| CJK / unsafe slugs | **08**, **12** | Slug unit tests; zip lists safe relative paths |
-| Partial wiki on parse fail | **09**, **10** | Invalid JSON → no files / no new sources |
-| Zip path traversal | **12** | Escape-path unit test fails closed |
-| Infinite compile loop | **10**, **11** | Auto-hook ignores WikiPage; no watch on wiki root |
-| Store ownership violation | **10** (+ review all) | No rusqlite outside store; architecture checklist |
-| E2E without mocks | **09**, **13** | Mock unit + `wiki.spec.ts` offline CI |
-| Overwrite user edits | **10** | Non-`generated` file survives re-compile |
-| Missed `SourceKind` arms | **07** | Roundtrip + UI label + compile |
+| Read-only only via hints | **17** | Fixed tool allowlist test; no mutate names |
+| DB lock / second connection | **15**, **17–18** | No rusqlite outside store; select-during-index smoke |
+| Overlap scoring garbage | **15**, **16** | Related vs unrelated fixtures; honest UI |
+| E2E needs live LLM | **15**, **19** | Offline unit + `related-docs` / MCP harness |
+| Citation / RAG regression | **18**, **19** | Shared retrieve; qa/full-ui green |
+| Unbounded MCP payloads | **18** | Output length caps |
+| Transport exposure | **17** | stdio / 127.0.0.1 default |
+| UI stale/empty/error gaps | **16**, **19** | testids + E2E journey |
+| Divergent search semantics | **18** | Shared helper golden test |
+| Graph scope creep | **16** | List-only panel review |
+| MCP auto-enable surprise | **17** | Config default test |
 
 ## Sources
 
-- Plan: `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md` (global constraints, Tasks 1–7)
-- Project constraints: `.planning/PROJECT.md` (v1.10 Wiki Compile Layer)
-- Indexer hash skip: `crates/indexer` `index_document` unchanged-hash early return
-- Architecture invariants: single DB owner; normalize-to-Document; trait providers; E2E mocks
-- Prior brownfield pitfalls: `.planning/research/PITFALLS.md` (v1.9 archive context — superseded for v1.10 focus)
-- Community / domain: LLM JSON fragility; zip-slip class bugs; secondary index poisoning RAG citations
+- Project: `.planning/PROJECT.md` (v1.11 goals, out-of-scope write MCP, citation Core Value)
+- Constraints: `.cursor/rules/e2e-required.mdc` (mocks, spec map, CI Windows E2E)
+- Architecture: `crates/store` single `Mutex<Connection>`; agent `search_knowledge` / `list_sources` in `crates/agent/src/tools.rs`
+- Prior pitfalls: v1.10 wiki PITFALLS (citation crowding, store ownership, E2E mocks) — still apply at edges
+- MCP security: annotations advisory / confused-deputy discussions; Red Hat & industry writeups on over-privileged tools and non-loopback binds (ecosystem — MEDIUM confidence)
+- Similarity UX: cosine ≠ probability; static thresholds and hub docs cause false positives (domain literature — MEDIUM)
+- SQLite: single-writer; extra connections → BUSY; keep short critical sections (HIGH for this codebase)
 
 ---
-*Pitfalls research for: Jarvis Wiki Compile Layer (v1.10)*
-*Researched: 2026-07-17*
+*Pitfalls research for: Jarvis Related-docs + Read-only MCP (v1.11)*
+*Researched: 2026-07-25*
 *)
