@@ -2,28 +2,17 @@
 
 ## What This Is
 
-Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app for power users who want RAG over their own documents, Feishu/Lark content, and Cursor agent transcripts, with agent-assisted chat, memory, and task extraction. It runs entirely on the user's machine with swappable LLM/embedder providers.
+Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app for power users who want RAG over their own documents, Feishu/Lark content, and Cursor agent transcripts, with agent-assisted chat, memory, task extraction, and an optional Markdown wiki compile layer (Obsidian zip export). It runs entirely on the user's machine with swappable LLM/embedder providers.
 
 ## Current State
 
-**Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
+**Shipped:**
+- **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
+- **v1.10** Wiki Compile Layer (2026-07-25) — optional wiki notes beside RAG, Obsidian export, E2E + citation trust, tech-debt closeout. Archive: `.planning/milestones/v1.10-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phases 07–14 complete (Phase 14 tech-debt closeout verified). Ready for `/gsd-audit-milestone` then `/gsd-complete-milestone v1.10`.
+**Next:** Define next milestone (`/gsd-new-milestone`) — candidates: related-docs / MCP read-only, release packaging (DeferredEmbedder), WIKI-F01 auto-compile UX.
 
-**App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
-
-## Current Milestone: v1.10 Wiki Compile Layer
-
-**Goal:** Add an optional, rebuildable Markdown wiki layer beside existing RAG — with Obsidian zip export — without replacing hybrid retrieval or citations.
-
-**Target features:**
-- `WikiConfig` (default off) + `SourceKind::WikiPage`
-- Insights compile: LLM analysis → entity/concept/source Markdown under `wiki/`
-- Index wiki pages through existing ingest pipeline (`content_hash` idempotent)
-- Library/Settings: compile notes + export Obsidian zip
-- E2E journey: enable → compile → list wiki page → export
-
-**Plan draft:** `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+**App product version** (package): still tracks 1.8.x feature line until a dedicated release bump.
 
 ## Core Value
 
@@ -31,7 +20,10 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 ## Next Milestone Goals
 
-Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
+To be defined in `/gsd-new-milestone`. Seed ideas from backlog:
+- Related-docs / MCP read-only surface
+- Ship DeferredEmbedder / deferred scan in a release build
+- Optional: WIKI-F01 `auto_on_insights` UX, bulk compile
 
 ## Requirements
 
@@ -56,19 +48,14 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ `memory://{uuid}` strict identity + migration — v1.9
 - ✓ JSON-first agent tool protocol + parse warnings UI — v1.9
 - ✓ Architecture review + sync error surfacing — v1.9
-- ✓ WikiConfig nested default-off + SourceKind::WikiPage + Library label「笔记页」— Validated in Phase 07: wiki-kind-config
-- ✓ Deterministic `render_wiki_pages` (frontmatter, wikilinks, index) — Validated in Phase 08: deterministic-markdown-renderer
-- ✓ LLM wiki analysis (`analyze_source_for_wiki`) + fail-closed parse (WIKI-05) — Validated in Phase 09: llm-wiki-analysis
-- ✓ Persist + index wiki pages (`compile_wiki_for_source`, `wiki://` WikiPage, hash skip, stale cleanup) — Validated in Phase 10: persist-index
-- ✓ Library/Settings wiki UI (`wiki.enabled` toggle + Library「生成笔记」gated compile) — Validated in Phase 11: library-settings-ui
-- ✓ Obsidian zip export (`export_wiki_zip` + Library「导出 Wiki」+ soft success notice) — Validated in Phase 12: obsidian-zip-export
-- ✓ WikiPage reindex soft-skip + export preflight `wiki.enabled` gate + Nyquist 12/13 backfill — Validated in Phase 14: tech-debt closeout
+- ✓ Wiki compile layer (WIKI-01..WIKI-09) + Obsidian zip + E2E citation trust — v1.10
+- ✓ WikiPage reindex soft-skip + export preflight gate + Nyquist closeout — v1.10
 
 ### Active
 
-- [x] Wiki compile layer + Obsidian export (v1.10) — Phases 07–14 complete (WIKI-01..WIKI-09 + audit closeout)
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
+- [ ] WIKI-F01 `auto_on_insights` / bulk compile UX (deferred from v1.10)
 
 ### Out of Scope
 
@@ -78,6 +65,19 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - Replacing SQLite, Tauri, or React stack
 - Wiki graph UI / Louvain / LanceDB / Chrome clipper / Deep Research (v1.10 exclusions)
 - Bidirectional Obsidian sync (export-only in v1.10)
+
+<details>
+<summary>v1.10 planning context (archived narrative)</summary>
+
+**Goal:** Optional rebuildable Markdown wiki beside RAG with Obsidian zip export.
+
+**Phases 07–14:** WikiConfig + WikiPage → render → analyze → persist/index → UI → export → E2E → tech-debt closeout.
+
+**Deferred at ship:** WIKI-F01, dual `index.md` writers, hard WikiPage RAG filter.
+
+**Plan draft:** `docs/superpowers/plans/2026-07-16-wiki-compile-layer.md`
+
+</details>
 
 <details>
 <summary>v1.9 planning context (archived narrative)</summary>
@@ -106,12 +106,16 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Focus on structural refactor (not new features) | v1.8.0 feature set complete; maintenance cost bottleneck | Shipped v1.9 |
-| Incremental approach with E2E gate | Brownfield with full E2E harness | Shipped |
-| Balanced phasing across layers | Avoid freezing one layer | Shipped |
-| v1.9.x version framing | Signal refactor without v2.0 break | Shipped |
-| Success = arch review + E2E + keychain | Measurable done criteria | Met |
-| Vertical MVP phase structure | End-to-end refactor slices | Shipped |
+| Focus on structural refactor (not new features) | v1.8.0 feature set complete; maintenance cost bottleneck | ✓ Shipped v1.9 |
+| Incremental approach with E2E gate | Brownfield with full E2E harness | ✓ Shipped |
+| Balanced phasing across layers | Avoid freezing one layer | ✓ Shipped |
+| v1.9.x version framing | Signal refactor without v2.0 break | ✓ Shipped |
+| Success = arch review + E2E + keychain | Measurable done criteria | ✓ Met |
+| Vertical MVP phase structure | End-to-end refactor slices | ✓ Shipped |
+| Wiki default-off (`WikiConfig`) | No surprise behavior on upgrade | ✓ Good (v1.10) |
+| Fail-closed wiki parse (no partial tree) | Protect vault integrity | ✓ Good (v1.10) |
+| Soft-skip WikiPage reindex (not true MD reindex) | Avoid Failed stubs / chunk wipe | ✓ Good (v1.10) |
+| Defer WIKI-F01 / dual index writers | Ship without accepting audit gaps on required path | ✓ Accepted (D-14) |
 
 ---
-*Last updated: 2026-07-25 after Phase 14 tech-debt closeout complete*
+*Last updated: 2026-07-25 after v1.10 milestone*
