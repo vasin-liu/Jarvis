@@ -1,12 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: null
-status: Awaiting next milestone
-stopped_at: Milestone v1.10 complete
-last_updated: "2026-07-25T02:35:00Z"
+milestone: v1.11
+milestone_name: Related-docs + MCP
+status: planning
+last_updated: "2026-07-25T03:54:12.216Z"
 last_activity: 2026-07-25
-last_activity_desc: Milestone v1.10 Wiki Compile Layer shipped and archived
 progress:
   total_phases: 0
   completed_phases: 0
@@ -53,10 +51,10 @@ Items acknowledged / carried at milestone close:
 
 ## Current Position
 
-Phase: —  
-Plan: —  
-Status: Awaiting next milestone  
-Last activity: 2026-07-25 — Milestone v1.10 completed and archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-25 — Milestone v1.11 started
 
 ## Operator Next Steps
 
