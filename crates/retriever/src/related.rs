@@ -1,7 +1,8 @@
 use embedder::Embedder;
-use store::{SourceKind, Store};
+use store::{Source, SourceKind, Store};
 
 use crate::error::Result;
+use crate::retrieve::RetrieverConfig;
 
 /// Neighbor source returned by overlap scoring (no raw RRF score — D-09).
 #[derive(Debug, Clone, PartialEq)]
@@ -12,15 +13,60 @@ pub struct RelatedSource {
     pub snippet: String,
 }
 
+#[allow(dead_code)] // wired into related_sources rollup in Task 2
+const RELATED_SNIPPET_CHARS: usize = 160;
+
+/// Prefer trimmed summary when non-empty; else trimmed title; else None (D-01..D-03).
+fn seed_query(source: &Source) -> Option<String> {
+    if let Some(summary) = source.summary.as_ref() {
+        let trimmed = summary.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    let title = source.title.trim();
+    if title.is_empty() {
+        None
+    } else {
+        Some(title.to_string())
+    }
+}
+
+/// Char-safe truncation to RELATED_SNIPPET_CHARS with U+2026 when truncated (D-08).
+#[allow(dead_code)] // wired into related_sources rollup in Task 2
+fn truncate_snippet(text: &str) -> String {
+    if text.chars().count() <= RELATED_SNIPPET_CHARS {
+        text.to_string()
+    } else {
+        let truncated: String = text.chars().take(RELATED_SNIPPET_CHARS).collect();
+        format!("{truncated}…")
+    }
+}
+
+/// Over-fetch config so seed self-hits and multi-chunk sources leave room for top_n neighbors.
+#[allow(dead_code)] // wired into related_sources rollup in Task 2
+fn related_retriever_config(top_n: usize) -> RetrieverConfig {
+    let mut config = RetrieverConfig::default();
+    let final_k = top_n.saturating_mul(5).max(24);
+    config.final_k = final_k;
+    config.vector_k = config.vector_k.max(final_k);
+    config.fts_k = config.fts_k.max(final_k);
+    config
+}
+
 /// Rank other indexed sources by hybrid retrieval overlap with the seed.
 ///
-/// Stub for Plan 15-01 (RED): always returns an empty list. Real rollup lands in 15-02.
+/// Task 1: seed lookup + empty-query short-circuit. Rollup orchestration lands in Task 2.
 pub async fn related_sources(
-    _store: &Store,
+    store: &Store,
     _embedder: &dyn Embedder,
-    _source_id: &str,
+    source_id: &str,
     _top_n: Option<usize>,
 ) -> Result<Vec<RelatedSource>> {
+    let seed = store.get_source(source_id)?;
+    let Some(_query) = seed_query(&seed) else {
+        return Ok(Vec::new());
+    };
     Ok(Vec::new())
 }
 
@@ -38,6 +84,56 @@ mod tests {
 
     const OVERLAP_TOKEN: &str = "overlap-scoring-alpha";
     const DISJOINT_TOKEN: &str = "zeta-unrelated-only";
+
+    #[test]
+    fn seed_query_blank_title_and_whitespace_summary_is_none() {
+        let source = Source {
+            id: "s".into(),
+            kind: SourceKind::LocalFile,
+            uri: "s".into(),
+            title: "   ".into(),
+            content_hash: "h".into(),
+            indexed_at: None,
+            status: IndexStatus::Indexed,
+            error: None,
+            summary: Some("  \t  ".into()),
+        };
+        assert_eq!(seed_query(&source), None);
+    }
+
+    #[test]
+    fn seed_query_prefers_summary_over_title() {
+        let source = Source {
+            id: "s".into(),
+            kind: SourceKind::LocalFile,
+            uri: "s".into(),
+            title: "Title Token".into(),
+            content_hash: "h".into(),
+            indexed_at: None,
+            status: IndexStatus::Indexed,
+            error: None,
+            summary: Some("  Summary Token  ".into()),
+        };
+        assert_eq!(seed_query(&source).as_deref(), Some("Summary Token"));
+    }
+
+    #[test]
+    fn truncate_snippet_cjk_utf8_and_ellipsis() {
+        let long: String = "知识".chars().cycle().take(200).collect();
+        let out = truncate_snippet(&long);
+        assert!(out.chars().count() <= 161);
+        assert!(out.ends_with('…'));
+        assert!(std::str::from_utf8(out.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn related_retriever_config_over_fetches_for_default_top_n() {
+        let cfg = related_retriever_config(5);
+        assert!(cfg.final_k >= 25);
+        assert!(cfg.vector_k >= cfg.final_k);
+        assert!(cfg.fts_k >= cfg.final_k);
+        assert_eq!(cfg.rrf_k, 60.0);
+    }
 
     struct FixtureStore {
         _dir: tempfile::TempDir,
