@@ -62,12 +62,12 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
   3. Overlap uses the existing hybrid retrieve path (vector + FTS + RRF) — not a second vector store or cosine-% UI contract
   4. Unit/integration tests with MockEmbedder pass for related vs unrelated fixtures (`cargo test -p retriever`)
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 15-01-PLAN.md — RED: RelatedSource stub + failing REL-02 integration tests
+- [x] 15-01-PLAN.md — RED: RelatedSource stub + failing REL-02 integration tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -143,7 +143,7 @@ Plans:
 | 12. Obsidian zip export | v1.10 | 2/2 | Complete | 2026-07-23 |
 | 13. E2E + citation trust | v1.10 | 2/2 | Complete | 2026-07-24 |
 | 14. Tech debt closeout | v1.10 | 3/3 | Complete | 2026-07-25 |
-| 15. Overlap scoring API | v1.11 | 0/2 | Not started | - |
+| 15. Overlap scoring API | v1.11 | 1/2 | In Progress|  |
 | 16. Related-docs Library panel | v1.11 | 0/? | Not started | - |
 | 17. MCP transport + read-only scaffold | v1.11 | 0/? | Not started | - |
 | 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
