@@ -65,22 +65,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REL-01 | — | Pending |
-| REL-02 | — | Pending |
-| REL-03 | — | Pending |
-| REL-04 | — | Pending |
-| MCP-01 | — | Pending |
-| MCP-02 | — | Pending |
-| MCP-03 | — | Pending |
-| MCP-04 | — | Pending |
-| TRUST-01 | — | Pending |
-| TRUST-02 | — | Pending |
+| REL-01 | Phase 16 | Pending |
+| REL-02 | Phase 15 | Pending |
+| REL-03 | Phase 16 | Pending |
+| REL-04 | Phase 16 | Pending |
+| MCP-01 | Phase 18 | Pending |
+| MCP-02 | Phase 18 | Pending |
+| MCP-03 | Phase 17 | Pending |
+| MCP-04 | Phase 17 | Pending |
+| TRUST-01 | Phase 19 | Pending |
+| TRUST-02 | Phase 19 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 15 | REL-02 | 1 |
+| 16 | REL-01, REL-03, REL-04 | 3 |
+| 17 | MCP-03, MCP-04 | 2 |
+| 18 | MCP-01, MCP-02 | 2 |
+| 19 | TRUST-01, TRUST-02 | 2 |
 
 ---
 *Requirements defined: 2026-07-25*
-*Last updated: 2026-07-25 after v1.11 scoping*
+*Last updated: 2026-07-25 — roadmap v1.11 phases 15–19 mapped*
