@@ -12,6 +12,8 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **In progress:** **v1.11** Related-docs + MCP — related-docs panel + read-only MCP `search` / `list_sources`.
 
+**Current state:** Phase 15 complete — `related_sources` hybrid overlap API in `crates/retriever` (REL-02). Next: Phase 16 Library related-docs panel.
+
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump.
 
 ## Core Value
@@ -54,10 +56,11 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - ✓ Architecture review + sync error surfacing — v1.9
 - ✓ Wiki compile layer (WIKI-01..WIKI-09) + Obsidian zip + E2E citation trust — v1.10
 - ✓ WikiPage reindex soft-skip + export preflight gate + Nyquist closeout — v1.10
+- ✓ Overlap scoring API `related_sources` (REL-02) — Validated in Phase 15: Overlap scoring API
 
 ### Active
 
-- [ ] Related-docs panel (source overlap) — v1.11
+- [ ] Related-docs panel (source overlap UI + navigate) — v1.11 Phase 16
 - [ ] Read-only MCP `search` / `list_sources` — v1.11
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 - [ ] WIKI-F01 `auto_on_insights` / bulk compile UX (deferred from v1.10)
@@ -124,6 +127,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 | Soft-skip WikiPage reindex (not true MD reindex) | Avoid Failed stubs / chunk wipe | ✓ Good (v1.10) |
 | Defer WIKI-F01 / dual index writers | Ship without accepting audit gaps on required path | ✓ Accepted (D-14) |
 | v1.11 = related-docs panel + read-only MCP | Plan draft Out of Scope table; both halves this milestone | — Pending |
+| `related_sources` reuses hybrid `retrieve` (no score field / no affinity threshold) | Same retrieval brain as RAG; D-06/D-09; SC#2 deferred | ✓ Phase 15 |
 
 ## Evolution
 
@@ -143,4 +147,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 — started milestone v1.11 Related-docs + MCP*
+*Last updated: 2026-07-25 — Phase 15 complete (related_sources / REL-02)*
