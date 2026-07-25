@@ -1,6 +1,6 @@
 # Roadmap: Jarvis
 
-**Updated:** 2026-07-17  
+**Updated:** 2026-07-25  
 **Current milestone:** v1.10 Wiki Compile Layer
 
 ## Shipped
@@ -241,7 +241,11 @@ Plans:
 1. Library「重新同步」on a `WikiPage` source does not leave a permanent fail-closed stub (reindex path works or is intentionally no-op with clear UX)
 2. `wiki_export_preflight_cmd` rejects when `wiki.enabled` is false (parity with export cmd)
 3. Phases 12 and 13 `*-VALIDATION.md` marked `nyquist_compliant: true` (or explicitly waived with evidence)
-4. ROADMAP Coverage table matches REQUIREMENTS (WIKI-08/09 Complete) — already synced in this closeout draft
+4. ROADMAP Coverage table matches REQUIREMENTS (WIKI-08/09 Complete) — confirmed Complete (do not reopen to Pending)
+
+**Verify gate (D-15):** cargo + Vitest + docs — **no new E2E**.  
+**Closeout (D-13):** after Phase 14 VERIFICATION → `/gsd-audit-milestone` (expect `passed`) → `/gsd-complete-milestone v1.10`.  
+**Deferred OK (D-14):** WIKI-F01 + dual `index.md` writers may remain Deferred.
 
 **Plans:** 2/3 plans executed
 
@@ -259,9 +263,9 @@ Plans:
 ## Backlog (post-v1.10)
 
 - Related-docs / MCP read-only
-- Bulk compile + `auto_on_insights` UX (WIKI-F01)
+- Bulk compile + `auto_on_insights` UX (WIKI-F01) — deferred OK through milestone audit (D-14)
 - Cross-corpus entity merge
-- Dual `index.md` writers consolidation (Phase 09 test helper vs compile rebuild) — intentional; defer
+- Dual `index.md` writers consolidation (Phase 09 test helper vs compile rebuild) — intentional; defer (D-14)
 
 ---
 
