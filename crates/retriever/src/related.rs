@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use embedder::Embedder;
 use store::{Source, SourceKind, Store};
 
 use crate::error::Result;
-use crate::retrieve::RetrieverConfig;
+use crate::retrieve::{retrieve, RetrieverConfig};
 
 /// Neighbor source returned by overlap scoring (no raw RRF score — D-09).
 #[derive(Debug, Clone, PartialEq)]
@@ -13,7 +15,6 @@ pub struct RelatedSource {
     pub snippet: String,
 }
 
-#[allow(dead_code)] // wired into related_sources rollup in Task 2
 const RELATED_SNIPPET_CHARS: usize = 160;
 
 /// Prefer trimmed summary when non-empty; else trimmed title; else None (D-01..D-03).
@@ -33,7 +34,6 @@ fn seed_query(source: &Source) -> Option<String> {
 }
 
 /// Char-safe truncation to RELATED_SNIPPET_CHARS with U+2026 when truncated (D-08).
-#[allow(dead_code)] // wired into related_sources rollup in Task 2
 fn truncate_snippet(text: &str) -> String {
     if text.chars().count() <= RELATED_SNIPPET_CHARS {
         text.to_string()
@@ -44,7 +44,6 @@ fn truncate_snippet(text: &str) -> String {
 }
 
 /// Over-fetch config so seed self-hits and multi-chunk sources leave room for top_n neighbors.
-#[allow(dead_code)] // wired into related_sources rollup in Task 2
 fn related_retriever_config(top_n: usize) -> RetrieverConfig {
     let mut config = RetrieverConfig::default();
     let final_k = top_n.saturating_mul(5).max(24);
@@ -56,18 +55,47 @@ fn related_retriever_config(top_n: usize) -> RetrieverConfig {
 
 /// Rank other indexed sources by hybrid retrieval overlap with the seed.
 ///
-/// Task 1: seed lookup + empty-query short-circuit. Rollup orchestration lands in Task 2.
+/// Reuses `retrieve` (vector+FTS+RRF). No score threshold (D-06) — weak hits may appear.
 pub async fn related_sources(
     store: &Store,
-    _embedder: &dyn Embedder,
+    embedder: &dyn Embedder,
     source_id: &str,
-    _top_n: Option<usize>,
+    top_n: Option<usize>,
 ) -> Result<Vec<RelatedSource>> {
+    if top_n == Some(0) {
+        return Ok(Vec::new());
+    }
+    let top_n = top_n.unwrap_or(5).min(32);
+
     let seed = store.get_source(source_id)?;
-    let Some(_query) = seed_query(&seed) else {
+    let Some(query) = seed_query(&seed) else {
         return Ok(Vec::new());
     };
-    Ok(Vec::new())
+
+    let config = related_retriever_config(top_n);
+    let hits = retrieve(store, embedder, &query, &config).await?;
+
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for hit in hits {
+        if hit.source_id == source_id {
+            continue;
+        }
+        if !seen.insert(hit.source_id.clone()) {
+            continue;
+        }
+        let neighbor = store.get_source(&hit.source_id)?;
+        out.push(RelatedSource {
+            source_id: hit.source_id,
+            title: neighbor.title,
+            kind: neighbor.kind,
+            snippet: truncate_snippet(&hit.text),
+        });
+        if out.len() == top_n {
+            break;
+        }
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
