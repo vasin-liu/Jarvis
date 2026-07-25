@@ -163,4 +163,4 @@ Plans:
 
 ---
 
-*Next:* `/gsd-plan-phase 15`
+*Next:* `/gsd-execute-phase 15`
