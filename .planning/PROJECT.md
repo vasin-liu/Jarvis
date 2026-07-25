@@ -8,7 +8,7 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Shipped:** **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 
-**In progress:** **v1.10** Wiki Compile Layer — Phases 07–13 complete (E2E + citation trust green). Ready for milestone close / audit.
+**In progress:** **v1.10** Wiki Compile Layer — Phases 07–14 complete (Phase 14 tech-debt closeout verified). Ready for `/gsd-audit-milestone` then `/gsd-complete-milestone v1.10`.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump; planning milestone v1.9 is the refactor gate.
 
@@ -62,10 +62,11 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 - ✓ Persist + index wiki pages (`compile_wiki_for_source`, `wiki://` WikiPage, hash skip, stale cleanup) — Validated in Phase 10: persist-index
 - ✓ Library/Settings wiki UI (`wiki.enabled` toggle + Library「生成笔记」gated compile) — Validated in Phase 11: library-settings-ui
 - ✓ Obsidian zip export (`export_wiki_zip` + Library「导出 Wiki」+ soft success notice) — Validated in Phase 12: obsidian-zip-export
+- ✓ WikiPage reindex soft-skip + export preflight `wiki.enabled` gate + Nyquist 12/13 backfill — Validated in Phase 14: tech-debt closeout
 
 ### Active
 
-- [ ] Wiki compile layer + Obsidian export (v1.10) — Phases 07–12 done; Phase 13 (E2E + citation trust) remains
+- [x] Wiki compile layer + Obsidian export (v1.10) — Phases 07–14 complete (WIKI-01..WIKI-09 + audit closeout)
 - [ ] Related-docs / MCP read-only surface (post-v1.10)
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 
@@ -113,4 +114,4 @@ Superseded by **Current Milestone: v1.10 Wiki Compile Layer** (above).
 | Vertical MVP phase structure | End-to-end refactor slices | Shipped |
 
 ---
-*Last updated: 2026-07-23 after Phase 11 Library / Settings UI complete*
+*Last updated: 2026-07-25 after Phase 14 tech-debt closeout complete*

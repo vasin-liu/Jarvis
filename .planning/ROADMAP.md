@@ -25,7 +25,7 @@
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
 | 13 | E2E + citation trust | 2/2 | Complete    | 2026-07-24 |
-| 14 | Tech debt closeout | 3/3 | Complete   | 2026-07-25 |
+| 14 | Tech debt closeout | 3/3 | Complete    | 2026-07-25 |
 
 ---
 
