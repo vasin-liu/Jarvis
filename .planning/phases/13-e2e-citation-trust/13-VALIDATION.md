@@ -2,7 +2,7 @@
 phase: 13
 slug: e2e-citation-trust
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-24
 ---
@@ -10,6 +10,8 @@ created: 2026-07-24
 # Phase 13 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
+
+**Nyquist backfill (Phase 14):** Marked compliant from existing `13-VERIFICATION.md` (`status: passed`, 8/8 must-haves) and green automated tests (`wiki.spec.ts`, `full-ui`/`qa`, Vitest export-path harness). Full `/gsd-validate-phase` re-run not required (D-10..D-12).
 
 ---
 

@@ -2,7 +2,7 @@
 phase: 12
 slug: obsidian-zip-export
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-23
 ---
@@ -10,6 +10,8 @@ created: 2026-07-23
 # Phase 12 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
+
+**Nyquist backfill (Phase 14):** Marked compliant from existing `12-VERIFICATION.md` (`status: passed`, 13/13 must-haves) and green automated tests (`cargo test -p insights export_wiki`, Vitest Library/useLibrary). Full `/gsd-validate-phase` re-run not required (D-10..D-12).
 
 ---
 
