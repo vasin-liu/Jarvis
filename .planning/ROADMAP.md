@@ -25,7 +25,7 @@
 | 11 | Library / Settings UI | 2/2 | Complete    | 2026-07-23 |
 | 12 | Obsidian zip export | 2/2 | Complete    | 2026-07-23 |
 | 13 | E2E + citation trust | 2/2 | Complete    | 2026-07-24 |
-| 14 | Tech debt closeout | 2/3 | In Progress|  |
+| 14 | Tech debt closeout | 3/3 | Complete   | 2026-07-25 |
 
 ---
 
@@ -247,7 +247,7 @@ Plans:
 **Closeout (D-13):** after Phase 14 VERIFICATION → `/gsd-audit-milestone` (expect `passed`) → `/gsd-complete-milestone v1.10`.  
 **Deferred OK (D-14):** WIKI-F01 + dual `index.md` writers may remain Deferred.
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -258,7 +258,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 14-03-PLAN.md — Nyquist 12/13 flip + ROADMAP closeout sync (D-10..D-15)
+- [x] 14-03-PLAN.md — Nyquist 12/13 flip + ROADMAP closeout sync (D-10..D-15)
 
 ## Backlog (post-v1.10)
 
