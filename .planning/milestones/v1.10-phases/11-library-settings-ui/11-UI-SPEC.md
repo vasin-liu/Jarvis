@@ -184,14 +184,14 @@ Confirmed from `11-CONTEXT.md` deferred + phase boundary:
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: pending
-- [ ] Dimension 2 Visuals: pending
-- [ ] Dimension 3 Color: pending
-- [ ] Dimension 4 Typography: pending
-- [ ] Dimension 5 Spacing: pending
-- [ ] Dimension 6 Registry Safety: pending
+- [x] Dimension 1 Copywriting: PASS — locked CTAs specific; errors inherit App bar; deferred copy excluded
+- [x] Dimension 2 Visuals: PASS — AccordionSection + btn-ghost reuse; no new chrome
+- [x] Dimension 3 Color: PASS — accent reserved for primary/nav/progress; not wiki controls
+- [x] Dimension 4 Typography: PASS — 3 sizes / 2 weights; inherit Settings/Library roles
+- [x] Dimension 5 Spacing: PASS — 4px grid inherit; no exceptions
+- [x] Dimension 6 Registry Safety: PASS — no shadcn / no third-party blocks
 
-**Approval:** pending
+**Approval:** approved 2026-07-22
 
 ---
 

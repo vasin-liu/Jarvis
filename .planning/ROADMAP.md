@@ -29,7 +29,7 @@
 - [x] Phase 13: E2E + citation trust (2/2) — completed 2026-07-24
 - [x] Phase 14: Tech debt closeout (3/3) — completed 2026-07-25
 
-Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · audit: [v1.10-MILESTONE-AUDIT.md](./milestones/v1.10-MILESTONE-AUDIT.md)
+Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-phases/](./milestones/v1.10-phases/) · audit: [v1.10-MILESTONE-AUDIT.md](./milestones/v1.10-MILESTONE-AUDIT.md)
 
 </details>
 
