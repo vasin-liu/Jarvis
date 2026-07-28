@@ -433,21 +433,11 @@ if hits.is_empty() {
 | A3 | Applying list cap to agent tool output is acceptable | Architecture | Longer agent lists truncated — document in mcp.md + changelog note |
 | A4 | Prefer `CallToolResult::success(text JSON)` over `structured` for 2.2.0 continuity | Standard Stack | Hosts that prefer `structured_content` get text-only — still parseable |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Agent list truncation messaging**
-   - What we know: Agent today returns uncapped Chinese lines.
-   - What's unclear: Whether to append `（已截断，共 N 条）` when `truncated`.
-   - Recommendation: Yes — one-line footer when truncated; keeps UX honest without new tools.
-
-2. **Startup vs per-call embedder failure**
-   - What we know: D-09 fail closed.
-   - What's unclear: Ollama down after process start.
-   - Recommendation: Per-call embed/`retrieve` errors → `CallToolResult::error` JSON; do not convert to empty results.
-
-3. **Ordering of Indexed list**
-   - What we know: `Store::list_sources` SQL order is whatever store implements today.
-   - Recommendation: Do not invent new sort in Phase 18; preserve store order for agent/MCP parity. `[ASSUMED]` verify SQL ORDER BY in implement wave if tests need stable order — seed few rows.
+1. **Agent list truncation messaging** — RESOLVED: append one-line footer when `truncated` (e.g. Chinese `（已截断，共 N 条）`).
+2. **Startup vs per-call embedder failure** — RESOLVED: per-call embed/`retrieve` errors → MCP error JSON; never empty-success.
+3. **Ordering of Indexed list** — RESOLVED: preserve `Store::list_sources` order; no new sort in Phase 18.
 
 ## Environment Availability
 
