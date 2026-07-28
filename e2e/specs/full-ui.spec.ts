@@ -55,6 +55,32 @@ describe("Jarvis full UI journey", () => {
     expect(await $$('[data-testid^="wiki-compile-"]')).toHaveLength(0);
   });
 
+  it("shows related-docs panel after selecting a library source", async () => {
+    await openNav("library", '[data-testid="library-stats"]');
+
+    await browser.waitUntil(
+      async () => {
+        const text = await $('[data-testid="library-stats"]').getText();
+        const m = text.match(/已索引 (\d+)/);
+        return m !== null && Number(m[1]) >= 2;
+      },
+      {
+        timeout: 60_000,
+        timeoutMsg: "dual E2E fixtures not indexed yet (need ≥2 indexed)",
+      },
+    );
+
+    // Source ids are Windows path URIs — click by index via DOM, not CSS attribute selectors.
+    await browser.execute(() => {
+      const rows = document.querySelectorAll('[data-testid^="source-row-"]');
+      const el = rows[0] as HTMLElement | undefined;
+      if (!el) throw new Error(`source-row index 0 missing (have ${rows.length})`);
+      el.click();
+    });
+
+    await expect($('[data-testid="related-docs-panel"]')).toBeDisplayed();
+  });
+
   it("manages memories: add, edit, forget", async () => {
     const unique = `E2E-${Date.now()}`;
     const memoryText = `${unique}: user prefers dark mode`;
