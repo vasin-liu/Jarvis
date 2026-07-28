@@ -142,7 +142,24 @@ Plans:
   3. Agent `search_knowledge` / `list_sources` and MCP handlers share `kb_readonly` (or equivalent) so semantics cannot drift
   4. `cargo test -p mcp` (and agent tests covering shared helpers) pass offline with mocks
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 18-01-PLAN.md — TDD: `retriever::kb_readonly` search_kb + list_indexed_sources
+
+**Wave 2** *(blocked on 18-01)*
+
+- [ ] 18-02-PLAN.md — Agent thin wrappers over kb_readonly (anti-drift)
+
+**Wave 3** *(blocked on 18-01 + 18-02)*
+
+- [ ] 18-03-PLAN.md — MCP real handlers + build_embedder fail-closed + tools_kb tests
+
+**Wave 4** *(blocked on 18-03)*
+
+- [ ] 18-04-PLAN.md — Update docs/mcp.md for live tools + caps
 
 ### Phase 19: E2E + citation regression gate
 
@@ -174,7 +191,7 @@ Plans:
 | 15. Overlap scoring API | v1.11 | 2/2 | Complete    | 2026-07-25 |
 | 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 4/4 | Complete    | 2026-07-28 |
-| 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
+| 18. MCP tools search + list_sources | v1.11 | 0/4 | Not started | - |
 | 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |
 
 ## Backlog (post-v1.11 / carryover)
@@ -191,4 +208,4 @@ Plans:
 
 ---
 
-*Next:* `/gsd-execute-phase 17`
+*Next:* `/gsd-execute-phase 18`
