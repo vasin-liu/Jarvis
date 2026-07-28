@@ -4402,6 +4402,8 @@ dependencies = [
  "chunker",
  "embedder",
  "indexer",
+ "serde",
+ "serde_json",
  "store",
  "tempfile",
  "thiserror 1.0.69",

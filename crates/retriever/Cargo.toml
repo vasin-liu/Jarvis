@@ -8,10 +8,12 @@ rust-version.workspace = true
 embedder = { path = "../embedder" }
 store = { path = "../store" }
 thiserror = { workspace = true }
+serde = { workspace = true }
 
 [dev-dependencies]
 chunker = { path = "../chunker" }
 indexer = { path = "../indexer" }
 embedder = { path = "../embedder" }
+serde_json = { workspace = true }
 tempfile = "3"
 tokio = { workspace = true }

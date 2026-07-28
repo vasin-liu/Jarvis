@@ -1,13 +1,15 @@
 use std::collections::HashSet;
 
 use embedder::Embedder;
+use serde::Serialize;
 use store::{Source, SourceKind, Store};
 
 use crate::error::Result;
 use crate::retrieve::{retrieve, RetrieverConfig};
 
 /// Neighbor source returned by overlap scoring (no raw RRF score — D-09).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RelatedSource {
     pub source_id: String,
     pub title: String,
@@ -112,6 +114,28 @@ mod tests {
 
     const OVERLAP_TOKEN: &str = "overlap-scoring-alpha";
     const DISJOINT_TOKEN: &str = "zeta-unrelated-only";
+
+    #[test]
+    fn related_source_serializes_camel_case_without_score() {
+        let related = RelatedSource {
+            source_id: "src-1".into(),
+            title: "Alpha".into(),
+            kind: SourceKind::LocalFile,
+            snippet: "hello snippet".into(),
+        };
+        let v = serde_json::to_value(&related).expect("serialize");
+        let obj = v.as_object().expect("object");
+        assert!(obj.contains_key("sourceId"));
+        assert!(!obj.contains_key("source_id"));
+        assert!(!obj.contains_key("score"));
+        assert_eq!(obj.get("title").and_then(|x| x.as_str()), Some("Alpha"));
+        assert_eq!(
+            obj.get("snippet").and_then(|x| x.as_str()),
+            Some("hello snippet")
+        );
+        assert!(obj.contains_key("kind"));
+        assert_eq!(obj.len(), 4);
+    }
 
     #[test]
     fn seed_query_blank_title_and_whitespace_summary_is_none() {
