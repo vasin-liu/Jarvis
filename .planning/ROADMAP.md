@@ -173,8 +173,18 @@ Plans:
   3. MCP tool happy paths are verified offline (cargo harness); `npm run test:e2e:local` green for the related-docs journey
   4. e2e-required spec map updated for related-docs; README/docs MCP config snippet remains accurate
 
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 3 plans
+**UI hint**: yes (E2E verification of existing panel — no new chrome)
+
+Plans:
+**Wave 1**
+
+- [ ] 19-01-PLAN.md — Thin full-ui related-docs step + e2e-required map confirm
+- [ ] 19-02-PLAN.md — cargo test -p mcp green + docs/mcp.md + README drift check
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 19-03-PLAN.md — Citation + related-docs E2E gate + 19-VERIFICATION evidence
 
 ## Progress
 
@@ -192,7 +202,7 @@ Plans:
 | 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 18. MCP tools search + list_sources | v1.11 | 4/4 | Complete    | 2026-07-28 |
-| 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |
+| 19. E2E + citation regression gate | v1.11 | 0/3 | Planned | - |
 
 ## Backlog (post-v1.11 / carryover)
 
