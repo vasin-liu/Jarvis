@@ -43,7 +43,7 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 ### Phases
 
 - [x] **Phase 15: Overlap scoring API** - Hybrid retrieve → source rollup (`related_sources`) (completed 2026-07-25)
-- [ ] **Phase 16: Related-docs Library panel** - Selection, panel UI, navigate
+- [x] **Phase 16: Related-docs Library panel** - Selection, panel UI, navigate (completed 2026-07-28)
 - [ ] **Phase 17: MCP transport + read-only scaffold** - `jarvis-mcp` stdio binary + structural allowlist
 - [ ] **Phase 18: MCP tools search + list_sources** - Shared `kb_readonly` helpers
 - [ ] **Phase 19: E2E + citation regression gate** - Panel journey + qa/full-ui trust
@@ -85,22 +85,22 @@ Plans:
   3. Clicking a related result navigates/selects that source in Library
   4. Panel uses stable `data-testid`s suitable for E2E (no graph UI scope creep)
 
-**Plans**: 4 plans
+**Plans**: 4/4 plans complete
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 16-01-PLAN.md — Serialize RelatedSource + thin list_related_sources IPC + TS wrappers
-- [ ] 16-02-PLAN.md — Dual E2E fixture seed (related-neighbor.md + seed_e2e_fixture)
+- [x] 16-01-PLAN.md — Serialize RelatedSource + thin list_related_sources IPC + TS wrappers
+- [x] 16-02-PLAN.md — Dual E2E fixture seed (related-neighbor.md + seed_e2e_fixture)
 
 **Wave 2** *(blocked on 16-01)*
 
-- [ ] 16-03-PLAN.md — Library selection + related panel UI + Vitest (REL-01/03/04)
+- [x] 16-03-PLAN.md — Library selection + related panel UI + Vitest (REL-01/03/04)
 
 **Wave 3** *(blocked on 16-02 + 16-03)*
 
-- [ ] 16-04-PLAN.md — Focused related-docs E2E journey + e2e-required spec map
+- [x] 16-04-PLAN.md — Focused related-docs E2E journey + e2e-required spec map
 
 ### Phase 17: MCP transport + read-only scaffold
 
@@ -158,7 +158,7 @@ Plans:
 | 13. E2E + citation trust | v1.10 | 2/2 | Complete | 2026-07-24 |
 | 14. Tech debt closeout | v1.10 | 3/3 | Complete | 2026-07-25 |
 | 15. Overlap scoring API | v1.11 | 2/2 | Complete    | 2026-07-25 |
-| 16. Related-docs Library panel | v1.11 | 0/4 | Not started | - |
+| 16. Related-docs Library panel | v1.11 | 4/4 | Complete   | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 0/? | Not started | - |
 | 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
 | 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |

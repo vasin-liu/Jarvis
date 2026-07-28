@@ -58,4 +58,4 @@ status: complete
 ## Commits
 
 - `392eff1` feat(16-02): add related-neighbor E2E fixture with shared keyword
-- (follow-up) feat(16-02): dual-index E2E fixtures and seed summary for overlap
+- `cc6b746` feat(16-02): dual-index E2E fixtures and seed summary for overlap
