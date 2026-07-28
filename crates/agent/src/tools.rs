@@ -1,10 +1,10 @@
 use chunker::ChunkerConfig;
 use embedder::Embedder;
 use memory::{add_memory, forget_memory, get_memory_content, list_memories, update_memory};
-use retriever::{retrieve, RetrieverConfig};
+use retriever::{list_indexed_sources, search_kb, RetrieverConfig};
 use serde::Deserialize;
 use serde_json::json;
-use store::{IndexStatus, Store, TaskStatus};
+use store::{Store, TaskStatus};
 
 use crate::error::{AgentError, Result};
 use crate::plugins::{
@@ -58,7 +58,8 @@ pub async fn execute_tool(
                 .get("query")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| AgentError::ToolArgs("query required".into()))?;
-            let hits = retrieve(store, embedder, query, retriever).await?;
+            let _ = retriever; // knowledge search uses RetrieverConfig::default inside search_kb (D-03)
+            let hits = search_kb(store, embedder, query, None).await?;
             if hits.is_empty() {
                 return Ok(("未找到相关内容。".into(), vec![]));
             }
@@ -66,34 +67,31 @@ pub async fn execute_tool(
             let mut lines = Vec::new();
             for hit in hits {
                 let source = store.get_source(&hit.source_id)?;
-                let excerpt = if hit.text.chars().count() > 200 {
-                    let truncated: String = hit.text.chars().take(200).collect();
-                    format!("{truncated}…")
-                } else {
-                    hit.text.clone()
-                };
                 lines.push(format!(
                     "- {} · {}: {}",
-                    source.title, hit.loc, hit.text
+                    hit.title, hit.loc, hit.excerpt
                 ));
                 citations.push(Citation {
                     chunk_id: hit.chunk_id,
                     source_id: hit.source_id,
-                    source_title: source.title,
+                    source_title: hit.title,
                     source_uri: source.uri,
                     loc: hit.loc,
-                    excerpt,
+                    excerpt: hit.excerpt,
                 });
             }
             Ok((lines.join("\n"), citations))
         }
         "list_sources" => {
-            let sources = store.list_sources()?;
-            let lines: Vec<String> = sources
-                .into_iter()
-                .filter(|s| s.status == IndexStatus::Indexed)
-                .map(|s| format!("- {} ({})", s.title, s.kind.as_str()))
+            let list = list_indexed_sources(store)?;
+            let mut lines: Vec<String> = list
+                .sources
+                .iter()
+                .map(|s| format!("- {} ({})", s.title, s.kind))
                 .collect();
+            if list.truncated {
+                lines.push(format!("（已截断，共 {} 条）", list.total_indexed));
+            }
             Ok((lines.join("\n"), vec![]))
         }
         "list_tasks" => {

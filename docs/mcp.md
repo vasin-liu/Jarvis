@@ -2,7 +2,7 @@
 
 Read-only MCP bridge for the Jarvis knowledge base. External hosts (Cursor, Claude Desktop) spawn a **console** binary over **stdio** — not the Tauri GUI process.
 
-**Phase 17 status:** transport + tool allowlist only. Tools `search` and `list_sources` return stub `not_implemented` JSON until **Phase 18** wires hybrid retrieval.
+**Status:** Phase 18 — live hybrid `search` and Indexed `list_sources` via shared `kb_readonly` helpers (same path as in-app agent tools).
 
 ## Build
 
@@ -17,15 +17,13 @@ cargo build -p mcp --release
 
 ## Prerequisite
 
-Run the **Jarvis desktop app once** so `%APPDATA%\com.jarvis.app\kb.sqlite` (or your data dir) exists. `jarvis-mcp` **never** creates the database.
+Run the **Jarvis desktop app once** so `%APPDATA%\com.jarvis.app\kb.sqlite` (or your data dir) exists. `jarvis-mcp` **never** creates the database. Embedding provider settings come from sibling `config.json` (`config::build_embedder`) — startup **fails closed** if the embedder cannot be built.
 
 ## Path precedence
 
 1. `--db <path-to-kb.sqlite>` — explicit file
 2. `JARVIS_DATA_DIR` — directory; opens `{dir}/kb.sqlite`
-3. Default app data dir — Windows `%APPDATA%\com.jarvis.app\kb.sqlite`; macOS `~/Library/Application Support/com.jarvis.app/kb.sqlite`; Linux `$XDG_DATA_HOME/com.jarvis.app/kb.sqlite` or `~/.local/share/com.jarvis.app/kb.sqlite`
-
-Sibling `config.json` (same directory as the DB) supplies embedding dimensions when present.
+3. Default app data dir — Windows `%APPDATA%\com.jarvis.app\kb.sqlite`; macOS `~/Library/Application Support/com.jarvis.app\kb.sqlite`; Linux `$XDG_DATA_HOME/com.jarvis.app/kb.sqlite` or `~/.local/share/com.jarvis.app/kb.sqlite`
 
 ## Cursor (`mcp.json`)
 
@@ -62,9 +60,43 @@ Add the same stdio server under Claude Desktop’s MCP config (`claude_desktop_c
 
 ## Tools (allowlist)
 
-| Tool | Phase 17 | Phase 18 |
-| --- | --- | --- |
-| `search` | stub JSON | hybrid KB search |
-| `list_sources` | stub JSON | list indexed sources |
+Exactly two read-only tools — no write/delete/ingest/memory tools.
 
-No other MCP tools are registered. Write/mutate agent tools are intentionally absent.
+### `search`
+
+Hybrid retrieval: vector + FTS5 + RRF via `retriever::search_kb` / `RetrieverConfig::default()` (`final_k` = **8**).
+
+| Arg | Notes |
+| --- | --- |
+| `query` | Required string; empty/whitespace → tool error `empty_query` |
+| `limit` | Optional; clamped to ≤ `final_k` (8) |
+
+Success JSON (text content):
+
+```json
+{
+  "results": [
+    {
+      "chunk_id": 1,
+      "source_id": "...",
+      "title": "...",
+      "loc": "...",
+      "excerpt": "…"
+    }
+  ]
+}
+```
+
+Excerpts are truncated to **200** Unicode characters. Absolute filesystem paths / `uri` are **not** included.
+
+### `list_sources`
+
+Inventories sources with `IndexStatus::Indexed` only (same filter as agent `list_sources`).
+
+| Field | Notes |
+| --- | --- |
+| `sources[]` | `{ id, title, kind }` — no `uri` / absolute paths |
+| `truncated` | `true` when more than **200** Indexed sources |
+| `total_indexed` | Full Indexed count before cap |
+
+Hard cap: **200** sources per response.

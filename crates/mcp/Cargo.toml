@@ -12,6 +12,8 @@ path = "src/main.rs"
 rmcp = { workspace = true }
 store = { path = "../store" }
 config = { path = "../config" }
+retriever = { path = "../retriever" }
+embedder = { path = "../embedder" }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -19,3 +21,6 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+chunker = { path = "../chunker" }
+indexer = { path = "../indexer" }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
