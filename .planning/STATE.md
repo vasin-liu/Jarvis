@@ -4,9 +4,9 @@ milestone: v1.11
 milestone_name: Related-docs + MCP
 current_phase: 16
 current_phase_name: Related-docs Library panel
-status: verifying
-stopped_at: Phase 16 context gathered
-last_updated: "2026-07-26T00:57:47.403Z"
+status: executing
+stopped_at: Phase 16 UI-SPEC approved
+last_updated: "2026-07-28T06:42:22.221Z"
 last_activity: 2026-07-25
 last_activity_desc: Phase 15 complete, transitioned to Phase 16
 progress:
@@ -40,7 +40,7 @@ See: `.planning/PROJECT.md` (updated 2026-07-25)
 
 Phase: 16 — Related-docs Library panel
 Plan: Not started
-Status: Phase complete — ready for verification
+Status: Ready to execute
 Last activity: 2026-07-25 — Phase 15 complete, transitioned to Phase 16
 
 Progress: [░░░░░░░░░░] 0%
@@ -98,9 +98,9 @@ Items acknowledged / carried at milestone close:
 
 ## Session Continuity
 
-Last session: 2026-07-26T00:57:47.385Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-related-docs-library-panel/16-CONTEXT.md
+Last session: 2026-07-26T02:13:19.660Z
+Stopped at: Phase 16 UI-SPEC approved
+Resume file: .planning/phases/16-related-docs-library-panel/16-UI-SPEC.md
 
 ## Operator Next Steps
 
