@@ -5,7 +5,7 @@ milestone_name: Related-docs + MCP
 current_phase: 16
 status: completed
 stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-07-28T09:41:11.787Z"
+last_updated: "2026-07-28T10:02:27.664Z"
 last_activity: 2026-07-28
 last_activity_desc: Phase 16 marked complete
 progress:
