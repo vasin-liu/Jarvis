@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { sourceKindLabel } from "../lib/sourceDisplay";
 import type { AppConfig } from "../types/ipc";
 import { LibraryView } from "./LibraryView";
 
@@ -15,8 +16,20 @@ vi.mock("motion/react", () => ({
     }: React.PropsWithChildren<Record<string, unknown>>) => (
       <section {...props}>{children}</section>
     ),
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<Record<string, unknown>>) => (
+      <div {...props}>{children}</div>
+    ),
   },
   useReducedMotion: () => true,
+}));
+
+const listRelatedSources = vi.fn();
+
+vi.mock("../lib/tauri", () => ({
+  listRelatedSources: (...args: unknown[]) => listRelatedSources(...args),
 }));
 
 const indexedLocal = {
@@ -194,5 +207,149 @@ describe("LibraryView wiki export", () => {
     render(<LibraryView {...baseProps} />);
     fireEvent.click(screen.getByTestId("wiki-export"));
     expect(baseProps.onExportWiki).toHaveBeenCalled();
+  });
+});
+
+const pendingLocal = {
+  id: "src-pending",
+  kind: "local_file",
+  uri: "file:///tmp/pending.md",
+  title: "pending.md",
+  status: "pending",
+  indexed_at: null,
+  error: null,
+  summary: null,
+};
+
+const neighborLocal = {
+  id: "src-2",
+  kind: "local_file",
+  uri: "file:///tmp/b.md",
+  title: "b.md",
+  status: "indexed",
+  indexed_at: 2,
+  error: null,
+  summary: null,
+};
+
+describe("LibraryView related docs", () => {
+  beforeEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    listRelatedSources.mockReset();
+    listRelatedSources.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("hides related panel when no source is selected (D-02)", () => {
+    render(<LibraryView {...baseProps} />);
+    expect(screen.queryByTestId("related-docs-panel")).toBeNull();
+  });
+
+  it("selecting indexed source shows panel and empty copy when no neighbors (D-10, D-12)", async () => {
+    listRelatedSources.mockResolvedValue([]);
+    render(<LibraryView {...baseProps} />);
+    fireEvent.click(screen.getByTestId("source-row-src-1"));
+    expect(screen.getByTestId("related-docs-panel")).toBeTruthy();
+    expect(screen.getByTestId("related-docs-loading").textContent).toContain(
+      "加载相关文档…",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("related-docs-empty").textContent).toBe(
+        "暂无相关文档",
+      );
+    });
+    expect(listRelatedSources).toHaveBeenCalledWith("src-1", undefined);
+  });
+
+  it("non-indexed selection shows D-11 copy and skips IPC (D-06)", async () => {
+    render(
+      <LibraryView {...baseProps} sources={[indexedLocal, pendingLocal]} />,
+    );
+    fireEvent.click(screen.getByTestId("source-row-src-pending"));
+    expect(screen.getByTestId("related-docs-empty").textContent).toBe(
+      "仅已索引来源可查看相关文档",
+    );
+    expect(listRelatedSources).not.toHaveBeenCalled();
+  });
+
+  it("shows error copy when listRelatedSources rejects (D-12)", async () => {
+    listRelatedSources.mockRejectedValue(new Error("boom"));
+    render(<LibraryView {...baseProps} />);
+    fireEvent.click(screen.getByTestId("source-row-src-1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("related-docs-error").textContent).toContain(
+        "相关文档加载失败",
+      );
+    });
+  });
+
+  it("ready rows show title, kind label, snippet without scores (D-09)", async () => {
+    listRelatedSources.mockResolvedValue([
+      {
+        sourceId: "src-2",
+        title: "Neighbor Doc",
+        kind: "local_file",
+        snippet: "overlap snippet xyzzy",
+      },
+    ]);
+    render(
+      <LibraryView {...baseProps} sources={[indexedLocal, neighborLocal]} />,
+    );
+    fireEvent.click(screen.getByTestId("source-row-src-1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("related-docs-list")).toBeTruthy();
+    });
+    const row = screen.getByTestId("related-docs-row-src-2");
+    expect(row.textContent).toContain("Neighbor Doc");
+    expect(row.textContent).toContain(sourceKindLabel("local_file"));
+    expect(row.textContent).toContain("overlap snippet xyzzy");
+    expect(row.textContent).not.toMatch(/score|affinity|%/i);
+  });
+
+  it("second click on same source clears selection and unmounts panel (D-08)", async () => {
+    render(<LibraryView {...baseProps} />);
+    const row = screen.getByTestId("source-row-src-1");
+    fireEvent.click(row);
+    expect(screen.getByTestId("related-docs-panel")).toBeTruthy();
+    fireEvent.click(row);
+    expect(screen.queryByTestId("related-docs-panel")).toBeNull();
+  });
+
+  it("action button click does not select source (D-05)", () => {
+    render(<LibraryView {...baseProps} />);
+    fireEvent.click(screen.getByTestId("summarize-src-1"));
+    expect(screen.queryByTestId("related-docs-panel")).toBeNull();
+    expect(baseProps.onSummarizeSource).toHaveBeenCalledWith("src-1");
+  });
+
+  it("clicking related row selects neighbor and refetches (D-13)", async () => {
+    listRelatedSources
+      .mockResolvedValueOnce([
+        {
+          sourceId: "src-2",
+          title: "Neighbor Doc",
+          kind: "local_file",
+          snippet: "overlap",
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    render(
+      <LibraryView {...baseProps} sources={[indexedLocal, neighborLocal]} />,
+    );
+    fireEvent.click(screen.getByTestId("source-row-src-1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("related-docs-row-src-2")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByTestId("related-docs-row-src-2"));
+    const neighborRow = screen.getByTestId("source-row-src-2");
+    expect(neighborRow.getAttribute("aria-selected")).toBe("true");
+    expect(neighborRow.getAttribute("data-selected")).toBe("true");
+    await waitFor(() => {
+      expect(listRelatedSources).toHaveBeenCalledWith("src-2", undefined);
+    });
   });
 });
