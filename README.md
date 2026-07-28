@@ -5,7 +5,8 @@ Personal AI knowledge hub — Tauri 2 + Rust + React. Local-first RAG over docum
 **Version:** 1.8.0 (v9 — memory forget/update, per-agent embedder; v8 chat provider & router; v7 pipeline; v1 M1–M10)
 
 **Docs:** `docs/superpowers/specs/2026-06-12-personal-ai-knowledge-hub-design.md`  
-**Agent guide:** `AGENTS.md`
+**Agent guide:** `AGENTS.md`  
+**MCP (stdio):** `docs/mcp.md`
 
 ### Reference assets (non-normative)
 
