@@ -1,0 +1,21 @@
+[package]
+name = "mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "jarvis-mcp"
+path = "src/main.rs"
+
+[dependencies]
+rmcp = { workspace = true }
+store = { path = "../store" }
+config = { path = "../config" }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-std"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

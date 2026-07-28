@@ -16,6 +16,7 @@ members = [
     "crates/insights",
     "crates/memory",
     "crates/agent",
+    "crates/mcp",
 ]
 resolver = "2"
 
@@ -39,4 +40,5 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 futures-util = "0.3"
 fastembed = "5"
 calamine = "0.26"
+rmcp = { version = "2.2.0", default-features = false, features = ["server", "transport-io", "macros"] }
 zip = { version = "7.2", default-features = false, features = ["deflate"] }
