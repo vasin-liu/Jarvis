@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: Related-docs + MCP
 current_phase: 16
-current_phase_name: Related-docs Library panel
-status: executing
+status: completed
 stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-07-28T06:42:22.221Z"
-last_activity: 2026-07-25
-last_activity_desc: Phase 15 complete, transitioned to Phase 16
+last_updated: "2026-07-28T09:41:11.787Z"
+last_activity: 2026-07-28
+last_activity_desc: Phase 16 marked complete
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 20
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
+  percent: 40
+current_phase_name: MCP transport + read-only scaffold
 ---
 
 # Project State
@@ -38,10 +38,10 @@ See: `.planning/PROJECT.md` (updated 2026-07-25)
 
 ## Current Position
 
-Phase: 16 — Related-docs Library panel
+Phase: 16 — COMPLETE
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-25 — Phase 15 complete, transitioned to Phase 16
+Status: Phase 16 complete
+Last activity: 2026-07-28 — Phase 16 marked complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 15 | 2 | - | - |
+| 16 | 4 | - | - |
 
 *Updated after each plan completion*
 | Phase 15 P01 | 18min | 2 tasks | 2 files |

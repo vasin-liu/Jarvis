@@ -9,10 +9,10 @@ Requirements for milestone v1.11. Each maps to roadmap phases 15+.
 
 ### Related-docs
 
-- [ ] **REL-01**: User selecting an indexed Library source sees a related-docs panel with loading, empty, and error states
+- [x] **REL-01**: User selecting an indexed Library source sees a related-docs panel with loading, empty, and error states
 - [x] **REL-02**: Related results are other **sources** (chunk hits rolled up by `source_id`, seed excluded), capped (~3–8), empty when affinity is weak
-- [ ] **REL-03**: User can click a related result to navigate/select that source in Library
-- [ ] **REL-04**: Each related result shows title, kind label, and a short overlap snippet/reason (not raw similarity scores alone)
+- [x] **REL-03**: User can click a related result to navigate/select that source in Library
+- [x] **REL-04**: Each related result shows title, kind label, and a short overlap snippet/reason (not raw similarity scores alone)
 
 ### Read-only MCP
 
@@ -65,10 +65,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| REL-01 | Phase 16 | Pending |
+| REL-01 | Phase 16 | Complete |
 | REL-02 | Phase 15 | Complete |
-| REL-03 | Phase 16 | Pending |
-| REL-04 | Phase 16 | Pending |
+| REL-03 | Phase 16 | Complete |
+| REL-04 | Phase 16 | Complete |
 | MCP-01 | Phase 18 | Pending |
 | MCP-02 | Phase 18 | Pending |
 | MCP-03 | Phase 17 | Pending |

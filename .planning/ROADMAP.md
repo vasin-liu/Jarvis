@@ -158,7 +158,7 @@ Plans:
 | 13. E2E + citation trust | v1.10 | 2/2 | Complete | 2026-07-24 |
 | 14. Tech debt closeout | v1.10 | 3/3 | Complete | 2026-07-25 |
 | 15. Overlap scoring API | v1.11 | 2/2 | Complete    | 2026-07-25 |
-| 16. Related-docs Library panel | v1.11 | 4/4 | Complete   | 2026-07-28 |
+| 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 0/? | Not started | - |
 | 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
 | 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |
