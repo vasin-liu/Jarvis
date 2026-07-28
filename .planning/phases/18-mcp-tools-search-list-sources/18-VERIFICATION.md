@@ -1,4 +1,4 @@
-﻿---
+---
 phase: 18-mcp-tools-search-list-sources
 verified: 2026-07-28T13:55:00Z
 status: passed

@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.11
 milestone_name: Related-docs + MCP
-current_phase: 18
-current_phase_name: MCP tools search + list_sources
+current_phase: 19
+current_phase_name: E2E + citation regression gate
 status: executing
 stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-07-28T12:17:29.239Z"
+last_updated: "2026-07-28T13:55:14.542Z"
 last_activity: 2026-07-28
-last_activity_desc: Phase 17 complete, transitioned to Phase 18
+last_activity_desc: Phase 18 complete, transitioned to Phase 19
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
-  percent: 60
+  completed_phases: 4
+  total_plans: 14
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State
@@ -38,10 +38,10 @@ See: `.planning/PROJECT.md` (updated 2026-07-25)
 
 ## Current Position
 
-Phase: 18 — MCP tools search + list_sources
+Phase: 19 — E2E + citation regression gate
 Plan: Not started
 Status: Ready to execute
-Last activity: 2026-07-28 — Phase 17 complete, transitioned to Phase 18
+Last activity: 2026-07-28 — Phase 18 complete, transitioned to Phase 19
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | 15 | 2 | - | - |
 | 16 | 4 | - | - |
 | 17 | 4 | - | - |
+| 18 | 4 | - | - |
 
 *Updated after each plan completion*
 | Phase 15 P01 | 18min | 2 tasks | 2 files |

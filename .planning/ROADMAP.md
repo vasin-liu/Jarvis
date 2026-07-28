@@ -45,7 +45,7 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 - [x] **Phase 15: Overlap scoring API** - Hybrid retrieve → source rollup (`related_sources`) (completed 2026-07-25)
 - [x] **Phase 16: Related-docs Library panel** - Selection, panel UI, navigate (completed 2026-07-28)
 - [x] **Phase 17: MCP transport + read-only scaffold** - `jarvis-mcp` stdio binary + structural allowlist (completed 2026-07-28)
-- [ ] **Phase 18: MCP tools search + list_sources** - Shared `kb_readonly` helpers
+- [x] **Phase 18: MCP tools search + list_sources** - Shared `kb_readonly` helpers (completed 2026-07-28)
 - [ ] **Phase 19: E2E + citation regression gate** - Panel journey + qa/full-ui trust
 
 ### Phase Details
@@ -147,19 +147,19 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 18-01-PLAN.md — TDD: `retriever::kb_readonly` search_kb + list_indexed_sources
+- [x] 18-01-PLAN.md — TDD: `retriever::kb_readonly` search_kb + list_indexed_sources
 
 **Wave 2** *(blocked on 18-01)*
 
-- [ ] 18-02-PLAN.md — Agent thin wrappers over kb_readonly (anti-drift)
+- [x] 18-02-PLAN.md — Agent thin wrappers over kb_readonly (anti-drift)
 
 **Wave 3** *(blocked on 18-01 + 18-02)*
 
-- [ ] 18-03-PLAN.md — MCP real handlers + build_embedder fail-closed + tools_kb tests
+- [x] 18-03-PLAN.md — MCP real handlers + build_embedder fail-closed + tools_kb tests
 
 **Wave 4** *(blocked on 18-03)*
 
-- [ ] 18-04-PLAN.md — Update docs/mcp.md for live tools + caps
+- [x] 18-04-PLAN.md — Update docs/mcp.md for live tools + caps
 
 ### Phase 19: E2E + citation regression gate
 
@@ -191,7 +191,7 @@ Plans:
 | 15. Overlap scoring API | v1.11 | 2/2 | Complete    | 2026-07-25 |
 | 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 4/4 | Complete    | 2026-07-28 |
-| 18. MCP tools search + list_sources | v1.11 | 0/4 | Not started | - |
+| 18. MCP tools search + list_sources | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |
 
 ## Backlog (post-v1.11 / carryover)

@@ -16,8 +16,8 @@ Requirements for milestone v1.11. Each maps to roadmap phases 15+.
 
 ### Read-only MCP
 
-- [ ] **MCP-01**: External MCP clients can call `search` using the same hybrid retrieval path as in-app agent knowledge search
-- [ ] **MCP-02**: External MCP clients can call `list_sources` to inventory indexed sources
+- [x] **MCP-01**: External MCP clients can call `search` using the same hybrid retrieval path as in-app agent knowledge search
+- [x] **MCP-02**: External MCP clients can call `list_sources` to inventory indexed sources
 - [x] **MCP-03**: Project ships a stdio MCP binary (e.g. `jarvis-mcp`) plus Cursor/Claude Desktop config documentation
 - [x] **MCP-04**: MCP tool surface is structurally read-only (allowlist: search + list_sources only; no write/delete/ingest tools)
 
@@ -69,8 +69,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REL-02 | Phase 15 | Complete |
 | REL-03 | Phase 16 | Complete |
 | REL-04 | Phase 16 | Complete |
-| MCP-01 | Phase 18 | Pending |
-| MCP-02 | Phase 18 | Pending |
+| MCP-01 | Phase 18 | Complete |
+| MCP-02 | Phase 18 | Complete |
 | MCP-03 | Phase 17 | Complete |
 | MCP-04 | Phase 17 | Complete |
 | TRUST-01 | Phase 19 | Pending |
