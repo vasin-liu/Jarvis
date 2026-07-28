@@ -24,8 +24,8 @@ pub use lark::{
     sync_lark_sheet, sync_lark_url,
 };
 pub use library::{
-    delete_task, extract_tasks_cmd, list_sources, list_tasks, remove_source, run_insights_all_cmd,
-    source_count, summarize_source_cmd, update_task_status,
+    delete_task, extract_tasks_cmd, list_related_sources, list_sources, list_tasks, remove_source,
+    run_insights_all_cmd, source_count, summarize_source_cmd, update_task_status,
 };
 pub use memory::{
     add_memory_cmd, forget_memory_cmd, get_memory_content_cmd, list_memories_cmd, update_memory_cmd,

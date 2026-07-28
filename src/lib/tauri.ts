@@ -14,6 +14,7 @@ import type {
   CursorTranscriptSummary,
   InsightsReport,
   RebuildReport,
+  RelatedSource,
   Source,
 } from "../types/library";
 import type { MemorySource } from "../types/memory";
@@ -101,6 +102,13 @@ export function indexFile(path: string) {
 
 export function summarizeSource(sourceId: string) {
   return invoke<string>("summarize_source_cmd", { sourceId });
+}
+
+export function listRelatedSources(sourceId: string, topN?: number | null) {
+  return invoke<RelatedSource[]>("list_related_sources", {
+    sourceId,
+    topN: topN ?? null,
+  });
 }
 
 export function extractTasks(sourceId: string) {

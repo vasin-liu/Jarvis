@@ -42,6 +42,22 @@ pub async fn summarize_source_cmd(
 }
 
 #[tauri::command]
+pub async fn list_related_sources(
+    source_id: String,
+    top_n: Option<usize>,
+    state: State<'_, AppState>,
+) -> Result<Vec<retriever::RelatedSource>, String> {
+    retriever::related_sources(
+        state.store.as_ref(),
+        state.embedder().as_ref(),
+        &source_id,
+        top_n,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn extract_tasks_cmd(
     source_id: String,
     state: State<'_, AppState>,

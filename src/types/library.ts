@@ -22,6 +22,13 @@ export interface InsightsReport {
   failed: number;
 }
 
+export interface RelatedSource {
+  sourceId: string;
+  title: string;
+  kind: string;
+  snippet: string;
+}
+
 export interface RebuildReport {
   indexed: number;
   failed: number;
