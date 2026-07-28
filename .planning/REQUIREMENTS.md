@@ -23,8 +23,8 @@ Requirements for milestone v1.11. Each maps to roadmap phases 15+.
 
 ### Trust & Verification
 
-- [ ] **TRUST-01**: Related-docs and MCP do not change default RAG/citation behavior; existing qa / citation E2E stays green
-- [ ] **TRUST-02**: Automated coverage includes related-docs panel visibility + navigate and MCP tool happy paths under `JARVIS_E2E=1` mocks (no live LLM)
+- [x] **TRUST-01**: Related-docs and MCP do not change default RAG/citation behavior; existing qa / citation E2E stays green
+- [x] **TRUST-02**: Automated coverage includes related-docs panel visibility + navigate and MCP tool happy paths under `JARVIS_E2E=1` mocks (no live LLM)
 
 ## Future Requirements
 
@@ -73,8 +73,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MCP-02 | Phase 18 | Complete |
 | MCP-03 | Phase 17 | Complete |
 | MCP-04 | Phase 17 | Complete |
-| TRUST-01 | Phase 19 | Pending |
-| TRUST-02 | Phase 19 | Pending |
+| TRUST-01 | Phase 19 | Complete |
+| TRUST-02 | Phase 19 | Complete |
 
 **Coverage:**
 

@@ -46,7 +46,7 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 - [x] **Phase 16: Related-docs Library panel** - Selection, panel UI, navigate (completed 2026-07-28)
 - [x] **Phase 17: MCP transport + read-only scaffold** - `jarvis-mcp` stdio binary + structural allowlist (completed 2026-07-28)
 - [x] **Phase 18: MCP tools search + list_sources** - Shared `kb_readonly` helpers (completed 2026-07-28)
-- [ ] **Phase 19: E2E + citation regression gate** - Panel journey + qa/full-ui trust
+- [x] **Phase 19: E2E + citation regression gate** - Panel journey + qa/full-ui trust (completed 2026-07-28)
 
 ### Phase Details
 
@@ -179,12 +179,12 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 19-01-PLAN.md — Thin full-ui related-docs step + e2e-required map confirm
-- [ ] 19-02-PLAN.md — cargo test -p mcp green + docs/mcp.md + README drift check
+- [x] 19-01-PLAN.md — Thin full-ui related-docs step + e2e-required map confirm
+- [x] 19-02-PLAN.md — cargo test -p mcp green + docs/mcp.md + README drift check
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 19-03-PLAN.md — Citation + related-docs E2E gate + 19-VERIFICATION evidence
+- [x] 19-03-PLAN.md — Citation + related-docs E2E gate + 19-VERIFICATION evidence
 
 ## Progress
 
@@ -202,7 +202,7 @@ Plans:
 | 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 17. MCP transport + read-only scaffold | v1.11 | 4/4 | Complete    | 2026-07-28 |
 | 18. MCP tools search + list_sources | v1.11 | 4/4 | Complete    | 2026-07-28 |
-| 19. E2E + citation regression gate | v1.11 | 0/3 | Planned | - |
+| 19. E2E + citation regression gate | v1.11 | 3/3 | Complete    | 2026-07-28 |
 
 ## Backlog (post-v1.11 / carryover)
 
