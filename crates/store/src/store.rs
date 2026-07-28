@@ -29,7 +29,7 @@ impl Store {
     pub fn open(path: impl AsRef<Path>, dim: usize) -> Result<Self> {
         register_sqlite_vec();
         let conn = Connection::open(path)?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL;")?;
         init_schema(&conn, dim)?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -40,7 +40,7 @@ impl Store {
     pub fn open_in_memory(dim: usize) -> Result<Self> {
         register_sqlite_vec();
         let conn = Connection::open_in_memory()?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL;")?;
         init_schema(&conn, dim)?;
         Ok(Self {
             conn: Mutex::new(conn),
@@ -642,6 +642,29 @@ fn unix_now() -> i64 {
 mod tests {
     use super::*;
     use crate::types::NewChunk;
+
+    fn journal_mode(store: &Store) -> String {
+        let conn = store.conn.lock().unwrap();
+        conn.query_row("PRAGMA journal_mode", [], |row| row.get::<_, String>(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn store_open_enables_wal() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("kb.sqlite");
+        let store = Store::open(&path, 4).unwrap();
+        assert_eq!(journal_mode(&store).to_lowercase(), "wal");
+    }
+
+    #[test]
+    fn open_in_memory_initializes_after_pragma_batch() {
+        let store = Store::open_in_memory(4).unwrap();
+        // In-memory DBs may report "memory", not "wal" — only require open + schema work.
+        let _mode = journal_mode(&store);
+        store.upsert_source(&sample_source("a")).unwrap();
+        assert_eq!(store.list_sources().unwrap().len(), 1);
+    }
 
     fn sample_source(id: &str) -> Source {
         Source {
