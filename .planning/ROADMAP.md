@@ -114,7 +114,21 @@ Plans:
   3. Binary resolves KB via documented data-dir (`JARVIS_DATA_DIR` / `--db`); Cursor/Claude Desktop config docs exist
   4. Only `crates/store` opens SQLite; pin is `rmcp` 2.2.0 (not 3.x beta / no MSRV bump solely for MCP)
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 17-01-PLAN.md — Scaffold `crates/mcp` + path resolution (`--db` / `JARVIS_DATA_DIR` / AppData) + missing-DB fail-closed
+- [ ] 17-02-PLAN.md — Enable SQLite WAL in `Store::open` for GUI+MCP coexistence
+
+**Wave 2** *(blocked on 17-01)*
+
+- [ ] 17-03-PLAN.md — `JarvisMcp` stub tools exactly `{search, list_sources}` + allowlist tests
+
+**Wave 3** *(blocked on 17-01 + 17-02 + 17-03)*
+
+- [ ] 17-04-PLAN.md — stdio main wiring + `docs/mcp.md` + README pointer
 
 ### Phase 18: MCP tools search + list_sources
 
@@ -159,7 +173,7 @@ Plans:
 | 14. Tech debt closeout | v1.10 | 3/3 | Complete | 2026-07-25 |
 | 15. Overlap scoring API | v1.11 | 2/2 | Complete    | 2026-07-25 |
 | 16. Related-docs Library panel | v1.11 | 4/4 | Complete    | 2026-07-28 |
-| 17. MCP transport + read-only scaffold | v1.11 | 0/? | Not started | - |
+| 17. MCP transport + read-only scaffold | v1.11 | 0/4 | Planned | - |
 | 18. MCP tools search + list_sources | v1.11 | 0/? | Not started | - |
 | 19. E2E + citation regression gate | v1.11 | 0/? | Not started | - |
 
@@ -177,4 +191,4 @@ Plans:
 
 ---
 
-*Next:* `/gsd-execute-phase 16`
+*Next:* `/gsd-execute-phase 17`
