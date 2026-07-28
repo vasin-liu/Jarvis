@@ -30,18 +30,47 @@ pub fn apply_e2e_config(config: &mut AppConfig) {
 pub fn seed_e2e_fixture(state: &AppState) -> Result<(), String> {
     let fixture = std::env::var("JARVIS_E2E_FIXTURE")
         .map_err(|_| "JARVIS_E2E_FIXTURE is not set".to_string())?;
-    if !Path::new(&fixture).is_file() {
+    let fixture_path = Path::new(&fixture);
+    if !fixture_path.is_file() {
         return Err(format!("e2e fixture missing: {fixture}"));
     }
 
+    let neighbor = fixture_path
+        .parent()
+        .ok_or_else(|| format!("e2e fixture has no parent directory: {fixture}"))?
+        .join("related-neighbor.md");
+    if !neighbor.is_file() {
+        return Err(format!(
+            "e2e related neighbor fixture missing: {}",
+            neighbor.display()
+        ));
+    }
+
     let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+    let primary_id = rt
+        .block_on(index_path(
+            state.store.as_ref(),
+            state.embedder().as_ref(),
+            &state.chunker,
+            &fixture,
+        ))
+        .map_err(|e| e.to_string())?;
+
     rt.block_on(index_path(
         state.store.as_ref(),
         state.embedder().as_ref(),
         &state.chunker,
-        &fixture,
+        &neighbor,
     ))
     .map_err(|e| e.to_string())?;
+
+    state
+        .store
+        .set_source_summary(
+            &primary_id,
+            "E2E seed summary mentioning xyzzy-plugh for related overlap.",
+        )
+        .map_err(|e| e.to_string())?;
 
     state
         .store
