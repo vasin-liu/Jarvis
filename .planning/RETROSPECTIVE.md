@@ -2,6 +2,45 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.11 — Related-docs + MCP
+
+**Shipped:** 2026-07-29  
+**Phases:** 5 (15–19) | **Plans:** 17
+
+### What Was Built
+- `related_sources` hybrid overlap API + Library related-docs panel (navigate)
+- `jarvis-mcp` stdio MCP with allowlisted `search` / `list_sources`
+- Shared `kb_readonly` helpers (agent + MCP anti-drift) + Store WAL
+- Phase 19 citation/E2E trust gate (qa / full-ui / wiki / related-docs + cargo mcp)
+
+### What Worked
+- Parallel track after Phase 15 (panel ∥ MCP scaffold/tools) with joint Phase 19 gate
+- CONTEXT D-06 lock documented in VERIFICATION override — audit stayed `passed`
+- Shared `kb_readonly` prevented agent/MCP semantic fork
+- Formal `/gsd-audit-milestone` before complete (unlike informal v1.9 close)
+
+### What Was Inefficient
+- Plans 17–19 SUMMARY.md missing YAML `requirements-completed` (manual 3-source verify)
+- Nyquist VALIDATION flags on 15/16 never flipped to `true` after green gates
+- Wiki E2E flake under parallel wdio workers required sequential retry in ship gate
+- `npm run test:e2e:local -- --spec` does not forward `--spec` (use `npx wdio` directly)
+
+### Patterns Established
+- Read-only MCP binary separate from Windows GUI subsystem app
+- Trust freeze phase: no RAG/`RetrieverConfig` knobs unless gate forces surgical fix
+- Dual E2E fixtures for related-docs navigate (shared unique token in summaries)
+
+### Key Lessons
+1. Run audit before complete; document CONTEXT overrides so REL wording ≠ ship blocker
+2. Prefer shared helpers (`kb_readonly`) when two surfaces must match retrieval semantics
+3. Flip Nyquist/`requirements-completed` frontmatter in the same closeout wave as VERIFICATION
+
+### Cost Observations
+- Model mix: executor/verifier typically sonnet-class; integration checker composer-class
+- Notable: 5 phases / 17 plans in ~4 calendar days with yolo auto-chain
+
+---
+
 ## Milestone: v1.10 — Wiki Compile Layer
 
 **Shipped:** 2026-07-25  
@@ -49,6 +88,7 @@
 |-----------|--------|-------|------------|
 | v1.9 | 6 | 22 | Structural refactor; closeout without formal audit file |
 | v1.10 | 8 | 18 | Feature + inserted closeout phase after formal audit |
+| v1.11 | 5 | 17 | Related-docs + MCP; audit-before-complete; shared kb_readonly |
 
 ### Cumulative Quality
 
@@ -56,9 +96,12 @@
 |-----------|--------------|-------|----------|
 | v1.9 | 22/22 | informal | verified_closeout |
 | v1.10 | 9/9 | passed | verified_closeout |
+| v1.11 | 10/10 | passed | verified_closeout |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Keep E2E green as the ship gate for user-facing slices
 2. Prefer insert-phase closeout over shipping with known audit gaps
 3. Default-off nested config prevents upgrade surprises
+4. Run `/gsd-audit-milestone` before `/gsd-complete-milestone`
+5. Share retrieval helpers across agent/MCP/UI surfaces to prevent drift

@@ -2,17 +2,16 @@
 
 ## What This Is
 
-Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app for power users who want RAG over their own documents, Feishu/Lark content, and Cursor agent transcripts, with agent-assisted chat, memory, task extraction, and an optional Markdown wiki compile layer (Obsidian zip export). It runs entirely on the user's machine with swappable LLM/embedder providers.
+Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app for power users who want RAG over their own documents, Feishu/Lark content, and Cursor agent transcripts, with agent-assisted chat, memory, task extraction, an optional Markdown wiki compile layer (Obsidian zip export), Library related-docs discovery, and a read-only stdio MCP server for external agents. It runs entirely on the user's machine with swappable LLM/embedder providers.
 
 ## Current State
 
 **Shipped:**
 - **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 - **v1.10** Wiki Compile Layer (2026-07-25) — optional wiki notes beside RAG, Obsidian export, E2E + citation trust, tech-debt closeout. Archive: `.planning/milestones/v1.10-ROADMAP.md`.
+- **v1.11** Related-docs + MCP (2026-07-29) — Library related-docs panel + `jarvis-mcp` read-only `search` / `list_sources`. Archive: `.planning/milestones/v1.11-ROADMAP.md`.
 
-**In progress:** **v1.11** Related-docs + MCP — related-docs panel + read-only MCP `search` / `list_sources`.
-
-**Current state:** Phase 15 complete — `related_sources` hybrid overlap API in `crates/retriever` (REL-02). Next: Phase 16 Library related-docs panel.
+**In progress:** none — awaiting `/gsd-new-milestone`.
 
 **App product version** (package): still tracks 1.8.x feature line until a dedicated release bump.
 
@@ -20,16 +19,14 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 
 **Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.**
 
-## Current Milestone: v1.11 Related-docs + MCP
+## Next Milestone Goals
 
-**Goal:** Let users discover overlapping sources in-app and let external agents query the local KB read-only — without changing write paths or citation trust.
+Define via `/gsd-new-milestone`. Carryover candidates from backlog:
 
-**Target features:**
-- Related-docs panel — for a selected Library source, show other indexed sources that overlap, with open/navigate actions
-- Read-only MCP — expose at least `search` and `list_sources` so Cursor/Claude can query Jarvis KB without mutate tools
-- E2E / Vitest — panel visibility + MCP tool happy paths with mocks (no live LLM)
-
-**Out of this milestone:** WIKI-F01 bulk/auto-compile, dual `index.md` writers, hard WikiPage RAG filter, MCP write/mutate tools, graph UI
+- WIKI-F01 `auto_on_insights` / bulk compile UX
+- DeferredEmbedder / deferred scan startup fix in a release build
+- REL affinity threshold / WikiPage neighbor demotion (REL-F01)
+- MCP read tools expansion (MCP-F01) or Settings toggle (MCP-F02)
 
 ## Requirements
 
@@ -56,14 +53,16 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - ✓ Architecture review + sync error surfacing — v1.9
 - ✓ Wiki compile layer (WIKI-01..WIKI-09) + Obsidian zip + E2E citation trust — v1.10
 - ✓ WikiPage reindex soft-skip + export preflight gate + Nyquist closeout — v1.10
-- ✓ Overlap scoring API `related_sources` (REL-02) — Validated in Phase 15: Overlap scoring API
+- ✓ Related-docs panel + overlap API (REL-01..04) — v1.11
+- ✓ Read-only MCP `jarvis-mcp` search / list_sources (MCP-01..04) — v1.11
+- ✓ Citation/E2E trust gate for related-docs + MCP (TRUST-01..02) — v1.11
 
 ### Active
 
-- [ ] Related-docs panel (source overlap UI + navigate) — v1.11 Phase 16
-- [ ] Read-only MCP `search` / `list_sources` — v1.11
 - [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
 - [ ] WIKI-F01 `auto_on_insights` / bulk compile UX (deferred from v1.10)
+- [ ] REL-F01 Soft-exclude/demote WikiPage neighbors (optional)
+- [ ] MCP-F01 `get_chunk` / `read` tools (optional)
 
 ### Out of Scope
 
@@ -73,8 +72,21 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - Replacing SQLite, Tauri, or React stack
 - Wiki graph UI / Louvain / LanceDB / Chrome clipper / Deep Research (v1.10 exclusions)
 - Bidirectional Obsidian sync (export-only in v1.10)
-- MCP write / mutate tools (v1.11 is read-only)
+- MCP write / mutate tools (v1.11 stayed read-only)
 - Hard WikiPage RAG citation filter (deferred; E2E fixture trust)
+
+<details>
+<summary>v1.11 planning context (archived narrative)</summary>
+
+**Goal:** Related-docs panel + read-only MCP without changing write paths or citation trust.
+
+**Phases 15–19:** overlap API → Library panel → MCP scaffold → live tools → E2E/trust gate.
+
+**Adjusted at ship:** REL-02 weak-affinity empty deferred by CONTEXT D-06 (top-N only).
+
+**Audit:** `.planning/milestones/v1.11-MILESTONE-AUDIT.md` — passed.
+
+</details>
 
 <details>
 <summary>v1.10 planning context (archived narrative)</summary>
@@ -126,8 +138,11 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 | Fail-closed wiki parse (no partial tree) | Protect vault integrity | ✓ Good (v1.10) |
 | Soft-skip WikiPage reindex (not true MD reindex) | Avoid Failed stubs / chunk wipe | ✓ Good (v1.10) |
 | Defer WIKI-F01 / dual index writers | Ship without accepting audit gaps on required path | ✓ Accepted (D-14) |
-| v1.11 = related-docs panel + read-only MCP | Plan draft Out of Scope table; both halves this milestone | — Pending |
-| `related_sources` reuses hybrid `retrieve` (no score field / no affinity threshold) | Same retrieval brain as RAG; D-06/D-09; SC#2 deferred | ✓ Phase 15 |
+| v1.11 = related-docs panel + read-only MCP | Plan draft Out of Scope table; both halves this milestone | ✓ Shipped v1.11 |
+| `related_sources` reuses hybrid `retrieve` (no score field / no affinity threshold) | Same retrieval brain as RAG; D-06/D-09; SC#2 deferred | ✓ Good (v1.11) |
+| Shared `kb_readonly` for agent + MCP | Prevent semantic drift between surfaces | ✓ Good (v1.11) |
+| Pin `rmcp` 2.2.0 (not 3.x beta) | MSRV / stability; no bump solely for MCP | ✓ Good (v1.11) |
+| WAL on `Store::open` | GUI + MCP concurrent readers | ✓ Good (v1.11) |
 
 ## Evolution
 
@@ -147,4 +162,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-25 — Phase 15 complete (related_sources / REL-02)*
+*Last updated: 2026-07-29 after v1.11 milestone*

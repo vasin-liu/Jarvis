@@ -1,47 +1,46 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.11
-milestone_name: Related-docs + MCP
-current_phase: 19
-status: executing
-stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-07-28T15:04:26.994Z"
-last_activity: 2026-07-28
-last_activity_desc: Phase 19 complete
+milestone: none
+milestone_name: ""
+current_phase: —
+status: Awaiting next milestone
+stopped_at: Milestone v1.11 archived
+last_updated: "2026-07-29T01:30:00.000Z"
+last_activity: 2026-07-29
+last_activity_desc: Milestone v1.11 completed and archived
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
-current_phase_name: E2E + citation regression gate
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 **Project:** Jarvis  
 **Initialized:** 2026-06-17  
-**Last milestone:** v1.10 Wiki Compile Layer (SHIPPED 2026-07-25)  
-**Active milestone:** v1.11 Related-docs + MCP
+**Last milestone:** v1.11 Related-docs + MCP (SHIPPED 2026-07-29)  
+**Active milestone:** none — run `/gsd-new-milestone`
 
 ## Current focus
 
-Phase 15 planned — next: `/gsd-execute-phase 15` (Overlap scoring API).
+Awaiting next milestone definition.
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-07-25)
+See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 **Core value:** Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.
 
-**Current focus:** Phase 15 — overlap-scoring-api
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 19
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-28 — Phase 19 complete
+Phase: —  
+Plan: —  
+Status: Awaiting next milestone  
+Last activity: 2026-07-29 — Milestone v1.11 completed and archived
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -49,63 +48,37 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed (v1.11): 0
+- Prior milestone (v1.11): 17 plans / 5 phases (~4 days)
 - Prior milestone (v1.10): 18 plans / 8 phases
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 15 | 2 | - | - |
-| 16 | 4 | - | - |
-| 17 | 4 | - | - |
-| 18 | 4 | - | - |
-| 19 | 3 | - | - |
-
-*Updated after each plan completion*
-| Phase 15 P01 | 18min | 2 tasks | 2 files |
-| Phase 15 P02 | 17min | 3 tasks | 1 files |
+- Prior milestone (v1.9): 22 plans / 6 phases
 
 ## Accumulated Context
 
 ### Decisions
 
-Logged in PROJECT.md Key Decisions. v1.11 planning decisions:
+Full log in PROJECT.md Key Decisions. v1.11 shipped with:
 
-- v1.11 = related-docs panel + read-only MCP (`search` / `list_sources`)
-- Phase numbering continues from v1.10 (start at 15, not reset)
-- Pin `rmcp` 2.2.0; no MCP write tools; `store` sole SQLite owner
-- Phase 16 ∥ Phase 17–18 after Phase 15; joint ship gate at Phase 19
-- [Phase 15]: Stub related_sources returns Ok([]) for TDD RED; empty-list tests may pass — Plan requires assertion failures not compile errors; >=6 tests fail RED
-- [Phase 15]: related_sources reuses retrieve only; D-06 no score threshold — CONTEXT D-06 locks top-N only; ROADMAP SC#2 weak-empty deferred
+- Related-docs + read-only MCP; `rmcp` 2.2.0; store sole SQLite owner
+- `related_sources` hybrid retrieve; D-06 no affinity threshold
+- Shared `kb_readonly` for agent + MCP; WAL for GUI+MCP coexistence
 
-### Pending Todos
+### Deferred Items
 
-None yet.
+Acknowledged at v1.11 close (also in ROADMAP Backlog):
 
-### Blockers/Concerns
+| Category | Item | Status |
+|----------|------|--------|
+| product | REL-02 weak-affinity empty (D-06) | deferred |
+| product | REL-F01 / REL-F02 | deferred |
+| product | MCP-F01..F03 | deferred |
+| product | WIKI-F01 / dual index.md writers | deferred |
+| process | Nyquist flags 15/16 VALIDATION still false | accepted at audit |
+| flake | wiki.spec parallel busy-overlay | retry green |
 
-- Phase 17 planning may need deeper research: `rmcp` 2.2.0 ServerHandler patterns + WAL vs busy_timeout for GUI+MCP concurrency
-- WikiPage/Memory demotion in related list is product choice in Phase 15/16 (do not hard-filter RAG)
+### Blockers
 
-## Deferred Items
+None open.
 
-Items acknowledged / carried at milestone close:
+---
 
-| Category | Item | Status | Deferred At |
-|----------|------|--------|-------------|
-| product | DeferredEmbedder + deferred initial_scan (startup hang fix) | shipped in tree; include in next app release | v1.10 |
-| product | WIKI-F01 `auto_on_insights` / bulk compile UX | deferred from v1.10 (D-14) | v1.10 |
-| product | Dual `index.md` writers consolidation | deferred from v1.10 (D-14) | v1.10 |
-| product | Hard WikiPage RAG citation filter | deferred; E2E fixture-backed trust | v1.10 |
-| product | REL-F01 / REL-F02 / MCP-F01..F03 | future requirements | v1.11 scoping |
-
-## Session Continuity
-
-Last session: 2026-07-26T02:13:19.660Z
-Stopped at: Phase 16 UI-SPEC approved
-Resume file: .planning/phases/16-related-docs-library-panel/16-UI-SPEC.md
-
-## Operator Next Steps
-
-- `/gsd-plan-phase 15` — Overlap scoring API (`related_sources`)
+*Last updated: 2026-07-29 after v1.11 complete*
