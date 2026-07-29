@@ -11,20 +11,32 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - **v1.10** Wiki Compile Layer (2026-07-25) — optional wiki notes beside RAG, Obsidian export, E2E + citation trust, tech-debt closeout. Archive: `.planning/milestones/v1.10-ROADMAP.md`.
 - **v1.11** Related-docs + MCP (2026-07-29) — Library related-docs panel + `jarvis-mcp` read-only `search` / `list_sources`. Archive: `.planning/milestones/v1.11-ROADMAP.md`.
 
-**In progress:** none — awaiting `/gsd-new-milestone`.
+**In progress:** **v1.12** Release Hardening — DeferredEmbedder readiness + Windows **1.12.0** local package.
 
-**App product version** (package): still tracks 1.8.x feature line until a dedicated release bump.
+**App product version** (package): still **1.8.0** until this milestone’s release gate bumps to **1.12.0**.
 
 ## Core Value
 
 **Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.**
 
-## Next Milestone Goals
+## Current Milestone: v1.12 Release Hardening
 
-Define via `/gsd-new-milestone`. Carryover candidates from backlog:
+**Goal:** Make FastEmbed deferred init observable and failure-visible, verify Windows release cold-start, then ship local **1.12.0** install package + changelog.
+
+**Target features:**
+- `DeferredEmbedder` readiness API (`ready_state` + testable timeout)
+- `get_embedder_readiness` IPC + Settings Pending/Ready/Failed UI
+- Release smoke → version bump **1.12.0** → `CHANGELOG.md` → `tauri build` (Windows local only)
+
+**Out of this milestone:** GitHub Release, multi-platform packages, Wiki/MCP/REL new features, RAG default changes, auto-fallback embedder provider
+
+**Spec / plan:** `docs/superpowers/specs/2026-07-29-release-hardening-design.md` · `docs/superpowers/plans/2026-07-29-release-hardening.md`
+
+## Next Milestone Goals (after v1.12)
+
+Carryover candidates from backlog:
 
 - WIKI-F01 `auto_on_insights` / bulk compile UX
-- DeferredEmbedder / deferred scan startup fix in a release build
 - REL affinity threshold / WikiPage neighbor demotion (REL-F01)
 - MCP read tools expansion (MCP-F01) or Settings toggle (MCP-F02)
 
