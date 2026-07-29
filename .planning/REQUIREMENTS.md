@@ -11,7 +11,7 @@ Requirements for milestone v1.12. Each maps to roadmap phases 20+.
 
 - [x] **BOOT-01**: Developer can observe deferred FastEmbed init as Pending, Ready, or Failed (including failure message) via a non-blocking readiness API on `DeferredEmbedder`
 - [x] **BOOT-02**: App exposes embedder readiness to the UI over IPC (`get_embedder_readiness` or equivalent) without opening SQLite outside `store`
-- [ ] **BOOT-03**: User opening Settings can see Pending / Ready / Failed for local embedder init, with Failed showing a reason and actionable hint (no silent hang)
+- [x] **BOOT-03**: User opening Settings can see Pending / Ready / Failed for local embedder init, with Failed showing a reason and actionable hint (no silent hang)
 - [x] **BOOT-04**: When FastEmbed init fails, subsequent embed/index attempts return a clear error (not an indefinite wait with no feedback)
 
 ### Release ship
@@ -55,7 +55,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BOOT-01 | Phase 20 | Complete |
 | BOOT-04 | Phase 20 | Complete |
 | BOOT-02 | Phase 21 | Complete |
-| BOOT-03 | Phase 22 | Pending |
+| BOOT-03 | Phase 22 | Complete |
 | SHIP-01 | Phase 23 | Pending |
 | SHIP-02 | Phase 23 | Pending |
 | SHIP-03 | Phase 23 | Pending |

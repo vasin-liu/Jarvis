@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Release Hardening
-current_phase: 22
-current_phase_name: Settings readiness UI
+current_phase: 23
+current_phase_name: Release gate + 1.12.0 package
 status: planning
-last_updated: "2026-07-29T12:25:00.581Z"
+last_updated: "2026-07-29T14:30:37.746Z"
 last_activity: 2026-07-29
-last_activity_desc: Phase 21 complete, transitioned to Phase 22
+last_activity_desc: Phase 22 complete, transitioned to Phase 23
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 6
-  completed_plans: 4
-  percent: 0
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 5
+  percent: 25
 ---
 
 # Project State
@@ -37,10 +37,10 @@ See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 ## Current Position
 
-Phase: 22 — Settings readiness UI
+Phase: 23 — Release gate + 1.12.0 package
 Plan: Not started
 Status: Ready to plan  
-Last activity: 2026-07-29 — Phase 21 complete, transitioned to Phase 22
+Last activity: 2026-07-29 — Phase 22 complete, transitioned to Phase 23
 
 Progress: [░░░░░░░░░░] 0%
 
