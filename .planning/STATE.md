@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Release Hardening
 status: planning
-last_updated: "2026-07-29T07:59:19.048Z"
+last_updated: "2026-07-29T08:00:00.000Z"
 last_activity: 2026-07-29
 progress:
   total_phases: 0
@@ -18,11 +18,11 @@ progress:
 **Project:** Jarvis  
 **Initialized:** 2026-06-17  
 **Last milestone:** v1.11 Related-docs + MCP (SHIPPED 2026-07-29)  
-**Active milestone:** none — run `/gsd-new-milestone`
+**Active milestone:** v1.12 Release Hardening
 
 ## Current focus
 
-Awaiting next milestone definition.
+Defining requirements for v1.12 Release Hardening.
 
 ## Project Reference
 
@@ -30,13 +30,13 @@ See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 **Core value:** Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.
 
-**Current focus:** Planning next milestone
+**Current focus:** v1.12 — readiness + Windows 1.12.0 package
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
+Phase: Not started (defining requirements)  
+Plan: —  
+Status: Defining requirements  
 Last activity: 2026-07-29 — Milestone v1.12 started
 
 ## Performance Metrics
@@ -51,11 +51,11 @@ Last activity: 2026-07-29 — Milestone v1.12 started
 
 ### Decisions
 
-Full log in PROJECT.md Key Decisions. v1.11 shipped with:
+Full log in PROJECT.md Key Decisions. v1.12 pending:
 
-- Related-docs + read-only MCP; `rmcp` 2.2.0; store sole SQLite owner
-- `related_sources` hybrid retrieve; D-06 no affinity threshold
-- Shared `kb_readonly` for agent + MCP; WAL for GUI+MCP coexistence
+- Release hardening to product **1.12.0**; reliability gate before bump
+- Keep DeferredEmbedder + deferred initial_scan; no RAG default changes
+- Local Windows package only (no GitHub Release this milestone)
 
 ### Deferred Items
 
@@ -76,4 +76,4 @@ None open.
 
 ---
 
-*Last updated: 2026-07-29 after v1.11 complete*
+*Last updated: 2026-07-29 — Milestone v1.12 started*
