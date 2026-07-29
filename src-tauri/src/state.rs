@@ -6,7 +6,7 @@ use config::{
     build_chat_model, build_embedder, load_config_with_migration, save_config, AppConfig,
     EmbedderProvider,
 };
-use embedder::{DeferredEmbedder, Embedder, FastEmbedder};
+use embedder::{DeferredEmbedder, Embedder, EmbedderReadyState, FastEmbedder};
 use lark::{LarkCliOptions, LarkIdentity};
 use memory::migrate_legacy_memory_uris;
 
@@ -65,7 +65,7 @@ pub(crate) fn init_state(app: &App) -> Result<AppState, String> {
         }
     }
 
-    let embedder = if !is_e2e_mode()
+    let (embedder, deferred_embedder) = if !is_e2e_mode()
         && matches!(config.embedding.embedder, EmbedderProvider::FastEmbed)
     {
         // Load FastEmbed off the Tauri setup thread so the window stays responsive
@@ -74,6 +74,7 @@ pub(crate) fn init_state(app: &App) -> Result<AppState, String> {
             format!("fastembed:{}", config.embedding.fastembed_model),
             config_dim,
         ));
+        let deferred_embedder = Some(deferred.clone());
         let pending = deferred.clone();
         let model = config.embedding.fastembed_model.clone();
         let cache = config.fastembed_cache_dir.clone();
@@ -84,9 +85,13 @@ pub(crate) fn init_state(app: &App) -> Result<AppState, String> {
                 pending.fail(e.to_string());
             }
         });
-        deferred as Arc<dyn Embedder>
+        let embedder = deferred as Arc<dyn Embedder>;
+        (embedder, deferred_embedder)
     } else {
-        build_embedder(&config).map_err(|e| e.to_string())?
+        (
+            build_embedder(&config).map_err(|e| e.to_string())?,
+            None,
+        )
     };
     let chat = build_chat_model(&config);
 
@@ -109,6 +114,7 @@ pub(crate) fn init_state(app: &App) -> Result<AppState, String> {
         config: Mutex::new(config),
         watch: Mutex::new(None),
         scheduler: Mutex::new(None),
+        deferred_embedder,
     })
 }
 
@@ -126,6 +132,8 @@ pub(crate) struct AppState {
     pub(crate) config: Mutex<AppConfig>,
     pub(crate) watch: Mutex<Option<WatchHandle>>,
     pub(crate) scheduler: Mutex<Option<SchedulerHandle>>,
+    // Cold-start watch only; Settings reload stays sync build_embedder (v1.12 debt).
+    pub(crate) deferred_embedder: Option<Arc<DeferredEmbedder>>,
 }
 
 impl AppState {
@@ -139,6 +147,10 @@ impl AppState {
 
     pub(crate) fn chat(&self) -> Arc<dyn ChatModel> {
         self.chat.lock().unwrap().clone()
+    }
+
+    pub(crate) fn embedder_readiness(&self) -> EmbedderReadyState {
+        readiness_from_watch(self.deferred_embedder.as_deref())
     }
 
     pub(crate) fn lark_opts<'a>(&self, cfg: &'a AppConfig) -> LarkCliOptions<'a> {
@@ -241,6 +253,15 @@ impl AppState {
         ))?;
         crate::emit_index_complete(app, &report);
         Ok(())
+    }
+}
+
+pub(crate) fn readiness_from_watch(
+    deferred: Option<&DeferredEmbedder>,
+) -> EmbedderReadyState {
+    match deferred {
+        None => EmbedderReadyState::Ready,
+        Some(d) => d.ready_state(),
     }
 }
 

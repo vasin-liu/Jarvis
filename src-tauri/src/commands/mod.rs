@@ -13,7 +13,8 @@ pub use chat::{
     is_e2e_mode_cmd, list_chat_messages, list_chat_sessions, start_ask_e2e,
 };
 pub use config::{
-    clear_api_key, get_api_key_status, get_config, get_index_status, set_api_key, set_config,
+    clear_api_key, get_api_key_status, get_config, get_embedder_readiness, get_index_status,
+    set_api_key, set_config,
 };
 pub use index::{
     add_watch_folder, index_file, list_cursor_transcripts, rebuild_index,

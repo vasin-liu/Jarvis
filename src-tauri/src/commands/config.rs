@@ -4,6 +4,7 @@ use config::{
 };
 use crate::e2e::is_e2e_mode;
 use crate::index_ops::{index_status_view, IndexStatusView};
+use embedder::EmbedderReadyState;
 use serde::Serialize;
 use tauri::{AppHandle, State};
 
@@ -13,6 +14,30 @@ use crate::state::AppState;
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyStatus {
     pub has_key: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmbedderReadinessView {
+    pub state: String,
+    pub message: Option<String>,
+}
+
+fn readiness_view(state: EmbedderReadyState) -> EmbedderReadinessView {
+    match state {
+        EmbedderReadyState::Pending => EmbedderReadinessView {
+            state: "pending".into(),
+            message: None,
+        },
+        EmbedderReadyState::Ready => EmbedderReadinessView {
+            state: "ready".into(),
+            message: None,
+        },
+        EmbedderReadyState::Failed { message } => EmbedderReadinessView {
+            state: "failed".into(),
+            message: Some(message),
+        },
+    }
 }
 
 fn keyring_err<E: std::fmt::Display>(_: E) -> String {
@@ -40,6 +65,13 @@ pub fn get_index_status(state: State<'_, AppState>) -> Result<IndexStatusView, S
         &cfg,
         state.embedder().as_ref(),
     ))
+}
+
+#[tauri::command]
+pub fn get_embedder_readiness(
+    state: State<'_, AppState>,
+) -> Result<EmbedderReadinessView, String> {
+    Ok(readiness_view(state.embedder_readiness()))
 }
 
 #[tauri::command]
