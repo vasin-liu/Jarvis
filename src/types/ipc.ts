@@ -169,4 +169,11 @@ export interface IndexStatusView {
   chunk_count: number;
 }
 
+export type EmbedderReadyState = "pending" | "ready" | "failed";
+
+export type EmbedderReadinessView = {
+  state: EmbedderReadyState;
+  message: string | null;
+};
+
 export type { RebuildReport } from "./library";

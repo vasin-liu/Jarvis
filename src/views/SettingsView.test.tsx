@@ -10,7 +10,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AppConfig } from "../types/ipc";
+import type { AppConfig, EmbedderReadinessView } from "../types/ipc";
 import { SettingsView } from "./SettingsView";
 
 vi.mock("motion/react", () => ({
@@ -73,13 +73,18 @@ const baseConfig: AppConfig = {
 const setConfig = vi.fn();
 const handleSaveConfig = vi.fn();
 
-function mockUseJarvisConfig(config: AppConfig = baseConfig) {
+function mockUseJarvisConfig(
+  config: AppConfig = baseConfig,
+  extras: { embedderReadiness?: EmbedderReadinessView | null } = {},
+) {
   return {
     config,
     nestedConfig: null,
     setConfig,
     indexStatus: null,
     syncStatus: null,
+    embedderReadiness: extras.embedderReadiness ?? null,
+    refreshEmbedderReadiness: vi.fn(),
     larkDocToken: "",
     setLarkDocToken: vi.fn(),
     larkSheetToken: "",
@@ -232,5 +237,49 @@ describe("SettingsView wiki section", () => {
     const checkboxes = within(section).getAllByRole("checkbox");
     expect(checkboxes).toHaveLength(1);
     expect(checkboxes[0]).toBe(screen.getByTestId("wiki-enabled-toggle"));
+  });
+});
+
+describe("SettingsView embedder readiness", () => {
+  beforeEach(async () => {
+    cleanup();
+    const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
+    vi.mocked(useJarvisConfig).mockReturnValue(
+      mockUseJarvisConfig() as ReturnType<typeof useJarvisConfig>,
+    );
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("shows pending banner", async () => {
+    const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
+    vi.mocked(useJarvisConfig).mockReturnValue(
+      mockUseJarvisConfig(baseConfig, {
+        embedderReadiness: { state: "pending", message: null },
+      }) as ReturnType<typeof useJarvisConfig>,
+    );
+    render(<SettingsView busy={false} setBusy={vi.fn()} settingsActive />);
+    expect(screen.getByTestId("embedder-readiness")).toBeTruthy();
+    expect(screen.getByTestId("embedder-readiness-pending")).toHaveTextContent(
+      "本地嵌入模型加载中",
+    );
+  });
+
+  it("shows failed banner with message and actionable hint", async () => {
+    const { useJarvisConfig } = await import("../hooks/useJarvisConfig");
+    vi.mocked(useJarvisConfig).mockReturnValue(
+      mockUseJarvisConfig(baseConfig, {
+        embedderReadiness: {
+          state: "failed",
+          message: "model download failed",
+        },
+      }) as ReturnType<typeof useJarvisConfig>,
+    );
+    render(<SettingsView busy={false} setBusy={vi.fn()} settingsActive />);
+    const failed = screen.getByTestId("embedder-readiness-failed");
+    expect(failed).toHaveTextContent("model download failed");
+    expect(failed).toHaveTextContent(/Mock|Ollama/);
   });
 });

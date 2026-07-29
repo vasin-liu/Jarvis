@@ -4,6 +4,7 @@ import type { ChatMessage, ChatSession } from "../types/chat";
 import type {
   AppConfig,
   AskResponse,
+  EmbedderReadinessView,
   IndexStatusView,
   SyncStatusView,
   TaskItem,
@@ -30,6 +31,10 @@ export function setConfig(config: AppConfig) {
 
 export function getIndexStatus() {
   return invoke<IndexStatusView>("get_index_status");
+}
+
+export function getEmbedderReadiness() {
+  return invoke<EmbedderReadinessView>("get_embedder_readiness");
 }
 
 export function sourceCount() {
