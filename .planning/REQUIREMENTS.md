@@ -48,26 +48,26 @@ Deferred beyond v1.12.
 
 ## Traceability
 
-Filled during roadmap creation.
+Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOOT-01 | TBD | Pending |
-| BOOT-02 | TBD | Pending |
-| BOOT-03 | TBD | Pending |
-| BOOT-04 | TBD | Pending |
-| SHIP-01 | TBD | Pending |
-| SHIP-02 | TBD | Pending |
-| SHIP-03 | TBD | Pending |
-| SHIP-04 | TBD | Pending |
-| TRUST-01 | TBD | Pending |
-| TRUST-02 | TBD | Pending |
+| BOOT-01 | Phase 20 | Pending |
+| BOOT-04 | Phase 20 | Pending |
+| BOOT-02 | Phase 21 | Pending |
+| BOOT-03 | Phase 22 | Pending |
+| SHIP-01 | Phase 23 | Pending |
+| SHIP-02 | Phase 23 | Pending |
+| SHIP-03 | Phase 23 | Pending |
+| SHIP-04 | Phase 23 | Pending |
+| TRUST-01 | Phase 23 | Pending |
+| TRUST-02 | Phase 23 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-07-29*
-*Last updated: 2026-07-29 — draft for confirmation*
+*Last updated: 2026-07-29 — roadmap phases 20–23 mapped*

@@ -71,7 +71,8 @@ Carryover candidates from backlog:
 
 ### Active
 
-- [ ] Ship DeferredEmbedder / deferred scan startup fix in a release build
+- [ ] DeferredEmbedder readiness observable + Settings UI (v1.12)
+- [ ] Windows release smoke + package **1.12.0** + changelog (v1.12)
 - [ ] WIKI-F01 `auto_on_insights` / bulk compile UX (deferred from v1.10)
 - [ ] REL-F01 Soft-exclude/demote WikiPage neighbors (optional)
 - [ ] MCP-F01 `get_chunk` / `read` tools (optional)
@@ -86,6 +87,8 @@ Carryover candidates from backlog:
 - Bidirectional Obsidian sync (export-only in v1.10)
 - MCP write / mutate tools (v1.11 stayed read-only)
 - Hard WikiPage RAG citation filter (deferred; E2E fixture trust)
+- GitHub Release / Linux/macOS packages (v1.12 is local Windows only)
+- Auto-fallback embedder provider on FastEmbed failure (v1.12: user-visible fail only)
 
 <details>
 <summary>v1.11 planning context (archived narrative)</summary>
@@ -155,6 +158,9 @@ Carryover candidates from backlog:
 | Shared `kb_readonly` for agent + MCP | Prevent semantic drift between surfaces | ✓ Good (v1.11) |
 | Pin `rmcp` 2.2.0 (not 3.x beta) | MSRV / stability; no bump solely for MCP | ✓ Good (v1.11) |
 | WAL on `Store::open` | GUI + MCP concurrent readers | ✓ Good (v1.11) |
+| v1.12 = release hardening (1.12.0 product) | Decouple GSD feature milestones from ship version; reliability gate before bump | — Pending |
+| Keep DeferredEmbedder + deferred initial_scan | Harden existing cold-start path; no embedder rewrite | — Pending |
+| No GitHub Release in v1.12 | Local Windows package + changelog is enough for this ship bar | — Pending |
 
 ## Evolution
 
@@ -174,4 +180,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-29 after v1.11 milestone*
+*Last updated: 2026-07-29 — Milestone v1.12 Release Hardening started*

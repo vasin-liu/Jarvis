@@ -3,10 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Release Hardening
 status: planning
-last_updated: "2026-07-29T08:00:00.000Z"
+current_phase: 20
+current_phase_name: DeferredEmbedder readiness API
+last_updated: "2026-07-29T08:30:00.000Z"
 last_activity: 2026-07-29
+last_activity_desc: Roadmap created for v1.12 phases 20-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -22,7 +25,7 @@ progress:
 
 ## Current focus
 
-Defining requirements for v1.12 Release Hardening.
+Phase 20 — plan next via `/gsd-plan-phase 20`.
 
 ## Project Reference
 
@@ -30,14 +33,16 @@ See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 **Core value:** Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.
 
-**Current focus:** v1.12 — readiness + Windows 1.12.0 package
+**Current focus:** Phase 20 — DeferredEmbedder readiness API
 
 ## Current Position
 
-Phase: Not started (defining requirements)  
+Phase: 20 (DeferredEmbedder readiness API)  
 Plan: —  
-Status: Defining requirements  
-Last activity: 2026-07-29 — Milestone v1.12 started
+Status: Ready to plan  
+Last activity: 2026-07-29 — Roadmap phases 20–23 created
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -51,15 +56,14 @@ Last activity: 2026-07-29 — Milestone v1.12 started
 
 ### Decisions
 
-Full log in PROJECT.md Key Decisions. v1.12 pending:
+Full log in PROJECT.md Key Decisions. v1.12:
 
 - Release hardening to product **1.12.0**; reliability gate before bump
 - Keep DeferredEmbedder + deferred initial_scan; no RAG default changes
 - Local Windows package only (no GitHub Release this milestone)
+- Phases 20–23 map BOOT → IPC → Settings UI → ship gate
 
 ### Deferred Items
-
-Acknowledged at v1.11 close (also in ROADMAP Backlog):
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -67,8 +71,7 @@ Acknowledged at v1.11 close (also in ROADMAP Backlog):
 | product | REL-F01 / REL-F02 | deferred |
 | product | MCP-F01..F03 | deferred |
 | product | WIKI-F01 / dual index.md writers | deferred |
-| process | Nyquist flags 15/16 VALIDATION still false | accepted at audit |
-| flake | wiki.spec parallel busy-overlay | retry green |
+| tech | Settings reload_providers vs deferred cold-start | deferred (v1.12 debt) |
 
 ### Blockers
 
@@ -76,4 +79,4 @@ None open.
 
 ---
 
-*Last updated: 2026-07-29 — Milestone v1.12 started*
+*Last updated: 2026-07-29 — v1.12 roadmap created*
