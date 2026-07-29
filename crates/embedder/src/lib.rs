@@ -5,7 +5,7 @@ mod mock;
 mod ollama;
 mod openai;
 
-pub use deferred::DeferredEmbedder;
+pub use deferred::{DeferredEmbedder, EmbedderReadyState};
 pub use error::{EmbedError, Result};
 pub use fastembed::{fastembed_model_dim, FastEmbedder};
 pub use mock::MockEmbedder;

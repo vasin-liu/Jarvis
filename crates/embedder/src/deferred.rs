@@ -5,6 +5,13 @@ use async_trait::async_trait;
 
 use crate::{EmbedError, Embedder, Result};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmbedderReadyState {
+    Pending,
+    Ready,
+    Failed { message: String },
+}
+
 enum Slot {
     Pending,
     Ready(Arc<dyn Embedder>),
@@ -16,14 +23,24 @@ enum Slot {
 pub struct DeferredEmbedder {
     id: String,
     dim: usize,
+    wait_timeout: Duration,
     pair: Arc<(Mutex<Slot>, Condvar)>,
 }
 
 impl DeferredEmbedder {
     pub fn new(id: impl Into<String>, dim: usize) -> Self {
+        Self::with_wait_timeout(id, dim, Duration::from_secs(300))
+    }
+
+    pub fn with_wait_timeout(
+        id: impl Into<String>,
+        dim: usize,
+        wait_timeout: Duration,
+    ) -> Self {
         Self {
             id: id.into(),
             dim,
+            wait_timeout,
             pair: Arc::new((Mutex::new(Slot::Pending), Condvar::new())),
         }
     }
@@ -42,6 +59,18 @@ impl DeferredEmbedder {
         cv.notify_all();
     }
 
+    pub fn ready_state(&self) -> EmbedderReadyState {
+        let (lock, _) = &*self.pair;
+        let slot = lock.lock().unwrap();
+        match &*slot {
+            Slot::Pending => EmbedderReadyState::Pending,
+            Slot::Ready(_) => EmbedderReadyState::Ready,
+            Slot::Failed(msg) => EmbedderReadyState::Failed {
+                message: msg.clone(),
+            },
+        }
+    }
+
     fn wait_ready(&self) -> Result<Arc<dyn Embedder>> {
         let (lock, cv) = &*self.pair;
         let mut slot = lock.lock().unwrap();
@@ -55,7 +84,7 @@ impl DeferredEmbedder {
                 }
                 Slot::Pending => {
                     let (next, result) = cv
-                        .wait_timeout(slot, Duration::from_secs(300))
+                        .wait_timeout(slot, self.wait_timeout)
                         .unwrap();
                     slot = next;
                     if result.timed_out() {
