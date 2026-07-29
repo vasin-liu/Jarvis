@@ -114,4 +114,41 @@ mod tests {
         let err = deferred.embed(&[String::from("hi")]).await.unwrap_err();
         assert!(err.to_string().contains("boom"));
     }
+
+    #[test]
+    fn ready_state_pending_then_ready() {
+        let deferred = DeferredEmbedder::new("deferred:test", 8);
+        assert_eq!(deferred.ready_state(), EmbedderReadyState::Pending);
+        deferred.fulfill(Arc::new(MockEmbedder::new(8)));
+        assert_eq!(deferred.ready_state(), EmbedderReadyState::Ready);
+    }
+
+    #[test]
+    fn ready_state_failed_includes_message() {
+        let deferred = DeferredEmbedder::new("deferred:test", 8);
+        deferred.fail("onnx missing");
+        match deferred.ready_state() {
+            EmbedderReadyState::Failed { message } => {
+                assert!(message.contains("onnx missing"));
+            }
+            other => panic!("expected Failed, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn short_timeout_errors_while_pending() {
+        let deferred = DeferredEmbedder::with_wait_timeout(
+            "deferred:test",
+            8,
+            Duration::from_millis(30),
+        );
+        let err = deferred
+            .embed(&[String::from("hi")])
+            .await
+            .expect_err("should time out");
+        assert!(
+            err.to_string().contains("timed out"),
+            "got: {err}"
+        );
+    }
 }
