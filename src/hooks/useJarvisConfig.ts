@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   clearApiKey,
   getApiKeyStatus,
+  getEmbedderReadiness,
   rebuildIndex,
   reinitAndRebuildIndex,
   setApiKey,
@@ -16,6 +17,7 @@ import {
 import { flatToNested, nestedToFlat, type NestedAppConfig } from "../types/config";
 import type {
   AppConfig,
+  EmbedderReadinessView,
   HookItem,
   IndexStatusView,
   LarkAuthStatus,
@@ -46,6 +48,8 @@ export function useJarvisConfig({
   const [nestedConfig, setNestedConfig] = useState<NestedAppConfig | null>(null);
   const [indexStatus, setIndexStatus] = useState<IndexStatusView | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatusView | null>(null);
+  const [embedderReadiness, setEmbedderReadiness] =
+    useState<EmbedderReadinessView | null>(null);
   const [larkDocToken, setLarkDocToken] = useState("");
   const [larkSheetToken, setLarkSheetToken] = useState("");
   const [larkMailId, setLarkMailId] = useState("");
@@ -102,6 +106,16 @@ export function useJarvisConfig({
     return status;
   }, []);
 
+  const refreshEmbedderReadiness = useCallback(async () => {
+    try {
+      const readiness = await getEmbedderReadiness();
+      setEmbedderReadiness(readiness);
+      return readiness;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const refreshSkills = useCallback(async () => {
     const list = await invoke<SkillItem[]>("list_skills");
     setSkills(list);
@@ -125,12 +139,14 @@ export function useJarvisConfig({
       refreshConfig(),
       refreshIndexStatus(),
       refreshSyncStatus(),
+      refreshEmbedderReadiness(),
       refreshSkills(),
       refreshHooks(),
       refreshPlugins(),
     ]);
   }, [
     refreshConfig,
+    refreshEmbedderReadiness,
     refreshHooks,
     refreshIndexStatus,
     refreshPlugins,
@@ -180,6 +196,16 @@ export function useJarvisConfig({
       .then((status) => setHasApiKey(status.hasKey))
       .catch(() => setHasApiKey(false));
   }, [settingsActive, config?.embedder, config?.chat]);
+
+  useEffect(() => {
+    if (!settingsActive || embedderReadiness?.state !== "pending") {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void refreshEmbedderReadiness();
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [settingsActive, embedderReadiness?.state, refreshEmbedderReadiness]);
 
   useEffect(() => {
     type OrchMode = AppConfig["agent_orchestration_mode"];
@@ -548,6 +574,7 @@ export function useJarvisConfig({
     setConfig,
     indexStatus,
     syncStatus,
+    embedderReadiness,
     larkDocToken,
     setLarkDocToken,
     larkSheetToken,
@@ -578,6 +605,7 @@ export function useJarvisConfig({
     setNewAgentEmbedderProvider,
     refreshConfig,
     refreshIndexStatus,
+    refreshEmbedderReadiness,
     refreshSyncStatus,
     refreshSkills,
     refreshHooks,

@@ -262,9 +262,9 @@ describe("SettingsView embedder readiness", () => {
     );
     render(<SettingsView busy={false} setBusy={vi.fn()} settingsActive />);
     expect(screen.getByTestId("embedder-readiness")).toBeTruthy();
-    expect(screen.getByTestId("embedder-readiness-pending")).toHaveTextContent(
-      "本地嵌入模型加载中",
-    );
+    expect(
+      screen.getByTestId("embedder-readiness-pending").textContent,
+    ).toContain("本地嵌入模型加载中");
   });
 
   it("shows failed banner with message and actionable hint", async () => {
@@ -279,7 +279,7 @@ describe("SettingsView embedder readiness", () => {
     );
     render(<SettingsView busy={false} setBusy={vi.fn()} settingsActive />);
     const failed = screen.getByTestId("embedder-readiness-failed");
-    expect(failed).toHaveTextContent("model download failed");
-    expect(failed).toHaveTextContent(/Mock|Ollama/);
+    expect(failed.textContent).toContain("model download failed");
+    expect(failed.textContent).toMatch(/Mock|Ollama/);
   });
 });

@@ -74,6 +74,7 @@ export function SettingsView({
     config,
     setConfig,
     indexStatus,
+    embedderReadiness,
     syncStatus,
     larkDocToken,
     setLarkDocToken,
@@ -368,6 +369,34 @@ export function SettingsView({
         title="索引状态"
         defaultExpanded
       >
+        {embedderReadiness ? (
+          <div
+            data-testid="embedder-readiness"
+            className={`rounded-xl border p-4 text-sm ${
+              embedderReadiness.state === "failed"
+                ? "border-rose-400/30 bg-rose-950/30 text-rose-100"
+                : embedderReadiness.state === "pending"
+                  ? "border-amber-400/30 bg-amber-950/30 text-amber-100"
+                  : "border-white/10 bg-zinc-950/40 text-zinc-300"
+            }`}
+          >
+            {embedderReadiness.state === "pending" && (
+              <p data-testid="embedder-readiness-pending">
+                本地嵌入模型加载中…
+              </p>
+            )}
+            {embedderReadiness.state === "ready" && (
+              <p data-testid="embedder-readiness-ready">本地嵌入模型已就绪</p>
+            )}
+            {embedderReadiness.state === "failed" && (
+              <p data-testid="embedder-readiness-failed">
+                本地嵌入模型加载失败：
+                {embedderReadiness.message ?? "未知错误"}
+                。请检查模型/缓存目录，或在上方改用 Mock / Ollama。
+              </p>
+            )}
+          </div>
+        ) : null}
         {indexStatus && (
           <div
             data-testid="index-status"
