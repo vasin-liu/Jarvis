@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Release Hardening
+current_phase: 21
+current_phase_name: Readiness IPC
 status: planning
-current_phase: 20
-current_phase_name: DeferredEmbedder readiness API
-last_updated: "2026-07-29T08:30:00.000Z"
+last_updated: "2026-07-29T10:25:57.275Z"
 last_activity: 2026-07-29
-last_activity_desc: Roadmap created for v1.12 phases 20-23
+last_activity_desc: Phase 20 complete, transitioned to Phase 21
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -37,10 +37,10 @@ See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 ## Current Position
 
-Phase: 20 (DeferredEmbedder readiness API)  
-Plan: —  
+Phase: 21 — Readiness IPC
+Plan: Not started
 Status: Ready to plan  
-Last activity: 2026-07-29 — Roadmap phases 20–23 created
+Last activity: 2026-07-29 — Phase 20 complete, transitioned to Phase 21
 
 Progress: [░░░░░░░░░░] 0%
 

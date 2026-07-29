@@ -58,7 +58,7 @@ Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-pha
 
 ### Phases
 
-- [ ] **Phase 20: DeferredEmbedder readiness API** - `ready_state` + testable timeout (BOOT-01, BOOT-04)
+- [x] **Phase 20: DeferredEmbedder readiness API** - `ready_state` + testable timeout (BOOT-01, BOOT-04) (completed 2026-07-29)
 - [ ] **Phase 21: Readiness IPC** - AppState watch + `get_embedder_readiness` (BOOT-02)
 - [ ] **Phase 22: Settings readiness UI** - Pending/Ready/Failed + Vitest (BOOT-03)
 - [ ] **Phase 23: Release gate + 1.12.0 package** - Smoke → bump → changelog → `tauri build` (SHIP-*, TRUST-*)
@@ -129,7 +129,7 @@ Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-pha
 | 01–06 | v1.9 | 22/22 | Complete | 2026-07-17 |
 | 07–14 | v1.10 | 18/18 | Complete | 2026-07-25 |
 | 15–19 | v1.11 | 17/17 | Complete | 2026-07-28 |
-| 20. DeferredEmbedder readiness API | v1.12 | 0/? | Not started | - |
+| 20. DeferredEmbedder readiness API | v1.12 | 2/2 | Complete    | 2026-07-29 |
 | 21. Readiness IPC | v1.12 | 0/? | Not started | - |
 | 22. Settings readiness UI | v1.12 | 0/? | Not started | - |
 | 23. Release gate + 1.12.0 package | v1.12 | 0/? | Not started | - |

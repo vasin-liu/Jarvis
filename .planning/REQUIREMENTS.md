@@ -9,10 +9,10 @@ Requirements for milestone v1.12. Each maps to roadmap phases 20+.
 
 ### Boot / Embedder readiness
 
-- [ ] **BOOT-01**: Developer can observe deferred FastEmbed init as Pending, Ready, or Failed (including failure message) via a non-blocking readiness API on `DeferredEmbedder`
+- [x] **BOOT-01**: Developer can observe deferred FastEmbed init as Pending, Ready, or Failed (including failure message) via a non-blocking readiness API on `DeferredEmbedder`
 - [ ] **BOOT-02**: App exposes embedder readiness to the UI over IPC (`get_embedder_readiness` or equivalent) without opening SQLite outside `store`
 - [ ] **BOOT-03**: User opening Settings can see Pending / Ready / Failed for local embedder init, with Failed showing a reason and actionable hint (no silent hang)
-- [ ] **BOOT-04**: When FastEmbed init fails, subsequent embed/index attempts return a clear error (not an indefinite wait with no feedback)
+- [x] **BOOT-04**: When FastEmbed init fails, subsequent embed/index attempts return a clear error (not an indefinite wait with no feedback)
 
 ### Release ship
 
@@ -52,8 +52,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOOT-01 | Phase 20 | Pending |
-| BOOT-04 | Phase 20 | Pending |
+| BOOT-01 | Phase 20 | Complete |
+| BOOT-04 | Phase 20 | Complete |
 | BOOT-02 | Phase 21 | Pending |
 | BOOT-03 | Phase 22 | Pending |
 | SHIP-01 | Phase 23 | Pending |
@@ -64,6 +64,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRUST-02 | Phase 23 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 10 total
 - Mapped to phases: 10
 - Unmapped: 0
