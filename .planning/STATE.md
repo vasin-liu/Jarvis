@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.12
 milestone_name: Release Hardening
-current_phase: 21
-current_phase_name: Readiness IPC
+current_phase: 22
+current_phase_name: Settings readiness UI
 status: planning
-last_updated: "2026-07-29T10:25:57.275Z"
+last_updated: "2026-07-29T12:25:00.581Z"
 last_activity: 2026-07-29
-last_activity_desc: Phase 20 complete, transitioned to Phase 21
+last_activity_desc: Phase 21 complete, transitioned to Phase 22
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 3
-  completed_plans: 2
+  total_plans: 6
+  completed_plans: 4
   percent: 0
 ---
 
@@ -37,10 +37,10 @@ See: `.planning/PROJECT.md` (updated 2026-07-29)
 
 ## Current Position
 
-Phase: 21 — Readiness IPC
+Phase: 22 — Settings readiness UI
 Plan: Not started
 Status: Ready to plan  
-Last activity: 2026-07-29 — Phase 20 complete, transitioned to Phase 21
+Last activity: 2026-07-29 — Phase 21 complete, transitioned to Phase 22
 
 Progress: [░░░░░░░░░░] 0%
 
