@@ -243,3 +243,39 @@ impl AppState {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod readiness_tests {
+    use embedder::{DeferredEmbedder, EmbedderReadyState};
+
+    use super::readiness_from_watch;
+
+    #[test]
+    fn no_deferred_is_ready() {
+        assert_eq!(
+            readiness_from_watch(None),
+            EmbedderReadyState::Ready,
+        );
+    }
+
+    #[test]
+    fn deferred_pending() {
+        let d = DeferredEmbedder::new("deferred:t", 8);
+        assert_eq!(
+            readiness_from_watch(Some(&d)),
+            EmbedderReadyState::Pending,
+        );
+    }
+
+    #[test]
+    fn deferred_failed() {
+        let d = DeferredEmbedder::new("deferred:t", 8);
+        d.fail("boom");
+        match readiness_from_watch(Some(&d)) {
+            EmbedderReadyState::Failed { message } => {
+                assert!(message.contains("boom"), "got: {message}");
+            }
+            other => panic!("expected Failed, got {other:?}"),
+        }
+    }
+}
