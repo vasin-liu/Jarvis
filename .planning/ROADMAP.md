@@ -43,7 +43,7 @@ Details: [v1.10-ROADMAP.md](./milestones/v1.10-ROADMAP.md) · phases: [v1.10-pha
 - [x] Phase 18: MCP tools search + list_sources (4/4) — completed 2026-07-28
 - [x] Phase 19: E2E + citation regression gate (3/3) — completed 2026-07-28
 
-Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · audit: [v1.11-MILESTONE-AUDIT.md](./milestones/v1.11-MILESTONE-AUDIT.md)
+Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-phases/](./milestones/v1.11-phases/) · audit: [v1.11-MILESTONE-AUDIT.md](./milestones/v1.11-MILESTONE-AUDIT.md)
 
 </details>
 
