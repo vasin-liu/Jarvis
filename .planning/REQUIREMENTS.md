@@ -16,15 +16,15 @@ Requirements for milestone v1.12. Each maps to roadmap phases 20+.
 
 ### Release ship
 
-- [ ] **SHIP-01**: Release Windows cold-start smoke checklist exists and is executed before version bump (window interactive; readiness visible)
-- [ ] **SHIP-02**: After SHIP-01 passes, `package.json` and `tauri.conf.json` are bumped to **1.12.0**
-- [ ] **SHIP-03**: Project ships a `CHANGELOG.md` summarizing 1.9–1.11 features plus 1.12.0 hardening
-- [ ] **SHIP-04**: `tauri build` produces a Windows install/bundle artifact that launches in a final smoke check
+- [x] **SHIP-01**: Release Windows cold-start smoke checklist exists and is executed before version bump (window interactive; readiness visible)
+- [x] **SHIP-02**: After SHIP-01 passes, `package.json` and `tauri.conf.json` are bumped to **1.12.0**
+- [x] **SHIP-03**: Project ships a `CHANGELOG.md` summarizing 1.9–1.11 features plus 1.12.0 hardening
+- [x] **SHIP-04**: `tauri build` produces a Windows install/bundle artifact that launches in a final smoke check
 
 ### Trust (no regression)
 
-- [ ] **TRUST-01**: Default RAG / citation / `RetrieverConfig` behavior is unchanged; existing Mock-path unit/Vitest (and relevant E2E) stay green
-- [ ] **TRUST-02**: CI/E2E does not require downloading a real FastEmbed model; release smoke is the FastEmbed cold-start authority
+- [x] **TRUST-01**: Default RAG / citation / `RetrieverConfig` behavior is unchanged; existing Mock-path unit/Vitest (and relevant E2E) stay green
+- [x] **TRUST-02**: CI/E2E does not require downloading a real FastEmbed model; release smoke is the FastEmbed cold-start authority
 
 ## Future Requirements
 
@@ -56,12 +56,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BOOT-04 | Phase 20 | Complete |
 | BOOT-02 | Phase 21 | Complete |
 | BOOT-03 | Phase 22 | Complete |
-| SHIP-01 | Phase 23 | Pending |
-| SHIP-02 | Phase 23 | Pending |
-| SHIP-03 | Phase 23 | Pending |
-| SHIP-04 | Phase 23 | Pending |
-| TRUST-01 | Phase 23 | Pending |
-| TRUST-02 | Phase 23 | Pending |
+| SHIP-01 | Phase 23 | Complete |
+| SHIP-02 | Phase 23 | Complete |
+| SHIP-03 | Phase 23 | Complete |
+| SHIP-04 | Phase 23 | Complete |
+| TRUST-01 | Phase 23 | Complete |
+| TRUST-02 | Phase 23 | Complete |
 
 **Coverage:**
 
