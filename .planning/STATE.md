@@ -1,53 +1,53 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.12
-milestone_name: Release Hardening
-current_phase: 23
-status: planning
-last_updated: "2026-07-30T02:31:01.254Z"
+milestone: null
+milestone_name: null
+current_phase: null
+status: idle
+last_updated: "2026-07-30T03:30:00.000Z"
 last_activity: 2026-07-30
-last_activity_desc: Phase 23 complete
+last_activity_desc: v1.12 Release Hardening SHIPPED
 progress:
-  total_phases: 4
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 7
-  percent: 50
-current_phase_name: Release gate + 1.12.0 package
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 **Project:** Jarvis  
 **Initialized:** 2026-06-17  
-**Last milestone:** v1.11 Related-docs + MCP (SHIPPED 2026-07-29)  
-**Active milestone:** v1.12 Release Hardening
+**Last milestone:** v1.12 Release Hardening (SHIPPED 2026-07-30)  
+**Active milestone:** none
 
 ## Current focus
 
-Phase 20 — plan next via `/gsd-plan-phase 20`.
+Define next milestone via `/gsd-new-milestone`.
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-07-29)
+See: `.planning/PROJECT.md` (updated 2026-07-30)
 
 **Core value:** Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.
 
-**Current focus:** Phase 20 — DeferredEmbedder readiness API
+**Current focus:** Idle — v1.12 shipped (product **1.12.0**)
 
 ## Current Position
 
-Phase: 23
-Plan: Not started
-Status: Ready to plan  
-Last activity: 2026-07-30 — Phase 23 complete
+Phase: —  
+Plan: —  
+Status: Between milestones  
+Last activity: 2026-07-30 — v1.12 Release Hardening archived
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100% (last milestone)
 
 ## Performance Metrics
 
 **Velocity:**
 
+- Prior milestone (v1.12): 7 plans / 4 phases (~2 days)
 - Prior milestone (v1.11): 17 plans / 5 phases (~4 days)
 - Prior milestone (v1.10): 18 plans / 8 phases
 - Prior milestone (v1.9): 22 plans / 6 phases
@@ -56,12 +56,11 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-Full log in PROJECT.md Key Decisions. v1.12:
+Full log in PROJECT.md Key Decisions. Latest (v1.12):
 
 - Release hardening to product **1.12.0**; reliability gate before bump
 - Keep DeferredEmbedder + deferred initial_scan; no RAG default changes
 - Local Windows package only (no GitHub Release this milestone)
-- Phases 20–23 map BOOT → IPC → Settings UI → ship gate
 
 ### Deferred Items
 
@@ -72,6 +71,8 @@ Full log in PROJECT.md Key Decisions. v1.12:
 | product | MCP-F01..F03 | deferred |
 | product | WIKI-F01 / dual index.md writers | deferred |
 | tech | Settings reload_providers vs deferred cold-start | deferred (v1.12 debt) |
+| tech | WebDriver E2E for embedder-readiness | deferred |
+| product | GitHub Release / multi-OS packages | deferred |
 
 ### Blockers
 
@@ -79,4 +80,4 @@ None open.
 
 ---
 
-*Last updated: 2026-07-29 — v1.12 roadmap created*
+*Last updated: 2026-07-30 — v1.12 SHIPPED*

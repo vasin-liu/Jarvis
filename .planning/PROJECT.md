@@ -10,35 +10,25 @@ Jarvis is a **local-first personal AI knowledge hub** — a Tauri 2 desktop app 
 - **v1.9** Structural Refactor (2026-07-17) — FE modularization, Tauri command split, keychain secrets, `memory://` URIs, JSON agent protocol, Settings + arch review. Archive: `.planning/milestones/v1.9-ROADMAP.md`.
 - **v1.10** Wiki Compile Layer (2026-07-25) — optional wiki notes beside RAG, Obsidian export, E2E + citation trust, tech-debt closeout. Archive: `.planning/milestones/v1.10-ROADMAP.md`.
 - **v1.11** Related-docs + MCP (2026-07-29) — Library related-docs panel + `jarvis-mcp` read-only `search` / `list_sources`. Archive: `.planning/milestones/v1.11-ROADMAP.md`.
+- **v1.12** Release Hardening (2026-07-30) — DeferredEmbedder readiness (API/IPC/Settings) + Windows **1.12.0** local package + CHANGELOG. Archive: `.planning/milestones/v1.12-ROADMAP.md`.
 
-**In progress:** **v1.12** Release Hardening — DeferredEmbedder readiness + Windows **1.12.0** local package.
+**App product version** (package): **1.12.0**.
 
-**App product version** (package): still **1.8.0** until this milestone’s release gate bumps to **1.12.0**.
+**In progress:** none — define next via `/gsd-new-milestone`.
 
 ## Core Value
 
 **Users can ask questions and run agents against their own indexed knowledge — locally, with citations — and trust that answers come from their data, not the model's training.**
 
-## Current Milestone: v1.12 Release Hardening
-
-**Goal:** Make FastEmbed deferred init observable and failure-visible, verify Windows release cold-start, then ship local **1.12.0** install package + changelog.
-
-**Target features:**
-- `DeferredEmbedder` readiness API (`ready_state` + testable timeout)
-- `get_embedder_readiness` IPC + Settings Pending/Ready/Failed UI
-- Release smoke → version bump **1.12.0** → `CHANGELOG.md` → `tauri build` (Windows local only)
-
-**Out of this milestone:** GitHub Release, multi-platform packages, Wiki/MCP/REL new features, RAG default changes, auto-fallback embedder provider
-
-**Spec / plan:** `docs/superpowers/specs/2026-07-29-release-hardening-design.md` · `docs/superpowers/plans/2026-07-29-release-hardening.md`
-
-## Next Milestone Goals (after v1.12)
+## Next Milestone Goals
 
 Carryover candidates from backlog:
 
 - WIKI-F01 `auto_on_insights` / bulk compile UX
+- Unify Settings `reload_providers` with deferred cold-start (v1.12 debt)
 - REL affinity threshold / WikiPage neighbor demotion (REL-F01)
 - MCP read tools expansion (MCP-F01) or Settings toggle (MCP-F02)
+- GitHub Release automation / multi-platform packages
 
 ## Requirements
 
@@ -68,12 +58,13 @@ Carryover candidates from backlog:
 - ✓ Related-docs panel + overlap API (REL-01..04) — v1.11
 - ✓ Read-only MCP `jarvis-mcp` search / list_sources (MCP-01..04) — v1.11
 - ✓ Citation/E2E trust gate for related-docs + MCP (TRUST-01..02) — v1.11
+- ✓ DeferredEmbedder readiness API + IPC + Settings UI (BOOT-01..04) — v1.12
+- ✓ Windows release smoke + **1.12.0** package + CHANGELOG (SHIP/TRUST) — v1.12
 
 ### Active
 
-- [ ] DeferredEmbedder readiness observable + Settings UI (v1.12)
-- [ ] Windows release smoke + package **1.12.0** + changelog (v1.12)
 - [ ] WIKI-F01 `auto_on_insights` / bulk compile UX (deferred from v1.10)
+- [ ] Unify Settings `reload_providers` with deferred cold-start (v1.12 debt)
 - [ ] REL-F01 Soft-exclude/demote WikiPage neighbors (optional)
 - [ ] MCP-F01 `get_chunk` / `read` tools (optional)
 
@@ -89,6 +80,19 @@ Carryover candidates from backlog:
 - Hard WikiPage RAG citation filter (deferred; E2E fixture trust)
 - GitHub Release / Linux/macOS packages (v1.12 is local Windows only)
 - Auto-fallback embedder provider on FastEmbed failure (v1.12: user-visible fail only)
+
+<details>
+<summary>v1.12 planning context (archived narrative)</summary>
+
+**Goal:** Release hardening — observable FastEmbed deferred init + Windows 1.12.0 package.
+
+**Phases 20–23:** readiness API → IPC → Settings UI → smoke/bump/build.
+
+**Audit:** `.planning/milestones/v1.12-MILESTONE-AUDIT.md` — passed.
+
+**Deferred at ship:** reload_providers sync debt; readiness WebDriver E2E; optional broken-cache smoke.
+
+</details>
 
 <details>
 <summary>v1.11 planning context (archived narrative)</summary>
@@ -158,9 +162,9 @@ Carryover candidates from backlog:
 | Shared `kb_readonly` for agent + MCP | Prevent semantic drift between surfaces | ✓ Good (v1.11) |
 | Pin `rmcp` 2.2.0 (not 3.x beta) | MSRV / stability; no bump solely for MCP | ✓ Good (v1.11) |
 | WAL on `Store::open` | GUI + MCP concurrent readers | ✓ Good (v1.11) |
-| v1.12 = release hardening (1.12.0 product) | Decouple GSD feature milestones from ship version; reliability gate before bump | — Pending |
-| Keep DeferredEmbedder + deferred initial_scan | Harden existing cold-start path; no embedder rewrite | — Pending |
-| No GitHub Release in v1.12 | Local Windows package + changelog is enough for this ship bar | — Pending |
+| v1.12 = release hardening (1.12.0 product) | Decouple GSD feature milestones from ship version; reliability gate before bump | ✓ Shipped v1.12 |
+| Keep DeferredEmbedder + deferred initial_scan | Harden existing cold-start path; no embedder rewrite | ✓ Good (v1.12) |
+| No GitHub Release in v1.12 | Local Windows package + changelog is enough for this ship bar | ✓ Accepted (v1.12) |
 
 ## Evolution
 
@@ -180,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-29 — Milestone v1.12 Release Hardening started*
+*Last updated: 2026-07-30 after v1.12 milestone*

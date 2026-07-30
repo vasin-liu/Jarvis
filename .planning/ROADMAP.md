@@ -1,13 +1,13 @@
 # Roadmap: Jarvis
 
-**Updated:** 2026-07-29
+**Updated:** 2026-07-30
 
 ## Milestones
 
 - ✅ **v1.9 Structural Refactor** — Phases 01–06 (shipped 2026-07-17) — [archive](./milestones/v1.9-ROADMAP.md)
 - ✅ **v1.10 Wiki Compile Layer** — Phases 07–14 (shipped 2026-07-25) — [archive](./milestones/v1.10-ROADMAP.md)
 - ✅ **v1.11 Related-docs + MCP** — Phases 15–19 (shipped 2026-07-29) — [archive](./milestones/v1.11-ROADMAP.md)
-- 🚧 **v1.12 Release Hardening** — Phases 20–23 (in progress)
+- ✅ **v1.12 Release Hardening** — Phases 20–23 (shipped 2026-07-30) — [archive](./milestones/v1.12-ROADMAP.md)
 
 ## Phases
 
@@ -48,79 +48,17 @@ Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-pha
 
 </details>
 
-## v1.12 Release Hardening
+<details>
+<summary>✅ v1.12 Release Hardening (Phases 20–23) — SHIPPED 2026-07-30</summary>
 
-**Goal:** Make FastEmbed deferred init observable and failure-visible, verify Windows release cold-start, then ship local **1.12.0** install package + changelog.
+- [x] Phase 20: DeferredEmbedder readiness API (2/2) — completed 2026-07-29
+- [x] Phase 21: Readiness IPC (2/2) — completed 2026-07-29
+- [x] Phase 22: Settings readiness UI (1/1) — completed 2026-07-29
+- [x] Phase 23: Release gate + 1.12.0 package (2/2) — completed 2026-07-30
 
-**Constraints:** Keep existing `DeferredEmbedder` + deferred `initial_scan`; no RAG/`RetrieverConfig` default changes; no GitHub Release; no auto-fallback embedder; TDD; reliability gate before version bump.
+Details: [v1.12-ROADMAP.md](./milestones/v1.12-ROADMAP.md) · phases: [v1.12-phases/](./milestones/v1.12-phases/) · audit: [v1.12-MILESTONE-AUDIT.md](./milestones/v1.12-MILESTONE-AUDIT.md)
 
-**Spec / plan:** `docs/superpowers/specs/2026-07-29-release-hardening-design.md` · `docs/superpowers/plans/2026-07-29-release-hardening.md`
-
-### Phases
-
-- [x] **Phase 20: DeferredEmbedder readiness API** - `ready_state` + testable timeout (BOOT-01, BOOT-04) (completed 2026-07-29)
-- [x] **Phase 21: Readiness IPC** - AppState watch + `get_embedder_readiness` (BOOT-02) (completed 2026-07-29)
-- [x] **Phase 22: Settings readiness UI** - Pending/Ready/Failed + Vitest (BOOT-03) (completed 2026-07-29)
-- [x] **Phase 23: Release gate + 1.12.0 package** - Smoke → bump → changelog → `tauri build` (SHIP-*, TRUST-*) (completed 2026-07-30)
-
-### Phase Details
-
-### Phase 20: DeferredEmbedder readiness API
-
-**Goal**: Callers can non-blockingly observe deferred FastEmbed init as Pending, Ready, or Failed, and failed/timed-out waits surface clear errors
-**Depends on**: Nothing (v1.12 start)
-**Requirements**: BOOT-01, BOOT-04
-**Success Criteria** (what must be TRUE):
-
-  1. `ready_state()` returns Pending before fulfill/fail, Ready after fulfill, Failed with message after fail
-  2. `with_wait_timeout` allows short waits in tests; timeout while Pending returns a clear Init error
-  3. Production `new()` still uses the existing ~300s wait default
-  4. `cargo test -p embedder` green (including prior fulfill/fail tests)
-
-**Plans**: TBD
-
-### Phase 21: Readiness IPC
-
-**Goal**: The Tauri shell exposes embedder readiness to the frontend without coupling UI to FastEmbed internals
-**Depends on**: Phase 20
-**Requirements**: BOOT-02
-**Success Criteria** (what must be TRUE):
-
-  1. FastEmbed cold-start path keeps an `Option<Arc<DeferredEmbedder>>` watch on `AppState`
-  2. `get_embedder_readiness` returns `{ state, message }` for pending/ready/failed
-  3. Non-deferred providers report Ready without a deferred watch
-  4. Only `store` opens SQLite; `cargo check -p tauri-app` (+ readiness unit helpers) green
-
-**Plans**: TBD
-
-### Phase 22: Settings readiness UI
-
-**Goal**: Users can see local embedder init status in Settings and get an actionable Failed hint
-**Depends on**: Phase 21
-**Requirements**: BOOT-03
-**Success Criteria** (what must be TRUE):
-
-  1. Settings shows Pending / Ready / Failed with stable `data-testid`s
-  2. Failed state shows the error message and a hint to check model/cache or switch provider
-  3. While Pending, UI refreshes readiness (poll) until Ready or Failed
-  4. Vitest covers pending and failed rendering (`SettingsView.test.tsx`)
-
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 23: Release gate + 1.12.0 package
-
-**Goal**: Ship a trusted Windows **1.12.0** local package only after reliability smoke passes
-**Depends on**: Phase 22
-**Requirements**: SHIP-01, SHIP-02, SHIP-03, SHIP-04, TRUST-01, TRUST-02
-**Success Criteria** (what must be TRUE):
-
-  1. `docs/release/v1.12.0-smoke.md` exists and cold-start smoke is recorded PASS before bump
-  2. `package.json` + `tauri.conf.json` are **1.12.0** only after smoke PASS
-  3. `CHANGELOG.md` covers 1.9–1.11 summary + 1.12.0 hardening
-  4. `tauri build` produces a Windows artifact that launches; Mock-path tests stay green; no CI FastEmbed download required
-
-**Plans**: TBD
+</details>
 
 ## Progress
 
@@ -129,10 +67,7 @@ Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-pha
 | 01–06 | v1.9 | 22/22 | Complete | 2026-07-17 |
 | 07–14 | v1.10 | 18/18 | Complete | 2026-07-25 |
 | 15–19 | v1.11 | 17/17 | Complete | 2026-07-28 |
-| 20. DeferredEmbedder readiness API | v1.12 | 2/2 | Complete    | 2026-07-29 |
-| 21. Readiness IPC | v1.12 | 2/2 | Complete    | 2026-07-29 |
-| 22. Settings readiness UI | v1.12 | 1/1 | Complete    | 2026-07-29 |
-| 23. Release gate + 1.12.0 package | v1.12 | 2/2 | Complete    | 2026-07-30 |
+| 20–23 | v1.12 | 7/7 | Complete | 2026-07-30 |
 
 ## Backlog (post-v1.12 / carryover)
 
@@ -144,7 +79,8 @@ Details: [v1.11-ROADMAP.md](./milestones/v1.11-ROADMAP.md) · phases: [v1.11-pha
 - MCP-F01 / MCP-F02 / MCP-F03
 - REL-02 affinity score threshold (D-06 deferred)
 - GitHub Release automation; Linux/macOS packages
+- WebDriver E2E for embedder-readiness banner (optional)
 
 ---
 
-*Next:* `/gsd-plan-phase 20`
+*Next:* `/gsd-new-milestone`

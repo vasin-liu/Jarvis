@@ -1,5 +1,33 @@
 # Project Milestones: Jarvis
 
+## v1.12 Release Hardening (Shipped: 2026-07-30)
+
+**Delivered:** FastEmbed deferred-init readiness (API → IPC → Settings Pending/Ready/Failed) and Windows **1.12.0** local package (smoke-gated bump, CHANGELOG, NSIS/MSI) — without RAG default changes or CI FastEmbed download.
+
+**Phases completed:** 20–23 (4 phases, 7 plans, 13 tasks)
+
+**Key accomplishments:**
+
+- `EmbedderReadyState` + `ready_state()` / `with_wait_timeout` on `DeferredEmbedder` (BOOT-01/04)
+- `AppState.deferred_embedder` watch + `get_embedder_readiness` IPC (BOOT-02)
+- Settings banner + 1s pending poll + Vitest (BOOT-03)
+- Smoke checklist → **1.12.0** bump + `CHANGELOG.md` + `tauri build` NSIS/MSI (SHIP/TRUST)
+
+**Stats:**
+
+- 4 phases, 7 plans, 13 tasks
+- Requirements: 10/10 Complete (BOOT/SHIP/TRUST)
+- Audit: `v1.12-MILESTONE-AUDIT.md` — **passed**
+- Closeout: verified_closeout
+- Timeline: 2026-07-29 → 2026-07-30 · ~16 commits · 44 files · +3.5k/−0.05k LOC
+- Product version: **1.12.0**
+
+**Deferred (accepted):** `reload_providers` sync vs deferred watch; readiness WebDriver E2E; optional broken-cache Failed smoke; GitHub Release / multi-OS
+
+**What's next:** Define next milestone via `/gsd-new-milestone`
+
+---
+
 ## v1.11 Related-docs + MCP (Shipped: 2026-07-29)
 
 **Delivered:** Library related-docs panel (hybrid source overlap + navigate) and read-only stdio MCP (`jarvis-mcp` `search` / `list_sources` via shared `kb_readonly`) — with citation/E2E trust gate and no RAG default changes.
